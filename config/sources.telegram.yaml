@@ -1,0 +1,20 @@
+chats:
+  - name: affiliate_latam
+    username: affiliate_latam_en
+    geo: latam
+    enabled: true
+
+  - name: igaming_eu
+    username: igaming_acquisition
+    geo: eu
+    enabled: true
+
+  - name: stm_global
+    username: stmaffiliate
+    geo: global
+    enabled: false
+
+session: data/telethon.session
+cursor_db: data/crawler.db
+poll_delay_sec: 2
+message_limit: 500

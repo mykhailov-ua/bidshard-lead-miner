@@ -1,0 +1,15 @@
+.env
+.git
+.gitignore
+bin/
+*.test
+*.out
+vendor/
+**/__pycache__
+**/*.pyc
+data/*.session
+data/crawler.db
+data/telethon.session
+data/export/
+README.md
+agent-transcripts/

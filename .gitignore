@@ -1,0 +1,45 @@
+.env
+
+# Backups
+backups/
+
+# Runtime / local data
+bin/
+data/*.session
+data/crawler.db
+data/telethon.session
+data/export/*.jsonl
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.#*
+*.pid
+*.log
+
+# Python
+.venv/
+.python-deps/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Go
+*.exe
+*.test
+*.out
+vendor/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json

@@ -1,0 +1,1884 @@
+{
+  "priority": {
+    "high_min": 35,
+    "medium_min": 15
+  },
+  "keywords": [
+    {
+      "id": "kw-voluum-alternative",
+      "phrase": "voluum alternative",
+      "weight": 25,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-keitaro-alternative",
+      "phrase": "keitaro alternative",
+      "weight": 25,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-binom-alternative",
+      "phrase": "binom alternative",
+      "weight": 25,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-redtrack-alternative",
+      "phrase": "redtrack alternative",
+      "weight": 25,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-switching-from-voluum",
+      "phrase": "switching from voluum",
+      "weight": 25,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-migrating-from-keitaro",
+      "phrase": "migrating from keitaro",
+      "weight": 25,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-migrate-from-voluum",
+      "phrase": "migrate from voluum",
+      "weight": 25,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-tracker-too-expensive",
+      "phrase": "tracker too expensive",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-saas-tracker-expensive",
+      "phrase": "saas tracker expensive",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-per-event-pricing",
+      "phrase": "per-event pricing",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-volume-based-pricing",
+      "phrase": "volume-based pricing",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-missing-conversions",
+      "phrase": "missing conversions",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-conversions-not-tracking",
+      "phrase": "conversions not tracking",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-postback-failing",
+      "phrase": "postback failing",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-postbacks-failing",
+      "phrase": "postbacks failing",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-duplicate-commission",
+      "phrase": "duplicate commission",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-duplicate-payout",
+      "phrase": "duplicate payout",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-attribution-dispute",
+      "phrase": "attribution dispute",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-affiliate-dispute",
+      "phrase": "affiliate dispute",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-budget-overburn",
+      "phrase": "budget overburn",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-budget-overspend",
+      "phrase": "budget overspend",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-losing-money-on",
+      "phrase": "losing money on",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-tracker-is-down",
+      "phrase": "tracker is down",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-tracking-completely-broken",
+      "phrase": "tracking completely broken",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-looking-for-tracker",
+      "phrase": "looking for tracker",
+      "weight": 20,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-looking-for-alternative",
+      "phrase": "looking for alternative",
+      "weight": 20,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-self-hosted-tracker",
+      "phrase": "self-hosted tracker",
+      "weight": 20,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-self-hosted-tracker",
+      "phrase": "self hosted tracker",
+      "weight": 20,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-flat-fee-pricing",
+      "phrase": "flat fee pricing",
+      "weight": 20,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-flat-fee-pricing",
+      "phrase": "flat-fee pricing",
+      "weight": 20,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-tracker-migration",
+      "phrase": "tracker migration",
+      "weight": 20,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-monthly-bill-too-high",
+      "phrase": "monthly bill too high",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-reconciliation-nightmare",
+      "phrase": "reconciliation nightmare",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-click-id-loss",
+      "phrase": "click id loss",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-postback-timeout",
+      "phrase": "postback timeout",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-queue-saturation",
+      "phrase": "queue saturation",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-server-side-tracking",
+      "phrase": "server-side tracking",
+      "weight": 20,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-server-side-tracking",
+      "phrase": "server side tracking",
+      "weight": 20,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-independent-tracking",
+      "phrase": "independent tracking",
+      "weight": 20,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-parallel-tracking-infrastructure",
+      "phrase": "parallel tracking infrastructure",
+      "weight": 20,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-postback-latency",
+      "phrase": "postback latency",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-tracking-latency",
+      "phrase": "tracking latency",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-redirect-latency",
+      "phrase": "redirect latency",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-latency-spike",
+      "phrase": "latency spike",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-slow-redirects",
+      "phrase": "slow redirects",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-slow-redirect",
+      "phrase": "slow redirect",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-overspend",
+      "phrase": "overspend",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-overburn",
+      "phrase": "overburn",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-afterburn",
+      "phrase": "afterburn",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-high-fees",
+      "phrase": "high fees",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-too-expensive",
+      "phrase": "too expensive",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-cost-per-event",
+      "phrase": "cost per event",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-five-figure-saas",
+      "phrase": "five-figure saas",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-tracking-issue",
+      "phrase": "tracking issue",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-tracking-issues",
+      "phrase": "tracking issues",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-data-discrepancy",
+      "phrase": "data discrepancy",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-inflated-reporting",
+      "phrase": "inflated reporting",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-margin-archaeology",
+      "phrase": "margin archaeology",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-bid-shading",
+      "phrase": "bid shading",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-floor-price-manipulation",
+      "phrase": "floor price manipulation",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-arbitrage-detection",
+      "phrase": "arbitrage detection",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-commission-reconciliation",
+      "phrase": "commission reconciliation",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-missing-ftd",
+      "phrase": "missing ftd",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-ftd-not-credited",
+      "phrase": "ftd not credited",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-support-is-slow",
+      "phrase": "support is slow",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-terrible-support",
+      "phrase": "terrible support",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-worst-tracker",
+      "phrase": "worst tracker",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-frustrated-with",
+      "phrase": "frustrated with",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-disappointed-with",
+      "phrase": "disappointed with",
+      "weight": 15,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-voluum",
+      "phrase": "voluum",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-keitaro",
+      "phrase": "keitaro",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-binom",
+      "phrase": "binom",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-redtrack",
+      "phrase": "redtrack",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-bemob",
+      "phrase": "bemob",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-adsbridge",
+      "phrase": "adsbridge",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-clickmagick",
+      "phrase": "clickmagick",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-affise",
+      "phrase": "affise",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-scaleo",
+      "phrase": "scaleo",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-funnelflux",
+      "phrase": "funnelflux",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-funnel-flux",
+      "phrase": "funnel flux",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-peerclick",
+      "phrase": "peerclick",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-thrivetracker",
+      "phrase": "thrivetracker",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-everflow",
+      "phrase": "everflow",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-kintura",
+      "phrase": "kintura",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-trackier",
+      "phrase": "trackier",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-hoqu",
+      "phrase": "hoqu",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-adjust",
+      "phrase": "adjust",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-appsflyer",
+      "phrase": "appsflyer",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-branchio",
+      "phrase": "branch.io",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-the-trade-desk",
+      "phrase": "the trade desk",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-google-ad-manager",
+      "phrase": "google ad manager",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-openrtb-26",
+      "phrase": "openrtb 2.6",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-openrtb",
+      "phrase": "openrtb",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-real-time-bidding",
+      "phrase": "real-time bidding",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-rtb-exchange",
+      "phrase": "rtb exchange",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-bid-request",
+      "phrase": "bid request",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-bid-response",
+      "phrase": "bid response",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-sub-100ms",
+      "phrase": "sub-100ms",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-sub-80ms",
+      "phrase": "sub-80ms",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-sub-10ms",
+      "phrase": "sub-10ms",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-p99-latency",
+      "phrase": "p99 latency",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-p95-latency",
+      "phrase": "p95 latency",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-click-redirect",
+      "phrase": "click redirect",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-302-redirect",
+      "phrase": "302 redirect",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-server-to-server",
+      "phrase": "server-to-server",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-s2s-postback",
+      "phrase": "s2s postback",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-s2s-tracking",
+      "phrase": "s2s tracking",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-postback",
+      "phrase": "postback",
+      "weight": 8,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-idempotency-key",
+      "phrase": "idempotency key",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-atomic-budget",
+      "phrase": "atomic budget",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-frequency-capping",
+      "phrase": "frequency capping",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-budget-protection",
+      "phrase": "budget protection",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-event-ingestion",
+      "phrase": "event ingestion",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-high-volume-ingestion",
+      "phrase": "high-volume ingestion",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-supply-path-optimization",
+      "phrase": "supply path optimization",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-prebid-server",
+      "phrase": "prebid server",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-header-bidding",
+      "phrase": "header bidding",
+      "weight": 8,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-server-side-bidding",
+      "phrase": "server-side bidding",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-privacy-sandbox",
+      "phrase": "privacy sandbox",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-protected-audience-api",
+      "phrase": "protected audience api",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-topics-api",
+      "phrase": "topics api",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-attribution-reporting-api",
+      "phrase": "attribution reporting api",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-cookieless",
+      "phrase": "cookieless",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-cookie-less",
+      "phrase": "cookie-less",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-first-party-data",
+      "phrase": "first-party data",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-enhanced-conversions",
+      "phrase": "enhanced conversions",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-conversions-api",
+      "phrase": "conversions api",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-conversion-api",
+      "phrase": "conversion api",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-capi-integration",
+      "phrase": "capi integration",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-invalid-traffic",
+      "phrase": "invalid traffic",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-bot-filtering",
+      "phrase": "bot filtering",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-fraud-detection",
+      "phrase": "fraud detection",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-ivt-filter",
+      "phrase": "ivt filter",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-ghost-ivt",
+      "phrase": "ghost ivt",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-sellersjson",
+      "phrase": "sellers.json",
+      "weight": 8,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-adstxt",
+      "phrase": "ads.txt",
+      "weight": 8,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-supplychain",
+      "phrase": "supplychain",
+      "weight": 8,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-schain",
+      "phrase": "schain",
+      "weight": 8,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-private-marketplace",
+      "phrase": "private marketplace",
+      "weight": 8,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-programmatic-guaranteed",
+      "phrase": "programmatic guaranteed",
+      "weight": 8,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-win-rate",
+      "phrase": "win rate",
+      "weight": 8,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-fill-rate",
+      "phrase": "fill rate",
+      "weight": 8,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-bid-timeout",
+      "phrase": "bid timeout",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-auction-timeout",
+      "phrase": "auction timeout",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-latency-budget",
+      "phrase": "latency budget",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-gclid-passthrough",
+      "phrase": "gclid passthrough",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-ttclid",
+      "phrase": "ttclid",
+      "weight": 8,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-telegram-mini-app",
+      "phrase": "telegram mini app",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-initdata-validation",
+      "phrase": "initdata validation",
+      "weight": 10,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-clickhouse",
+      "phrase": "clickhouse",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-gnet",
+      "phrase": "gnet",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-epoll",
+      "phrase": "epoll",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-ebpf",
+      "phrase": "ebpf",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-xdp",
+      "phrase": "xdp",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-redis-sharding",
+      "phrase": "redis sharding",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-aerospike",
+      "phrase": "aerospike",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-event-streaming",
+      "phrase": "event streaming",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-high-qps",
+      "phrase": "high qps",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-millions-of-events",
+      "phrase": "millions of events",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-billions-of-events",
+      "phrase": "billions of events",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-distributed-cache",
+      "phrase": "distributed cache",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-onnx",
+      "phrase": "onnx",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-lightgbm",
+      "phrase": "lightgbm",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-ml-bid",
+      "phrase": "ml bid",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-bid-engine",
+      "phrase": "bid engine",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-dsp-bidder",
+      "phrase": "dsp bidder",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-ssp-platform",
+      "phrase": "ssp platform",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-ad-exchange",
+      "phrase": "ad exchange",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-columnar-analytics",
+      "phrase": "columnar analytics",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-full-skip-mode",
+      "phrase": "full-skip mode",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-local-quanta",
+      "phrase": "local quanta",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-circuit-breaker",
+      "phrase": "circuit breaker",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-grpc-bidder",
+      "phrase": "grpc bidder",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-aws-rtb-fabric",
+      "phrase": "aws rtb fabric",
+      "weight": 8,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-igaming",
+      "phrase": "igaming",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-i-gaming",
+      "phrase": "i-gaming",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-online-casino",
+      "phrase": "online casino",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-sportsbook",
+      "phrase": "sportsbook",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-first-time-deposit",
+      "phrase": "first time deposit",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-ftd-tracking",
+      "phrase": "ftd tracking",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-cpa-program",
+      "phrase": "cpa program",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-revshare",
+      "phrase": "revshare",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-player-acquisition",
+      "phrase": "player acquisition",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-affiliate-program",
+      "phrase": "affiliate program",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-operator-backend",
+      "phrase": "operator backend",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-pam-integration",
+      "phrase": "pam integration",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-media-buying",
+      "phrase": "media buying",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-media-buyer",
+      "phrase": "media buyer",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-arbitrage",
+      "phrase": "arbitrage",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-arbitrageur",
+      "phrase": "arbitrageur",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-affiliate-marketing",
+      "phrase": "affiliate marketing",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-performance-marketing",
+      "phrase": "performance marketing",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-nutra",
+      "phrase": "nutra",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-sweepstakes",
+      "phrase": "sweepstakes",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-sweeps",
+      "phrase": "sweeps",
+      "weight": 6,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-cpa-network",
+      "phrase": "cpa network",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-pop-traffic",
+      "phrase": "pop traffic",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-push-traffic",
+      "phrase": "push traffic",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-native-ads",
+      "phrase": "native ads",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-ad-network",
+      "phrase": "ad network",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-publisher-monetization",
+      "phrase": "publisher monetization",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-yield-optimization",
+      "phrase": "yield optimization",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-help-needed",
+      "phrase": "help needed",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-any-recommendations",
+      "phrase": "any recommendations",
+      "weight": 6,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-broken",
+      "phrase": "broken",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-doesn't-work",
+      "phrase": "doesn't work",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-does-not-work",
+      "phrase": "does not work",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-not-working",
+      "phrase": "not working",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-complaint",
+      "phrase": "complaint",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-complaining",
+      "phrase": "complaining",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-sucks",
+      "phrase": "sucks",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-trouble-with",
+      "phrase": "trouble with",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-struggling-with",
+      "phrase": "struggling with",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-limit-reached",
+      "phrase": "limit reached",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-rate-limited",
+      "phrase": "rate limited",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-outage",
+      "phrase": "outage",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-downtime",
+      "phrase": "downtime",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-unreliable",
+      "phrase": "unreliable",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-inaccurate",
+      "phrase": "inaccurate",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-underreporting",
+      "phrase": "underreporting",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-overreporting",
+      "phrase": "overreporting",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-wasted-spend",
+      "phrase": "wasted spend",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-waste-in-campaigns",
+      "phrase": "waste in campaigns",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-losing-money",
+      "phrase": "losing money",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-bleeding-revenue",
+      "phrase": "bleeding revenue",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-revenue-leakage",
+      "phrase": "revenue leakage",
+      "weight": 6,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-programmatic",
+      "phrase": "programmatic",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-adtech",
+      "phrase": "adtech",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-ad-tech",
+      "phrase": "ad tech",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-adops",
+      "phrase": "adops",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-ad-ops",
+      "phrase": "ad ops",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-dsp",
+      "phrase": "dsp",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-ssp",
+      "phrase": "ssp",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-rtb",
+      "phrase": "rtb",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-bidder",
+      "phrase": "bidder",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-tracking-platform",
+      "phrase": "tracking platform",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-ad-server",
+      "phrase": "ad server",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-ad-tracking",
+      "phrase": "ad tracking",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-click-tracking",
+      "phrase": "click tracking",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-conversion-tracking",
+      "phrase": "conversion tracking",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-attribution",
+      "phrase": "attribution",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-self-hosted",
+      "phrase": "self-hosted",
+      "weight": 4,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-self-hosted",
+      "phrase": "self hosted",
+      "weight": 4,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-high-load",
+      "phrase": "high-load",
+      "weight": 4,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-high-load",
+      "phrase": "high load",
+      "weight": 4,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-concurrency",
+      "phrase": "concurrency",
+      "weight": 4,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-sharding",
+      "phrase": "sharding",
+      "weight": 4,
+      "tag": "infra"
+    },
+    {
+      "id": "kw-zero-latency",
+      "phrase": "zero-latency",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-zero-latency",
+      "phrase": "zero latency",
+      "weight": 4,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-latency",
+      "phrase": "latency",
+      "weight": 2,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-slow",
+      "phrase": "slow",
+      "weight": 2,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-expensive",
+      "phrase": "expensive",
+      "weight": 4,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-cost",
+      "phrase": "cost",
+      "weight": 2,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-bill",
+      "phrase": "bill",
+      "weight": 2,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-pricing",
+      "phrase": "pricing",
+      "weight": 2,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-dispute",
+      "phrase": "dispute",
+      "weight": 4,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-delay",
+      "phrase": "delay",
+      "weight": 2,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-overflow",
+      "phrase": "overflow",
+      "weight": 4,
+      "tag": "pain"
+    },
+
+    {"id": "kw-margin-guard", "phrase": "margin guard", "weight": 14, "tag": "bidshard"},
+    {"id": "kw-margin-breach", "phrase": "margin breach", "weight": 16, "tag": "bidshard"},
+    {"id": "kw-cost-sync", "phrase": "cost sync", "weight": 14, "tag": "bidshard"},
+    {"id": "kw-true-roi", "phrase": "true roi", "weight": 12, "tag": "bidshard"},
+    {"id": "kw-safe-page-url", "phrase": "safe page url", "weight": 14, "tag": "bidshard"},
+    {"id": "kw-money-page-url", "phrase": "money page url", "weight": 12, "tag": "bidshard"},
+    {"id": "kw-get-click-endpoint", "phrase": "get /click", "weight": 12, "tag": "bidshard"},
+    {"id": "kw-click-endpoint", "phrase": "click endpoint", "weight": 10, "tag": "bidshard"},
+    {"id": "kw-meta-capi", "phrase": "meta capi", "weight": 12, "tag": "bidshard"},
+    {"id": "kw-facebook-conversions-api", "phrase": "facebook conversions api", "weight": 12, "tag": "bidshard"},
+    {"id": "kw-tiktok-events-api", "phrase": "tiktok events api", "weight": 12, "tag": "bidshard"},
+    {"id": "kw-gclid-pass-through", "phrase": "gclid pass through", "weight": 12, "tag": "bidshard"},
+    {"id": "kw-ttclid-macro", "phrase": "ttclid macro", "weight": 10, "tag": "bidshard"},
+    {"id": "kw-zero-afterburn", "phrase": "zero afterburn", "weight": 16, "tag": "bidshard"},
+    {"id": "kw-budget-stop", "phrase": "budget stop", "weight": 14, "tag": "bidshard"},
+    {"id": "kw-postback-dlq", "phrase": "postback dlq", "weight": 12, "tag": "bidshard"},
+    {"id": "kw-landing-url-rotation", "phrase": "landing url rotation", "weight": 10, "tag": "bidshard"},
+    {"id": "kw-ivt-filter", "phrase": "ivt filter", "weight": 10, "tag": "bidshard"},
+    {"id": "kw-bot-traffic-filter", "phrase": "bot traffic filter", "weight": 10, "tag": "bidshard"},
+
+    {"id": "kw-clickflare", "phrase": "clickflare", "weight": 12, "tag": "competitor"},
+    {"id": "kw-clickflare-alternative", "phrase": "clickflare alternative", "weight": 25, "tag": "intent"},
+    {"id": "kw-wroba", "phrase": "wroba", "weight": 10, "tag": "competitor"},
+    {"id": "kw-cpvlab", "phrase": "cpvlab", "weight": 10, "tag": "competitor"},
+    {"id": "kw-cpv-lab", "phrase": "cpv lab", "weight": 10, "tag": "competitor"},
+    {"id": "kw-octotracker", "phrase": "octotracker", "weight": 10, "tag": "competitor"},
+    {"id": "kw-linktracker", "phrase": "linktracker", "weight": 10, "tag": "competitor"},
+    {"id": "kw-hasoffers", "phrase": "hasoffers", "weight": 10, "tag": "competitor"},
+    {"id": "kw-tune-hasoffers", "phrase": "tune hasoffers", "weight": 10, "tag": "competitor"},
+    {"id": "kw-cake-marketing", "phrase": "cake marketing", "weight": 10, "tag": "competitor"},
+    {"id": "kw-hyros", "phrase": "hyros", "weight": 8, "tag": "competitor"},
+    {"id": "kw-triple-whale", "phrase": "triple whale", "weight": 8, "tag": "competitor"},
+
+    {"id": "kw-postback-not-firing", "phrase": "postback not firing", "weight": 22, "tag": "pain"},
+    {"id": "kw-postback-delay", "phrase": "postback delay", "weight": 20, "tag": "pain"},
+    {"id": "kw-postback-timeout", "phrase": "postback timeout", "weight": 18, "tag": "pain"},
+    {"id": "kw-s2s-failed", "phrase": "s2s failed", "weight": 20, "tag": "pain"},
+    {"id": "kw-conversion-not-attributed", "phrase": "conversion not attributed", "weight": 22, "tag": "pain"},
+    {"id": "kw-double-counting-conversions", "phrase": "double counting conversions", "weight": 18, "tag": "pain"},
+    {"id": "kw-click-id-mismatch", "phrase": "click id mismatch", "weight": 18, "tag": "pain"},
+    {"id": "kw-subid-not-passing", "phrase": "subid not passing", "weight": 18, "tag": "pain"},
+    {"id": "kw-tracker-downtime", "phrase": "tracker downtime", "weight": 22, "tag": "pain"},
+    {"id": "kw-lost-clicks", "phrase": "lost clicks", "weight": 20, "tag": "pain"},
+    {"id": "kw-stats-dont-match", "phrase": "stats don't match", "weight": 18, "tag": "pain"},
+    {"id": "kw-voluum-bill", "phrase": "voluum bill", "weight": 22, "tag": "pain"},
+    {"id": "kw-voluum-invoice", "phrase": "voluum invoice", "weight": 20, "tag": "pain"},
+    {"id": "kw-keitaro-crash", "phrase": "keitaro crash", "weight": 20, "tag": "pain"},
+    {"id": "kw-keitaro-slow", "phrase": "keitaro slow", "weight": 18, "tag": "pain"},
+    {"id": "kw-tracker-crash-under-load", "phrase": "tracker crash under load", "weight": 22, "tag": "pain"},
+
+    {"id": "kw-cloaker", "phrase": "cloaker", "weight": 12, "tag": "gray"},
+    {"id": "kw-cloaking", "phrase": "cloaking", "weight": 12, "tag": "gray"},
+    {"id": "kw-prelander", "phrase": "prelander", "weight": 10, "tag": "gray"},
+    {"id": "kw-pop-cash", "phrase": "pop cash", "weight": 8, "tag": "vertical"},
+    {"id": "kw-push-cpa", "phrase": "push cpa", "weight": 10, "tag": "vertical"},
+    {"id": "kw-sweep-cpa", "phrase": "sweep cpa", "weight": 10, "tag": "vertical"},
+    {"id": "kw-gambling-affiliate", "phrase": "gambling affiliate", "weight": 10, "tag": "vertical"},
+    {"id": "kw-betting-affiliate", "phrase": "betting affiliate", "weight": 10, "tag": "vertical"},
+    {"id": "kw-crypto-cpa", "phrase": "crypto cpa", "weight": 10, "tag": "vertical"},
+    {"id": "kw-dating-cpa", "phrase": "dating cpa", "weight": 10, "tag": "vertical"},
+    {"id": "kw-ad-account-ban", "phrase": "ad account ban", "weight": 14, "tag": "pain"},
+    {"id": "kw-campaign-disapproved", "phrase": "campaign disapproved", "weight": 12, "tag": "pain"},
+
+    {"id": "kw-openrtb-bidder", "phrase": "openrtb bidder", "weight": 14, "tag": "tech"},
+    {"id": "kw-dsp-bidder", "phrase": "dsp bidder", "weight": 12, "tag": "tech"},
+    {"id": "kw-ssp-integration", "phrase": "ssp integration", "weight": 10, "tag": "tech"},
+    {"id": "kw-programmatic-stack", "phrase": "programmatic stack", "weight": 10, "tag": "tech"},
+    {"id": "kw-shadow-bidder", "phrase": "shadow bidder", "weight": 12, "tag": "tech"},
+    {"id": "kw-live-rtb", "phrase": "live rtb", "weight": 12, "tag": "tech"},
+    {"id": "kw-bidder-latency", "phrase": "bidder latency", "weight": 14, "tag": "pain"},
+    {"id": "kw-ingress-cost", "phrase": "ingress cost", "weight": 12, "tag": "pain"}
+  ],
+  "titles": [
+    {
+      "id": "title-cto",
+      "phrase": "cto",
+      "weight": 8,
+      "tag": "title"
+    },
+    {
+      "id": "title-cio",
+      "phrase": "cio",
+      "weight": 8,
+      "tag": "title"
+    },
+    {
+      "id": "title-vp-engineering",
+      "phrase": "vp engineering",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-vp-of-engineering",
+      "phrase": "vp of engineering",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-head-of-infrastructure",
+      "phrase": "head of infrastructure",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-head-of-ad-ops",
+      "phrase": "head of ad ops",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-head-of-media",
+      "phrase": "head of media",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-head-of-programmatic",
+      "phrase": "head of programmatic",
+      "weight": 12,
+      "tag": "title"
+    },
+    {
+      "id": "title-platform-architect",
+      "phrase": "platform architect",
+      "weight": 8,
+      "tag": "title"
+    },
+    {
+      "id": "title-tech-lead",
+      "phrase": "tech lead",
+      "weight": 6,
+      "tag": "title"
+    },
+    {
+      "id": "title-engineering-lead",
+      "phrase": "engineering lead",
+      "weight": 8,
+      "tag": "title"
+    },
+    {
+      "id": "title-sre",
+      "phrase": "sre",
+      "weight": 6,
+      "tag": "title"
+    },
+    {
+      "id": "title-devops",
+      "phrase": "devops",
+      "weight": 6,
+      "tag": "title"
+    },
+    {
+      "id": "title-media-buying-lead",
+      "phrase": "media buying lead",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-arbitrage-team-lead",
+      "phrase": "arbitrage team lead",
+      "weight": 12,
+      "tag": "title"
+    },
+    {
+      "id": "title-affiliate-manager",
+      "phrase": "affiliate manager",
+      "weight": 8,
+      "tag": "title"
+    },
+    {
+      "id": "title-ad-ops-manager",
+      "phrase": "ad ops manager",
+      "weight": 8,
+      "tag": "title"
+    },
+    {
+      "id": "title-product-owner",
+      "phrase": "product owner",
+      "weight": 6,
+      "tag": "title"
+    },
+    {
+      "id": "title-founder",
+      "phrase": "founder",
+      "weight": 8,
+      "tag": "title"
+    },
+    {
+      "id": "title-co-founder",
+      "phrase": "co-founder",
+      "weight": 8,
+      "tag": "title"
+    },
+    {
+      "id": "title-ceo",
+      "phrase": "ceo",
+      "weight": 6,
+      "tag": "title"
+    },
+    {
+      "id": "title-media-buyer",
+      "phrase": "media buyer",
+      "weight": 12,
+      "tag": "title"
+    },
+    {
+      "id": "title-performance-marketer",
+      "phrase": "performance marketer",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-growth-lead",
+      "phrase": "growth lead",
+      "weight": 8,
+      "tag": "title"
+    },
+    {
+      "id": "title-head-of-acquisition",
+      "phrase": "head of acquisition",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-traffic-manager",
+      "phrase": "traffic manager",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-affiliate-director",
+      "phrase": "affiliate director",
+      "weight": 10,
+      "tag": "title"
+    }
+  ],
+  "negative": [
+    {
+      "id": "neg-we-are-hiring",
+      "phrase": "we are hiring",
+      "weight": -15,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-job-posting",
+      "phrase": "job posting",
+      "weight": -12,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-looking-for-a-job",
+      "phrase": "looking for a job",
+      "weight": -12,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-resume-review",
+      "phrase": "resume review",
+      "weight": -10,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-step-by-step-tutorial",
+      "phrase": "step by step tutorial",
+      "weight": -8,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-how-to-guide",
+      "phrase": "how to guide",
+      "weight": -8,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-online-course",
+      "phrase": "online course",
+      "weight": -8,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-internship",
+      "phrase": "internship",
+      "weight": -10,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-affiliates-wanted",
+      "phrase": "affiliates wanted",
+      "weight": -15,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-looking-for-affiliates",
+      "phrase": "looking for affiliates",
+      "weight": -15,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-join-our-affiliate-program",
+      "phrase": "join our affiliate program",
+      "weight": -12,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-sponsored-post",
+      "phrase": "sponsored post",
+      "weight": -10,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-promo-code",
+      "phrase": "promo code",
+      "weight": -8,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-coupon-code",
+      "phrase": "coupon code",
+      "weight": -8,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-best-tracker-202",
+      "phrase": "best tracker 202",
+      "weight": -8,
+      "tag": "negative"
+    }
+  ]
+}

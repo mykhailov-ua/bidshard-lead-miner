@@ -1,0 +1,22 @@
+services:
+  parser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bidshard-parser:local
+    container_name: parser
+    # Host network: Mongo/Redis on localhost, no port mapping needed.
+    network_mode: host
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      # Sessions, crawler.db, JSON export, optional seed overrides
+      - ./data:/app/data
+      # Telegram source list (edit without rebuild)
+      - ./config:/app/config:ro
+    restart: unless-stopped
+    # Examples:
+    # command: ["-scan-once"]
+    # command: ["-telegram-sidecar", "-telegram-dry-run", "-scan-once", "-output=table"]
+    # command: ["-source=supply", "-scan-once"]
