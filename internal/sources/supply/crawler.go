@@ -94,6 +94,7 @@ func (c *Crawler) crawlDomain(ctx context.Context, domain string, emit EmitFunc)
 	}
 
 	snippet := BuildSnippet(domain, adsLines, sellers)
+	crawlHTML := string(adsBody) + "\n" + string(sellersBody)
 	contacts := collectContacts(sellers)
 	if len(contacts) == 0 {
 		return 0, nil
@@ -104,10 +105,11 @@ func (c *Crawler) crawlDomain(ctx context.Context, domain string, emit EmitFunc)
 			continue
 		}
 		item := model.RawItem{
-			Source:  "ads_txt:" + domain,
-			Raw:     snippet,
-			Contact: contact,
-			Title:   "Supply contact",
+			Source:    "ads_txt:" + domain,
+			Raw:       snippet,
+			Contact:   contact,
+			Title:     "Supply contact",
+			CrawlHTML: crawlHTML,
 		}
 		if err := emit(ctx, item); err != nil {
 			return emitted, err

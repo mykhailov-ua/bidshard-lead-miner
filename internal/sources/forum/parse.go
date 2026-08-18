@@ -3,18 +3,22 @@ package forum
 import (
 	"regexp"
 	"strings"
+	"time"
 
 	"golang.org/x/net/html"
 )
 
 var (
-	postBodyRe = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*postbody[^"]*"[^>]*>(.*?)</div>`)
-	usernameRe = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*username[^"]*"[^>]*>(.*?)</div>`)
+	postBodyRe   = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*postbody[^"]*"[^>]*>(.*?)</div>`)
+	usernameRe   = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*username[^"]*"[^>]*>(.*?)</div>`)
+	datetimeAttr = regexp.MustCompile(`(?i)datetime="([^"]+)"`)
+	dateTextRe   = regexp.MustCompile(`(?i)\b(\d{4}-\d{2}-\d{2}|\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\b`)
 )
 
 type Post struct {
-	Author string
-	Body   string
+	Author   string
+	Body     string
+	PostedAt time.Time
 }
 
 var painSignals = []string{
@@ -40,6 +44,7 @@ func parseWithRegex(raw string) []Post {
 		return nil
 	}
 	users := usernameRe.FindAllStringSubmatch(raw, -1)
+	postDate := parseDateFromRaw(raw)
 
 	var posts []Post
 	for i, match := range bodies {
@@ -51,7 +56,7 @@ func parseWithRegex(raw string) []Post {
 		if body == "" {
 			continue
 		}
-		posts = append(posts, Post{Author: author, Body: body})
+		posts = append(posts, Post{Author: author, Body: body, PostedAt: postDate})
 	}
 	return posts
 }
@@ -61,12 +66,13 @@ func parseWithTokenizer(raw string) []Post {
 	if err != nil {
 		return nil
 	}
+	postDate := parseDateFromRaw(raw)
 
 	var posts []Post
 	var walk func(*html.Node)
 	walk = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "article" {
-			post := Post{}
+			post := Post{PostedAt: postDate}
 			for c := n.FirstChild; c != nil; c = c.NextSibling {
 				text := collectText(c)
 				if text == "" {
@@ -89,6 +95,26 @@ func parseWithTokenizer(raw string) []Post {
 	}
 	walk(doc)
 	return posts
+}
+
+func parseDateFromRaw(raw string) time.Time {
+	if m := datetimeAttr.FindStringSubmatch(raw); len(m) > 1 {
+		if t, err := time.Parse(time.RFC3339, m[1]); err == nil {
+			return t
+		}
+		if t, err := time.Parse("2006-01-02", m[1]); err == nil {
+			return t
+		}
+	}
+	if m := dateTextRe.FindStringSubmatch(raw); len(m) > 1 {
+		if t, err := time.Parse("2006-01-02", m[1]); err == nil {
+			return t
+		}
+		if t, err := time.Parse("2 Jan 2006", m[1]); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
 }
 
 func HasPainSignal(text string) bool {

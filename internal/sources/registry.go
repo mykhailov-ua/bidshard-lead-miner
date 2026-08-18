@@ -2,25 +2,165 @@ package sources
 
 import (
 	"context"
+	"strings"
 
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/model"
+	"github.com/bidshard/parser/internal/sources/ct"
+	"github.com/bidshard/parser/internal/sources/discord"
 	"github.com/bidshard/parser/internal/sources/forum"
+	"github.com/bidshard/parser/internal/sources/github"
 	"github.com/bidshard/parser/internal/sources/lander"
+	"github.com/bidshard/parser/internal/sources/reddit"
+	"github.com/bidshard/parser/internal/sources/reviews"
 	"github.com/bidshard/parser/internal/sources/supply"
+	"github.com/bidshard/parser/internal/sources/warrior"
 )
 
 func Build(cfg config.Config) []Source {
-	switch cfg.Source {
-	case "supply":
-		return []Source{wrapSupply(supply.NewCrawler(cfg, nil))}
-	case "forum":
-		return []Source{wrapForum(forum.NewAdapter(cfg, nil))}
-	case "lander":
-		return []Source{wrapLander(lander.NewCrawler(cfg, nil, nil))}
-	default:
+	names := parseSourceList(cfg.Source)
+	if len(names) == 0 {
 		return DefaultStubs()
 	}
+	if len(names) == 1 && names[0] == "stub" {
+		return DefaultStubs()
+	}
+
+	var out []Source
+	for _, name := range names {
+		if src, ok := buildOne(cfg, name); ok {
+			out = append(out, src)
+		}
+	}
+	if len(out) == 0 {
+		return DefaultStubs()
+	}
+	return out
+}
+
+// ParseSourceNames splits PARSER_SOURCE / --source into canonical source names.
+func ParseSourceNames(raw string) []string {
+	return parseSourceList(raw)
+}
+
+func parseSourceList(raw string) []string {
+	raw = strings.TrimSpace(strings.ToLower(raw))
+	if raw == "" || raw == "stub" {
+		return []string{"stub"}
+	}
+	if raw == "all" {
+		return []string{"forum", "supply", "lander", "reddit", "discord", "warrior"}
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func buildOne(cfg config.Config, name string) (Source, bool) {
+	switch name {
+	case "supply":
+		return wrapSupply(supply.NewCrawler(cfg, nil)), true
+	case "forum":
+		return wrapForum(forum.NewAdapter(cfg, nil)), true
+	case "lander":
+		var headless lander.HeadlessFetcher = lander.DisabledHeadless{}
+		if cfg.LanderHeadless {
+			headless = lander.NewPlaywrightPoolFetcher(2, cfg.HTTPTimeout)
+		}
+		return wrapLander(lander.NewCrawler(cfg, nil, headless)), true
+	case "reddit":
+		return wrapReddit(reddit.NewCrawler(cfg)), true
+	case "discord":
+		return wrapDiscord(discord.NewCrawler(cfg)), true
+	case "warrior":
+		return wrapWarrior(warrior.NewCrawler(cfg, nil)), true
+	case "ct":
+		return wrapCT(ct.NewCrawler(cfg, nil)), true
+	case "reviews":
+		return wrapReviews(reviews.NewCrawler(cfg, nil)), true
+	case "github":
+		return wrapGitHub(github.NewCrawler(cfg)), true
+	default:
+		return nil, false
+	}
+}
+
+type gitHubSource struct {
+	inner *github.Crawler
+}
+
+func wrapGitHub(inner *github.Crawler) Source {
+	return &gitHubSource{inner: inner}
+}
+
+func (s *gitHubSource) Name() string {
+	return s.inner.Name()
+}
+
+func (s *gitHubSource) Collect(ctx context.Context, emit EmitFunc) error {
+	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
+		return emit(ctx, item)
+	})
+}
+
+type reviewsSource struct {
+	inner *reviews.Crawler
+}
+
+func wrapReviews(inner *reviews.Crawler) Source {
+	return &reviewsSource{inner: inner}
+}
+
+func (s *reviewsSource) Name() string {
+	return s.inner.Name()
+}
+
+func (s *reviewsSource) Collect(ctx context.Context, emit EmitFunc) error {
+	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
+		return emit(ctx, item)
+	})
+}
+
+type ctSource struct {
+	inner *ct.Crawler
+}
+
+func wrapCT(inner *ct.Crawler) Source {
+	return &ctSource{inner: inner}
+}
+
+func (s *ctSource) Name() string {
+	return s.inner.Name()
+}
+
+func (s *ctSource) Collect(ctx context.Context, emit EmitFunc) error {
+	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
+		return emit(ctx, item)
+	})
+}
+
+type warriorSource struct {
+	inner *warrior.Crawler
+}
+
+func wrapWarrior(inner *warrior.Crawler) Source {
+	return &warriorSource{inner: inner}
+}
+
+func (s *warriorSource) Name() string {
+	return s.inner.Name()
+}
+
+func (s *warriorSource) Collect(ctx context.Context, emit EmitFunc) error {
+	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
+		return emit(ctx, item)
+	})
 }
 
 type supplySource struct {
@@ -72,6 +212,42 @@ func (s *landerSource) Name() string {
 }
 
 func (s *landerSource) Collect(ctx context.Context, emit EmitFunc) error {
+	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
+		return emit(ctx, item)
+	})
+}
+
+type redditSource struct {
+	inner *reddit.Crawler
+}
+
+func wrapReddit(inner *reddit.Crawler) Source {
+	return &redditSource{inner: inner}
+}
+
+func (s *redditSource) Name() string {
+	return s.inner.Name()
+}
+
+func (s *redditSource) Collect(ctx context.Context, emit EmitFunc) error {
+	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
+		return emit(ctx, item)
+	})
+}
+
+type discordSource struct {
+	inner *discord.Crawler
+}
+
+func wrapDiscord(inner *discord.Crawler) Source {
+	return &discordSource{inner: inner}
+}
+
+func (s *discordSource) Name() string {
+	return s.inner.Name()
+}
+
+func (s *discordSource) Collect(ctx context.Context, emit EmitFunc) error {
 	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
 		return emit(ctx, item)
 	})

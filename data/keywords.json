@@ -1880,5 +1880,31 @@
       "weight": -8,
       "tag": "negative"
     }
+  ],
+  "hard_reject": [
+    {"id": "hr-how-to-start-affiliate", "phrase": "how to start affiliate", "tag": "anti-icp"},
+    {"id": "hr-how-to-start", "phrase": "how to start", "tag": "anti-icp"},
+    {"id": "hr-best-tracker-for-beginner", "phrase": "best tracker for beginner", "tag": "anti-icp"},
+    {"id": "hr-best-tracker-for-beginners", "phrase": "best tracker for beginners", "tag": "anti-icp"},
+    {"id": "hr-cheapest-tracker", "phrase": "cheapest tracker", "tag": "anti-icp"},
+    {"id": "hr-free-alternative", "phrase": "free alternative", "tag": "anti-icp"},
+    {"id": "hr-free-tracker-alternative", "phrase": "free tracker alternative", "tag": "anti-icp"},
+    {"id": "hr-looking-for-a-job", "phrase": "looking for a job", "tag": "anti-icp"},
+    {"id": "hr-we-are-hiring", "phrase": "we are hiring", "tag": "anti-icp"},
+    {"id": "hr-hiring-media-buyer", "phrase": "hiring media buyer", "tag": "anti-icp"},
+    {"id": "hr-job-posting", "phrase": "job posting", "tag": "anti-icp"},
+    {"id": "hr-open-position", "phrase": "open position", "tag": "anti-icp"},
+    {"id": "hr-affiliate-course", "phrase": "affiliate course", "tag": "anti-icp"},
+    {"id": "hr-online-course", "phrase": "online course", "tag": "anti-icp"},
+    {"id": "hr-dm-me-for-course", "phrase": "dm me for course", "tag": "anti-icp"},
+    {"id": "hr-mentorship-program", "phrase": "mentorship program", "tag": "anti-icp"},
+    {"id": "hr-mentorship", "phrase": "mentorship", "tag": "anti-icp"},
+    {"id": "hr-beginner-guide", "phrase": "beginner guide", "tag": "anti-icp"},
+    {"id": "hr-for-beginners", "phrase": "for beginners", "tag": "anti-icp"},
+    {"id": "hr-job-seeker", "phrase": "job seeker", "tag": "anti-icp"},
+    {"id": "hr-join-our-channel", "phrase": "join our channel", "tag": "anti-icp"},
+    {"id": "hr-white-label-adtech", "phrase": "prebid publisher", "tag": "anti-icp"},
+    {"id": "hr-google-ad-manager", "phrase": "google ad manager", "tag": "anti-icp"},
+    {"id": "hr-keitaro-vs-binom-start", "phrase": "keitaro vs binom for start", "tag": "anti-icp"}
   ]
 }

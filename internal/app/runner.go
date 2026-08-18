@@ -51,6 +51,7 @@ func Run(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 	defer deps.flushStore(ctx)
+	defer deps.closeMongo(ctx)
 
 	if cfg.IngestStdin && cfg.IngestReader != nil {
 		return runIngestOnce(ctx, cfg, deps, cfg.IngestReader)
@@ -69,6 +70,10 @@ func Run(ctx context.Context, cfg config.Config) error {
 
 	var wg sync.WaitGroup
 	onceDone := make(chan struct{}, 1)
+
+	if deps.coldPath != nil {
+		deps.coldPath.Run(ctx, &wg)
+	}
 
 	pool := pipeline.NewPool(cfg.WorkerCount, deps.processor)
 	pool.Run(ctx, &wg, taskCh)

@@ -36,3 +36,12 @@ func (c *CompositeStore) Upsert(ctx context.Context, lead model.Lead) error {
 	}
 	return nil
 }
+
+func (c *CompositeStore) UpdateStatus(ctx context.Context, hashID, status string) error {
+	for _, s := range c.stores {
+		if err := s.UpdateStatus(ctx, hashID, status); err != nil {
+			return err
+		}
+	}
+	return nil
+}

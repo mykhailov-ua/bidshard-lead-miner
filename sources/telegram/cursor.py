@@ -3,7 +3,6 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-
 class CursorStore:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)

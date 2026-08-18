@@ -17,6 +17,6 @@ services:
       - ./config:/app/config:ro
     restart: unless-stopped
     # Examples:
-    # command: ["-scan-once"]
-    # command: ["-telegram-sidecar", "-telegram-dry-run", "-scan-once", "-output=table"]
-    # command: ["-source=supply", "-scan-once"]
+    # command: ["scan"]
+    # command: ["telegram", "--dry-run", "--output=table"]
+    # command: ["scan", "--source=supply"]

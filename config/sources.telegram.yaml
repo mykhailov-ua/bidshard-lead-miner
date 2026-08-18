@@ -12,7 +12,7 @@ chats:
   - name: stm_global
     username: stmaffiliate
     geo: global
-    enabled: false
+    enabled: true
 
 session: data/telethon.session
 cursor_db: data/crawler.db

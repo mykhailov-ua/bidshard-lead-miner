@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/bidshard/parser/internal/model"
 	"go.mongodb.org/mongo-driver/bson"
@@ -15,6 +16,30 @@ import (
 type MongoStore struct {
 	coll       *mongo.Collection
 	writeSlots *semaphore.Weighted
+}
+
+func ConnectMongoClient(ctx context.Context, uri string) (*mongo.Client, error) {
+	if uri == "" {
+		return nil, errors.New("mongo uri required")
+	}
+
+	connectCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	clientOpts := options.Client().
+		ApplyURI(uri).
+		SetServerSelectionTimeout(5 * time.Second).
+		SetConnectTimeout(5 * time.Second)
+
+	client, err := mongo.Connect(connectCtx, clientOpts)
+	if err != nil {
+		return nil, err
+	}
+	if err := client.Ping(connectCtx, nil); err != nil {
+		_ = client.Disconnect(connectCtx)
+		return nil, err
+	}
+	return client, nil
 }
 
 func ConnectMongo(ctx context.Context, uri, dbName, collection string, writeSlots int) (*MongoStore, error) {
@@ -31,12 +56,8 @@ func ConnectMongo(ctx context.Context, uri, dbName, collection string, writeSlot
 		writeSlots = 8
 	}
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	client, err := ConnectMongoClient(ctx, uri)
 	if err != nil {
-		return nil, err
-	}
-	if err := client.Ping(ctx, nil); err != nil {
-		_ = client.Disconnect(ctx)
 		return nil, err
 	}
 
@@ -56,7 +77,27 @@ func (s *MongoStore) ensureIndexes(ctx context.Context) error {
 		{Keys: bson.D{{Key: "hash_id", Value: 1}}, Options: options.Index().SetUnique(true)},
 		{Keys: bson.D{{Key: "ts", Value: -1}}},
 		{Keys: bson.D{{Key: "source", Value: 1}}},
+		{Keys: bson.D{{Key: "status", Value: 1}, {Key: "ts", Value: -1}}},
 	})
+	return err
+}
+
+func (s *MongoStore) UpdateStatus(ctx context.Context, hashID string, status string) error {
+	if hashID == "" || status == "" {
+		return nil
+	}
+	if err := s.writeSlots.Acquire(ctx, 1); err != nil {
+		return err
+	}
+	defer s.writeSlots.Release(1)
+
+	_, err := s.coll.UpdateOne(ctx,
+		bson.M{"hash_id": hashID},
+		bson.M{"$set": bson.M{
+			"status":    status,
+			"status_at": time.Now().UTC(),
+		}},
+	)
 	return err
 }
 

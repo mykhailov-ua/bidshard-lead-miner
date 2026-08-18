@@ -3,6 +3,8 @@ package model
 import (
 	"strings"
 	"time"
+
+	"github.com/bidshard/parser/internal/scoring"
 )
 
 type RawItem struct {
@@ -12,13 +14,21 @@ type RawItem struct {
 	Title     string
 	Username  string
 	MessageID int64
+	CrawlHTML string
+	PostedAt  time.Time
 }
 
 func (r RawItem) Text() string {
+	text := r.Title
 	if r.Raw != "" {
-		return r.Raw
+		text = r.Raw
 	}
-	return r.Title
+	if r.CrawlHTML != "" {
+		if hint := scoring.FormatStackHint(scoring.DetectCompetitorStack(r.CrawlHTML)); hint != "" {
+			text = text + " " + hint
+		}
+	}
+	return text
 }
 
 func (r RawItem) ContactTelegram() string {
@@ -60,14 +70,36 @@ func (r RawItem) MaskedContact() string {
 }
 
 type Lead struct {
-	TS       time.Time
-	RoundID  string
-	HashID   string
-	Priority string
-	Score    int
-	Source   string
-	Title    string
-	Contacts []string
-	Matched  []string
-	Snippet  string
+	TS             time.Time
+	RoundID        string
+	HashID         string
+	Priority       string
+	Score          int
+	Source         string
+	Title          string
+	Contacts       []string
+	Matched        []string
+	Snippet        string
+	ICP            string
+	Hot            bool
+	SpendTier      string
+	ICPWhy         string
+	GeoCountry     string
+	CompanyCountry string
+	CompanyName    string
+	GeoSignals     []string
+	GeoWhy         string
+	WhoisCountry   string
+	DomainAgeDays  int
+	DisplayName    string
+	GravatarName   string
+	EmailVerified  bool
+	PostedAt        time.Time
+	Stack           []string
+	Tags            []string
+	Lang            string
+	Status          string
+	StatusAt        time.Time
+	OutreachChannel string
+	PilotQualified  bool
 }

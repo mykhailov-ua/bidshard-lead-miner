@@ -19,6 +19,9 @@ func TestAcceptEmailRejectsJunk(t *testing.T) {
 	if !AcceptEmail("ops@igaming-team.com") {
 		t.Fatal("expected valid email")
 	}
+	if AcceptEmail("buyer+test@gmail.com") {
+		t.Fatal("expected reject for gmail plus tag")
+	}
 }
 
 func TestIsRoleEmail(t *testing.T) {

@@ -64,10 +64,11 @@ func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
 			}
 			primary := extract.FormatAll(contacts.Contacts)[0]
 			item := model.RawItem{
-				Source:  sourceName(threadURL),
-				Raw:     post.Body,
-				Contact: primary,
-				Title:   post.Author,
+				Source:   sourceName(threadURL),
+				Raw:      post.Body,
+				Contact:  primary,
+				Title:    post.Author,
+				PostedAt: post.PostedAt,
 			}
 			if err := emit(ctx, item); err != nil {
 				return err

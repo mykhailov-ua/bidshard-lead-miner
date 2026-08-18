@@ -1,23 +1,15 @@
 package supply
 
 import (
-	"encoding/csv"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/bidshard/parser/internal/geo"
+	"github.com/bidshard/parser/internal/seedcsv"
 )
 
 func LoadSeedDomains(path string) ([]string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	reader := csv.NewReader(f)
-	records, err := reader.ReadAll()
+	records, err := seedcsv.ReadRecords(path)
 	if err != nil {
 		return nil, err
 	}

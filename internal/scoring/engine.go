@@ -1,6 +1,9 @@
 package scoring
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 type Priority string
 
@@ -10,6 +13,15 @@ const (
 	PriorityLow    Priority = "Low"
 )
 
+func MeetsMinPriority(p, min Priority) bool {
+	rank := map[Priority]int{
+		PriorityLow:    0,
+		PriorityMedium: 1,
+		PriorityHigh:   2,
+	}
+	return rank[p] >= rank[min]
+}
+
 type LeadText struct {
 	Title   string
 	Context string
@@ -17,20 +29,33 @@ type LeadText struct {
 	Matched []string
 }
 
-func ScoreText(reg *Registry, text *LeadText) Priority {
-	result := AnalyzeWithRegistry(reg, text.Context+" "+text.Title)
-	text.Score = result.Score
+func ScoreWithBoosts(reg *Registry, text *LeadText, source string, stack []string, rep *SourceReputation, opts ScoreOpts) Priority {
+	combined := text.Context + " " + text.Title
+	result := AnalyzeWithRegistry(reg, combined)
+	_, _, _, highMin, mediumMin := reg.Snapshot()
+	score := ApplySpendGate(result.Score, combined, mediumMin)
+	score = CompetitorPainBoost(score, combined, stack)
+	if rep != nil {
+		score += rep.Boost(source)
+	}
+	if opts.TimeDecay {
+		score = ApplyTimeDecay(score, opts.PostedAt, time.Now().UTC())
+	}
+	text.Score = score
 	text.Matched = result.Summary
 
-	_, _, _, highMin, mediumMin := reg.Snapshot()
 	switch {
-	case result.Score >= highMin:
+	case text.Score >= highMin:
 		return PriorityHigh
-	case result.Score >= mediumMin:
+	case text.Score >= mediumMin:
 		return PriorityMedium
 	default:
 		return PriorityLow
 	}
+}
+
+func ScoreText(reg *Registry, text *LeadText) Priority {
+	return ScoreWithBoosts(reg, text, "", nil, nil, ScoreOpts{})
 }
 
 func AnalyzeWithRegistry(reg *Registry, text string) MatchResult {

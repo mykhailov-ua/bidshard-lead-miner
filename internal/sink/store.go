@@ -9,6 +9,7 @@ import (
 type Store interface {
 	Exists(ctx context.Context, hashID string) (bool, error)
 	Upsert(ctx context.Context, lead model.Lead) error
+	UpdateStatus(ctx context.Context, hashID, status string) error
 }
 
 type StubStore struct {
@@ -32,6 +33,13 @@ func (s *StubStore) Upsert(ctx context.Context, lead model.Lead) error {
 	if lead.HashID != "" {
 		s.records[lead.HashID] = struct{}{}
 	}
+	return nil
+}
+
+func (s *StubStore) UpdateStatus(ctx context.Context, hashID, status string) error {
+	_ = ctx
+	_ = hashID
+	_ = status
 	return nil
 }
 

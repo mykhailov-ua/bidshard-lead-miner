@@ -1,0 +1,7 @@
+# Blacklist domains (competitor infra, tracker domains, seed spam).
+# One domain per line. Lines starting with # are ignored.
+
+voluum.com
+keitaro.io
+redtrack.io
+binom.org

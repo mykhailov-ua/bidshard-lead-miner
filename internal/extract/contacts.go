@@ -71,6 +71,41 @@ func Extract(text string, hints ...string) Result {
 		if hint == "" {
 			continue
 		}
+		if strings.HasPrefix(strings.ToLower(hint), "reddit:") {
+			value := strings.TrimSpace(hint[len("reddit:"):])
+			if value != "" {
+				add("reddit", value)
+			}
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(hint), "discord:") {
+			value := strings.TrimSpace(hint[len("discord:"):])
+			if value != "" {
+				add("discord", value)
+			}
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(hint), "domain:") {
+			value := strings.TrimSpace(hint[len("domain:"):])
+			if value != "" {
+				add("domain", strings.ToLower(value))
+			}
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(hint), "github:") {
+			value := strings.TrimSpace(hint[len("github:"):])
+			if value != "" {
+				add("github", strings.ToLower(value))
+			}
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(hint), "review:") {
+			value := strings.TrimSpace(hint[len("review:"):])
+			if value != "" {
+				add("review", value)
+			}
+			continue
+		}
 		if strings.HasPrefix(strings.ToLower(hint), "telegram:") {
 			add("telegram", strings.TrimPrefix(hint, "telegram:"))
 			continue
@@ -106,6 +141,31 @@ func FormatAll(contacts []Contact) []string {
 	for _, c := range contacts {
 		if c.Type == "telegram" && !strings.HasPrefix(c.Value, "telegram:") {
 			out = append(out, "telegram:"+c.Value)
+			continue
+		}
+		if c.Type == "reddit" {
+			value := strings.TrimPrefix(c.Value, "reddit:")
+			out = append(out, "reddit:"+value)
+			continue
+		}
+		if c.Type == "discord" {
+			value := strings.TrimPrefix(c.Value, "discord:")
+			out = append(out, "discord:"+value)
+			continue
+		}
+		if c.Type == "domain" {
+			value := strings.TrimPrefix(strings.ToLower(c.Value), "domain:")
+			out = append(out, "domain:"+value)
+			continue
+		}
+		if c.Type == "github" {
+			value := strings.TrimPrefix(strings.ToLower(c.Value), "github:")
+			out = append(out, "github:"+value)
+			continue
+		}
+		if c.Type == "review" {
+			value := strings.TrimPrefix(c.Value, "review:")
+			out = append(out, "review:"+value)
 			continue
 		}
 		out = append(out, c.Value)

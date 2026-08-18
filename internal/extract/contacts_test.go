@@ -2,6 +2,15 @@ package extract
 
 import "testing"
 
+func TestExtractRedditHint(t *testing.T) {
+	t.Parallel()
+
+	got := Extract("voluum alternative postback failing", "reddit:u/media_buyer")
+	if len(got.Contacts) != 1 || got.Contacts[0].Type != "reddit" {
+		t.Fatalf("contacts=%v", got.Contacts)
+	}
+}
+
 func TestExtractRejectsLinkedInOnly(t *testing.T) {
 	t.Parallel()
 
@@ -67,3 +76,26 @@ func TestExtractRejectsExampleEmail(t *testing.T) {
 		t.Fatalf("contacts=%v", got.Contacts)
 	}
 }
+
+func TestExtractDomainGitHubReviewHints(t *testing.T) {
+	t.Parallel()
+
+	got := Extract("voluum alternative tracker pain", "domain:click.example.com", "github:buyer42", "review:John D")
+	if len(got.Contacts) != 3 {
+		t.Fatalf("contacts=%v", got.Contacts)
+	}
+	types := map[string]string{}
+	for _, c := range got.Contacts {
+		types[c.Type] = c.Value
+	}
+	if types["domain"] != "click.example.com" {
+		t.Fatalf("domain=%q", types["domain"])
+	}
+	if types["github"] != "buyer42" {
+		t.Fatalf("github=%q", types["github"])
+	}
+	if types["review"] != "John D" {
+		t.Fatalf("review=%q", types["review"])
+	}
+}
+

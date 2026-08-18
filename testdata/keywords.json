@@ -1730,5 +1730,9 @@
       "weight": -10,
       "tag": "negative"
     }
+  ],
+  "hard_reject": [
+    {"id": "hr-cheapest-tracker", "phrase": "cheapest tracker", "tag": "anti-icp"},
+    {"id": "hr-affiliate-course", "phrase": "affiliate course", "tag": "anti-icp"}
   ]
 }

@@ -49,14 +49,15 @@ func TestDryRunEmitsTelegramNDJSON(t *testing.T) {
 	pr, pw := io.Pipe()
 	errCh := make(chan error, 1)
 	go func() {
-		defer pw.Close()
-		wd, _ := os.Getwd()
-		errCh <- Run(ctx, Options{DryRun: true, Once: true, WorkDir: wd}, pw)
+		err := Run(ctx, Options{DryRun: true, Once: true, WorkDir: mustWorkDir(t)}, pw)
+		_ = pw.Close()
+		errCh <- err
 	}()
 
-	buf := make([]byte, 4096)
-	n, readErr := pr.Read(buf)
-	_ = pr.Close()
+	out, readErr := io.ReadAll(pr)
+	if readErr != nil {
+		t.Fatalf("read: %v", readErr)
+	}
 
 	select {
 	case err := <-errCh:
@@ -67,10 +68,16 @@ func TestDryRunEmitsTelegramNDJSON(t *testing.T) {
 		t.Fatal("timeout")
 	}
 
-	if readErr != nil && readErr != io.EOF {
-		t.Fatalf("read: %v", readErr)
+	if len(out) == 0 || !strings.Contains(string(out), "telegram:@") {
+		t.Fatalf("unexpected output: %q", string(out))
 	}
-	if n == 0 || !strings.Contains(string(buf[:n]), "telegram:@") {
-		t.Fatalf("unexpected output: %q", string(buf[:n]))
+}
+
+func mustWorkDir(t *testing.T) string {
+	t.Helper()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
 	}
+	return wd
 }

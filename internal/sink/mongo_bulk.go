@@ -60,6 +60,10 @@ func (b *BulkStore) Upsert(ctx context.Context, lead model.Lead) error {
 	return nil
 }
 
+func (b *BulkStore) UpdateStatus(ctx context.Context, hashID, status string) error {
+	return b.inner.UpdateStatus(ctx, hashID, status)
+}
+
 func (b *BulkStore) Flush(ctx context.Context) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -118,5 +122,12 @@ func (m *MockBulkWriter) Upsert(ctx context.Context, lead model.Lead) error {
 	if lead.HashID != "" {
 		m.records[lead.HashID] = struct{}{}
 	}
+	return nil
+}
+
+func (m *MockBulkWriter) UpdateStatus(ctx context.Context, hashID, status string) error {
+	_ = ctx
+	_ = hashID
+	_ = status
 	return nil
 }

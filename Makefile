@@ -4,7 +4,7 @@ VENV := .venv
 VENV_PY := $(VENV)/bin/python
 
 build:
-	go build -o bin/parser ./cmd/parser
+	go build -ldflags "-X github.com/bidshard/parser/cmd/parser/cmd.Version=dev" -o bin/parser ./cmd/parser
 
 setup: venv
 	go mod download
@@ -20,7 +20,7 @@ test-py:
 	PYTHONPATH=. $(if $(wildcard $(VENV_PY)),$(VENV_PY),python3) -m unittest discover -s sources/telegram -p 'test_*.py'
 
 test-telegram: test-py
-	go run ./cmd/parser -telegram-sidecar -telegram-dry-run -scan-once -output=quiet
+	go run ./cmd/parser telegram --dry-run --output=quiet
 
 lint:
 	go vet ./...
@@ -35,7 +35,7 @@ docker-up:
 	docker compose up -d
 
 docker-run-once:
-	docker compose run --rm parser -scan-once
+	docker compose run --rm parser scan
 
 backup:
 	./scripts/ops/backup-mongo.sh

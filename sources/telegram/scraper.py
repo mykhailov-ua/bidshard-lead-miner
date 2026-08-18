@@ -40,14 +40,14 @@ def dry_run(cfg: ScraperConfig, out: TextIO) -> int:
     if not cfg.chats:
         LOG.error("no enabled chats in config")
         return 1
-    chat = cfg.chats[0]
-    emit_line(
-        out,
-        chat,
-        "voluum alternative needed. postback failing on FTD again.",
-        "media_buyer_mx",
-        1001,
-    )
+    for i, chat in enumerate(cfg.chats):
+        emit_line(
+            out,
+            chat,
+            "voluum alternative needed. postback failing on FTD again.",
+            f"media_buyer_{i}",
+            1001 + i,
+        )
     return 0
 
 

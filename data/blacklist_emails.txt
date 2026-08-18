@@ -1,0 +1,8 @@
+# Blacklist emails (competitor support/sales, seed spam).
+# One email per line. Lines starting with # are ignored.
+
+support@voluum.com
+ads@voluum.com
+info@keitaro.io
+tracker@voluum.com
+support@redtrack.io

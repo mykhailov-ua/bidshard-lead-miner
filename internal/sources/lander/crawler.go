@@ -71,9 +71,10 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		}
 
 		item := model.RawItem{
-			Source:  "lander:" + hostFromURL(pageURL),
-			Raw:     text,
-			Contact: extract.FormatAll(contacts.Contacts)[0],
+			Source:    "lander:" + hostFromURL(pageURL),
+			Raw:       text,
+			Contact:   extract.FormatAll(contacts.Contacts)[0],
+			CrawlHTML: html,
 		}
 		if err := emit(ctx, item); err != nil {
 			return err

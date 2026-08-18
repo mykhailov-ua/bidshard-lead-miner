@@ -1,0 +1,22 @@
+# One domain per line. Refresh weekly from a public blocklist if needed.
+# Lines starting with # are ignored.
+
+mailinator.com
+guerrillamail.com
+tempmail.com
+10minutemail.com
+yopmail.com
+sharklasers.com
+trashmail.com
+getnada.com
+temp-mail.org
+dispostable.com
+maildrop.cc
+fakeinbox.com
+spamgourmet.com
+mailnesia.com
+burnermail.io
+tmpmail.net
+tmpmail.org
+emailondeck.com
+mohmal.com

@@ -6,7 +6,6 @@ from typing import Any
 
 import yaml
 
-
 @dataclass
 class ChatConfig:
     name: str

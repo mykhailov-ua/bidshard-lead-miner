@@ -1,0 +1,24 @@
+{
+  "keywords": [
+    {"id": "kw-fr-1", "phrase": "alternative a voluum", "weight": 25, "tag": "intent"},
+    {"id": "kw-fr-2", "phrase": "alternative a keitaro", "weight": 25, "tag": "intent"},
+    {"id": "kw-fr-3", "phrase": "tracker trop cher", "weight": 25, "tag": "pain"},
+    {"id": "kw-fr-4", "phrase": "postback ne fonctionne pas", "weight": 25, "tag": "pain"},
+    {"id": "kw-fr-5", "phrase": "conversions perdues", "weight": 25, "tag": "pain"},
+    {"id": "kw-fr-6", "phrase": "probleme de tracking", "weight": 20, "tag": "pain"},
+    {"id": "kw-fr-7", "phrase": "changer de tracker", "weight": 25, "tag": "intent"},
+    {"id": "kw-fr-8", "phrase": "tracker auto heberge", "weight": 20, "tag": "intent"},
+    {"id": "kw-fr-9", "phrase": "recherche tracker", "weight": 20, "tag": "intent"},
+    {"id": "kw-fr-10", "phrase": "perte d argent en tracking", "weight": 25, "tag": "pain"},
+    {"id": "kw-fr-11", "phrase": "support tres lent", "weight": 15, "tag": "pain"},
+    {"id": "kw-fr-12", "phrase": "discrepance de donnees", "weight": 20, "tag": "pain"},
+    {"id": "kw-fr-13", "phrase": "erreur postback s2s", "weight": 25, "tag": "pain"},
+    {"id": "kw-fr-14", "phrase": "cout mensuel trop eleve", "weight": 20, "tag": "pain"},
+    {"id": "kw-fr-15", "phrase": "erreur d attribution", "weight": 20, "tag": "pain"},
+    {"id": "kw-fr-16", "phrase": "perte de clickid", "weight": 20, "tag": "pain"},
+    {"id": "kw-fr-17", "phrase": "redirection lente", "weight": 15, "tag": "pain"},
+    {"id": "kw-fr-18", "phrase": "logiciel de tracking affiliation", "weight": 15, "tag": "intent"},
+    {"id": "kw-fr-19", "phrase": "migration depuis voluum", "weight": 25, "tag": "intent"},
+    {"id": "kw-fr-20", "phrase": "panne de tracker", "weight": 20, "tag": "pain"}
+  ]
+}

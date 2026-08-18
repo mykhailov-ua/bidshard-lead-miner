@@ -1,0 +1,24 @@
+{
+  "keywords": [
+    {"id": "kw-pl-1", "phrase": "alternatywa dla voluum", "weight": 25, "tag": "intent"},
+    {"id": "kw-pl-2", "phrase": "alternatywa dla keitaro", "weight": 25, "tag": "intent"},
+    {"id": "kw-pl-3", "phrase": "tracker za drogi", "weight": 25, "tag": "pain"},
+    {"id": "kw-pl-4", "phrase": "postback nie dziala", "weight": 25, "tag": "pain"},
+    {"id": "kw-pl-5", "phrase": "zgubione konwersje", "weight": 25, "tag": "pain"},
+    {"id": "kw-pl-6", "phrase": "problem z trackingiem", "weight": 20, "tag": "pain"},
+    {"id": "kw-pl-7", "phrase": "zmiana trackera", "weight": 25, "tag": "intent"},
+    {"id": "kw-pl-8", "phrase": "tracker self hosted", "weight": 20, "tag": "intent"},
+    {"id": "kw-pl-9", "phrase": "szukam trackera", "weight": 20, "tag": "intent"},
+    {"id": "kw-pl-10", "phrase": "tracimy pieniadze na trackingu", "weight": 25, "tag": "pain"},
+    {"id": "kw-pl-11", "phrase": "wolny wsparcie", "weight": 15, "tag": "pain"},
+    {"id": "kw-pl-12", "phrase": "rozbieznosc danych", "weight": 20, "tag": "pain"},
+    {"id": "kw-pl-13", "phrase": "bledy w postbackach", "weight": 25, "tag": "pain"},
+    {"id": "kw-pl-14", "phrase": "wysokie oplaty miesieczne", "weight": 20, "tag": "pain"},
+    {"id": "kw-pl-15", "phrase": "brak przypisania konwersji", "weight": 20, "tag": "pain"},
+    {"id": "kw-pl-16", "phrase": "utrata clickid", "weight": 20, "tag": "pain"},
+    {"id": "kw-pl-17", "phrase": "wolne przekierowanie", "weight": 15, "tag": "pain"},
+    {"id": "kw-pl-18", "phrase": "system śledzenia konwersji", "weight": 15, "tag": "intent"},
+    {"id": "kw-pl-19", "phrase": "przejscie z voluum", "weight": 25, "tag": "intent"},
+    {"id": "kw-pl-20", "phrase": "awaria trackera", "weight": 20, "tag": "pain"}
+  ]
+}

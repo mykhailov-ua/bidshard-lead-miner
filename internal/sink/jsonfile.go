@@ -36,3 +36,10 @@ func (s *JSONFileSink) Upsert(ctx context.Context, lead model.Lead) error {
 	defer s.mu.Unlock()
 	return s.enc.Encode(LeadJSONMap(lead))
 }
+
+func (s *JSONFileSink) UpdateStatus(ctx context.Context, hashID, status string) error {
+	_ = ctx
+	_ = hashID
+	_ = status
+	return nil
+}

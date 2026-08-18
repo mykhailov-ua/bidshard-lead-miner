@@ -30,3 +30,10 @@ func (s *NDJSONSink) Upsert(ctx context.Context, lead model.Lead) error {
 	defer s.mu.Unlock()
 	return json.NewEncoder(s.w).Encode(LeadJSONMap(lead))
 }
+
+func (s *NDJSONSink) UpdateStatus(ctx context.Context, hashID, status string) error {
+	_ = ctx
+	_ = hashID
+	_ = status
+	return nil
+}

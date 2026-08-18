@@ -50,5 +50,5 @@ USER parser
 
 ENTRYPOINT ["parser"]
 
-# Continuous scan loop (override with -scan-once for one-shot / cron)
+# Continuous scan loop (override with `scan` for one-shot / cron)
 CMD []
