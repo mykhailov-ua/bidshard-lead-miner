@@ -25,10 +25,11 @@ type SearchResponse struct {
 }
 
 type IssueItem struct {
-	HTMLURL string `json:"html_url"`
-	Title   string `json:"title"`
-	Body    string `json:"body"`
-	User    User   `json:"user"`
+	HTMLURL   string `json:"html_url"`
+	Title     string `json:"title"`
+	Body      string `json:"body"`
+	CreatedAt string `json:"created_at"`
+	User      User   `json:"user"`
 }
 
 type User struct {
@@ -45,12 +46,23 @@ type Crawler struct {
 func NewCrawler(cfg config.Config) *Crawler {
 	queries := cfg.GitHubSearchQueries
 	if len(queries) == 0 {
-		queries = []string{"voluum alternative", "self-hosted tracker", "keitaro docker"}
+		queries = []string{
+			"tracker alternative",
+			"openrtb",
+			"clickhouse tracker",
+			"voluum api",
+			"keitaro api",
+			"self-hosted tracker",
+		}
+	}
+	client, err := httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
+	if err != nil {
+		client = httpclient.Shared(cfg.HTTPTimeout)
 	}
 	return &Crawler{
 		token:   cfg.GitHubToken,
 		queries: queries,
-		client:  httpclient.Shared(cfg.HTTPTimeout),
+		client:  client,
 		baseURL: "https://api.github.com",
 	}
 }
@@ -123,11 +135,19 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 				contactStr = "github:" + item.User.Login
 			}
 
+			postedAt := time.Now().UTC()
+			if item.CreatedAt != "" {
+				if t, err := time.Parse(time.RFC3339, item.CreatedAt); err == nil {
+					postedAt = t.UTC()
+				}
+			}
+
 			rawItem := model.RawItem{
-				Source:  "github:" + parseRepoSlug(item.HTMLURL),
-				Raw:     combined,
-				Contact: contactStr,
-				Title:   item.Title,
+				Source:   "github:" + parseRepoSlug(item.HTMLURL),
+				Raw:      combined,
+				Contact:  contactStr,
+				Title:    item.Title,
+				PostedAt: postedAt,
 			}
 			if err := emit(ctx, rawItem); err != nil {
 				return err

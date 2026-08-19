@@ -7,56 +7,158 @@
     {
       "id": "kw-voluum-alternative",
       "phrase": "voluum alternative",
-      "weight": 25,
-      "tag": "intent"
+      "weight": 50,
+      "tag": "hot-lead"
     },
     {
       "id": "kw-keitaro-alternative",
       "phrase": "keitaro alternative",
-      "weight": 25,
-      "tag": "intent"
+      "weight": 50,
+      "tag": "hot-lead"
     },
     {
       "id": "kw-binom-alternative",
       "phrase": "binom alternative",
-      "weight": 25,
-      "tag": "intent"
+      "weight": 50,
+      "tag": "hot-lead"
     },
     {
       "id": "kw-redtrack-alternative",
       "phrase": "redtrack alternative",
-      "weight": 25,
-      "tag": "intent"
+      "weight": 50,
+      "tag": "hot-lead"
     },
     {
-      "id": "kw-switching-from-voluum",
-      "phrase": "switching from voluum",
-      "weight": 25,
-      "tag": "intent"
+      "id": "kw-self-hosted-tracker-alternative",
+      "phrase": "self-hosted tracker alternative",
+      "weight": 50,
+      "tag": "hot-lead"
     },
     {
-      "id": "kw-migrating-from-keitaro",
-      "phrase": "migrating from keitaro",
-      "weight": 25,
-      "tag": "intent"
+      "id": "kw-tracker-migration",
+      "phrase": "tracker migration",
+      "weight": 50,
+      "tag": "hot-lead"
     },
     {
-      "id": "kw-migrate-from-voluum",
-      "phrase": "migrate from voluum",
-      "weight": 25,
-      "tag": "intent"
+      "id": "kw-switch-from-voluum",
+      "phrase": "switch from voluum",
+      "weight": 50,
+      "tag": "hot-lead"
     },
     {
-      "id": "kw-tracker-too-expensive",
-      "phrase": "tracker too expensive",
-      "weight": 25,
-      "tag": "pain"
+      "id": "kw-voluum-pricing-too-high",
+      "phrase": "voluum pricing too high",
+      "weight": 50,
+      "tag": "hot-lead"
     },
     {
-      "id": "kw-saas-tracker-expensive",
-      "phrase": "saas tracker expensive",
-      "weight": 25,
-      "tag": "pain"
+      "id": "kw-looking-for-high-volume-tracker",
+      "phrase": "looking for high volume tracker",
+      "weight": 50,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-postback-failing",
+      "phrase": "postback failing",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-click-loss",
+      "phrase": "click loss",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-tracking-lost-events",
+      "phrase": "tracking lost events",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-redirect-delay",
+      "phrase": "redirect delay",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-slow-click-redirection",
+      "phrase": "slow click redirection",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-overage-charges",
+      "phrase": "overage charges",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-event-limits-reached",
+      "phrase": "event limits reached",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-tracker-down",
+      "phrase": "tracker down",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-cloaking-detection",
+      "phrase": "cloaking detection",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-fast-redirect-engine",
+      "phrase": "fast redirect engine",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-dedicated-server-tracker",
+      "phrase": "dedicated server tracker",
+      "weight": 20,
+      "tag": "high-roller"
+    },
+    {
+      "id": "kw-clickhouse-for-ad-tracking",
+      "phrase": "clickhouse for ad tracking",
+      "weight": 20,
+      "tag": "high-roller"
+    },
+    {
+      "id": "kw-10m-events-per-day",
+      "phrase": "10m events per day",
+      "weight": 20,
+      "tag": "high-roller"
+    },
+    {
+      "id": "kw-50k-rps",
+      "phrase": "50k rps",
+      "weight": 20,
+      "tag": "high-roller"
+    },
+    {
+      "id": "kw-usdt-payment-tracker",
+      "phrase": "usdt payment tracker",
+      "weight": 20,
+      "tag": "high-roller"
+    },
+    {
+      "id": "kw-media-buying-team-setup",
+      "phrase": "media buying team setup",
+      "weight": 20,
+      "tag": "high-roller"
+    },
+    {
+      "id": "kw-custom-openrtb-endpoint",
+      "phrase": "custom openrtb endpoint",
+      "weight": 20,
+      "tag": "high-roller"
     },
     {
       "id": "kw-per-event-pricing",

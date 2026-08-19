@@ -13,6 +13,9 @@ var (
 	usernameRe   = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*username[^"]*"[^>]*>(.*?)</div>`)
 	datetimeAttr = regexp.MustCompile(`(?i)datetime="([^"]+)"`)
 	dateTextRe   = regexp.MustCompile(`(?i)\b(\d{4}-\d{2}-\d{2}|\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\b`)
+	threadLinkRe = regexp.MustCompile(`(?i)href="([^"]*(?:/threads/|/t/|thread-|\?t=)[^"]*)"`)
+	paginationRe = regexp.MustCompile(`(?i)href="([^"]*(?:/page-\d+|[?&]page=\d+|[?&]start=\d+)[^"]*)"`)
+	stripTagRe   = regexp.MustCompile(`(?is)<[^>]+>`)
 )
 
 type Post struct {
@@ -36,6 +39,42 @@ func ParsePostsFromHTML(raw string) []Post {
 		return posts
 	}
 	return parseWithTokenizer(raw)
+}
+
+// ParseThreadURLsFromCategory extracts thread URLs from forum category/index pages.
+func ParseThreadURLsFromCategory(html string) []string {
+	matches := threadLinkRe.FindAllStringSubmatch(html, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(matches))
+	var urls []string
+	for _, m := range matches {
+		link := m[1]
+		if _, exists := seen[link]; !exists {
+			seen[link] = struct{}{}
+			urls = append(urls, link)
+		}
+	}
+	return urls
+}
+
+// ParsePaginationLinks extracts page navigation URLs from HTML.
+func ParsePaginationLinks(html string) []string {
+	matches := paginationRe.FindAllStringSubmatch(html, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(matches))
+	var urls []string
+	for _, m := range matches {
+		link := m[1]
+		if _, exists := seen[link]; !exists {
+			seen[link] = struct{}{}
+			urls = append(urls, link)
+		}
+	}
+	return urls
 }
 
 func parseWithRegex(raw string) []Post {
@@ -128,7 +167,7 @@ func HasPainSignal(text string) bool {
 }
 
 func stripTags(s string) string {
-	s = regexp.MustCompile(`(?is)<[^>]+>`).ReplaceAllString(s, " ")
+	s = stripTagRe.ReplaceAllString(s, " ")
 	return strings.Join(strings.Fields(s), " ")
 }
 
@@ -144,3 +183,4 @@ func collectText(n *html.Node) string {
 	}
 	return strings.Join(parts, " ")
 }
+

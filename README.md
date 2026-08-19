@@ -1,259 +1,184 @@
-# BidShard Lead Miner
+# BidShard Lead Miner v1.2 — Runbook & Operational Guide
 
-A Go lead-generation parser for AdTech and affiliate marketing. It crawls public gray-market signals (forums, supply files, landers, Reddit, Discord, CT, GitHub, reviews), scores intent against `data/keywords.json`, and stores qualified leads for the [BidShard](../bidshard) self-hosted tracker.
+High-performance Go lead-generation miner for AdTech, affiliate marketing, and iGaming gray-market intent signals. It crawls public sources (forums, Reddit, GitHub, Trustpilot/G2 reviews, supply files, SERP dorks, Telegram sidecar), scores intent against `data/keywords.json`, and stores qualified leads for the [BidShard](../bidshard) self-hosted tracker.
 
-> **Policy:** Worldwide affiliate/iGaming markets **excluding Russia and Belarus**. LinkedIn is out of scope.
-
----
-
-## What works today
-
-Verified locally (no external API keys required):
-
-```bash
-go build ./...
-go test ./... -count=1
-go run ./cmd/parser scan
-# or: make build && ./bin/parser scan
-```
-
-- **Default source is `stub`** (`PARSER_SOURCE=stub`) — built-in fixtures for pipeline/scoring smoke tests.
-- **Unit tests** cover sources via `httptest` fixtures; live crawls are not run in CI.
-- **MongoDB** is optional for smoke tests (in-memory stub sink). For production, set `MONGO_URI` or `PARSER_EXPORT_JSON`.
+> **Targeting Policy:** Worldwide affiliate/iGaming markets **excluding Russia (RU) and Belarus (BY)**. LinkedIn is out of scope.
 
 ---
 
-## Key features
+## 1. Quick Start & Docker Background Runbook
 
-- **Sources:** forum (STM/BHW/AffiliateFix seeds), supply (`ads.txt` / `sellers.json`), lander (HTML + optional Playwright), Reddit (PullPush), Discord (Bot API), Warrior Forum, Certificate Transparency (`ct`), GitHub issue search, review-site seeds.
-- **Telegram:** Python Telethon sidecar (`parser telegram`); not part of `-source=all`.
-- **Pipeline:** geo/lang hard-reject → keyword scoring → dedup → optional RDAP/DNS/email enrichment → optional Gemini ICP/geo → MX check → Mongo/JSONL sink.
-- **Gemini (optional):** ICP classification, geo verify, cold-path junk analysis, keyword suggestions — requires `GEMINI_API_KEY` + Mongo for cold path.
-- **Scoring:** competitor stack detection, source reputation, pilot tagging (`pilot-qualified`).
+The primary production mode runs the miner continuously in the background inside a Docker container.
 
----
+### Step 1: Environment Configuration
 
-## Prerequisites
-
-| Component | Required for | Notes |
-| --- | --- | --- |
-| **Go 1.25+** | always | see `go.mod` |
-| **MongoDB** | production storage | not bundled in `docker-compose.yaml` |
-| **Python 3.11+** | Telegram sidecar only | `pip install -r requirements.txt` |
-| **Playwright** | headless landers only | `PARSER_LANDER_HEADLESS=true` |
-
----
-
-## Installation
-
-```bash
-git clone https://github.com/your-repo/bidshard-lead-miner.git
-cd bidshard-lead-miner
-
-go mod download
-
-# Telegram sidecar only
-pip install -r requirements.txt
-# or: make setup   # creates .venv and installs requirements.txt
-```
-
-### Configuration
+Copy `.env.example` and configure your environment variables:
 
 ```bash
 cp .env.example .env
-# edit .env — see sections below
+```
+
+Key variables for production `.env`:
+
+```env
+# Selected crawlers (all, or specific list: forum,reddit,github,serp,reviews,supply,ct,warrior)
+PARSER_SOURCE=all
+
+# Polling interval in continuous run mode (seconds)
+PARSER_POLL_SEC=120
+
+# Output & Logging
+PARSER_OUTPUT=ndjson
+PARSER_LOG_FORMAT=json
+
+# HTTP Concurrency & Residential Proxies (for uTLS Cloudflare bypass)
+PARSER_HTTP_WORKERS=10
+PARSER_PROXY_LIST=http://user:pass@proxy1.com:8080,http://user:pass@proxy2.com:8080
+
+# Storage Sinks
+MONGO_URI=mongodb://localhost:27017/parser
+PARSER_EXPORT_JSON=/app/data/export/leads.jsonl
+```
+
+### Step 2: Build & Launch Docker Container
+
+Run the service in the background (detached mode):
+
+```bash
+# Build Docker image
+docker compose build
+
+# Start miner container in background (uses command: ["run"] with restart: unless-stopped)
+docker compose up -d
+```
+
+### Step 3: Operational Monitoring & Management
+
+```bash
+# Stream live logs
+docker compose logs -f parser
+
+# Check container status
+docker compose ps
+
+# Stop background execution
+docker compose down
+
+# Execute one-shot scan round in temporary container
+docker compose run --rm parser scan --source=reddit,github
 ```
 
 ---
 
-## Sources and flags
+## 2. CLI Runbook (Standalone Local Execution)
 
-`PARSER_SOURCE` (or `-source`) selects crawlers:
+For local development or manual cron-triggered runs, use the compiled Go CLI `bin/parser` or `go run ./cmd/parser`.
 
-| Value | Crawler |
-| --- | --- |
-| `stub` | Built-in fixtures (default) |
-| `forum` | Forum thread seeds → `data/seeds/forum_threads.csv` |
-| `supply` | Domain seeds → `ads.txt` / `sellers.json` |
-| `lander` | Lander URL seeds |
-| `reddit` | PullPush search (rate-limited; may return 429) |
-| `discord` | Bot API (needs `DISCORD_BOT_TOKEN` + `DISCORD_CHANNEL_IDS`) |
-| `warrior` | Warrior Forum thread seeds |
-| `ct` | crt.sh subdomain search |
-| `github` | GitHub issue search (needs `GITHUB_TOKEN`) |
-| `reviews` | Review-site seeds |
-| `all` | `forum`, `supply`, `lander`, `reddit`, `discord`, `warrior` |
-
-Comma-separated lists work: `-source=forum,supply`.
-
-**Telegram** is separate:
+### Build Binary
 
 ```bash
-parser telegram --dry-run
-parser scan --source=stub   # default smoke test
+go build -o bin/parser ./cmd/parser
 ```
 
-### Seed files
-
-CSV seeds under `data/seeds/` ship with **example URLs** (many are placeholders). Replace them with real thread/domain/lander URLs before expecting live leads. Lines starting with `#` are ignored.
-
----
-
-## Storage
-
-| Mode | Env | Behavior |
-| --- | --- | --- |
-| Stub (dev) | `MONGO_URI` unset, no export | Leads processed but not persisted |
-| MongoDB | `MONGO_URI=mongodb://localhost:27017` | Primary production sink |
-| JSONL export | `PARSER_EXPORT_JSON=data/export/leads.jsonl` | Append-only file sink (can combine with Mongo) |
-
-Mongo connect uses a **5s timeout**; if Mongo is down, the parser logs a warning and falls back to stub/export sinks.
-
-Start Mongo separately (not included in compose):
+### Common Operator Commands
 
 ```bash
-docker run -d --name parser-mongo -p 27017:27017 mongo:7
+# 1. Validate configuration, Mongo connectivity, and seed CSV paths
+./bin/parser config check
+
+# 2. List available source adapters and their operational status
+./bin/parser sources list
+
+# 3. Perform a single scan round with console table output (smoke test)
+./bin/parser scan once --source=stub --output=table
+
+# 4. Perform a single scan round across all active live sources
+./bin/parser scan --source=all
+
+# 5. Run continuous polling loop (background loop without Docker)
+./bin/parser run --source=forum,reddit,github
 ```
 
 ---
 
-## Credentials
+## 3. Network Architecture & uTLS Cloudflare Bypass
 
-### Telegram (MTProto)
+The network layer (`internal/httpclient`) is engineered to bypass Cloudflare Bot Management and WAF protections:
 
-1. [my.telegram.org](https://my.telegram.org) → API Development tools → create app.
-2. Set `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` in `.env`.
-3. Create session file:
-
-```bash
-python3 -c 'from telethon import TelegramClient; client = TelegramClient("data/telethon.session", int(input("API_ID: ")), input("API_HASH: ")); client.start(); print("Session saved to data/telethon.session")'
-```
-
-4. Edit channel list: `config/sources.telegram.yaml`.
-
-### Google Gemini
-
-1. [Google AI Studio](https://aistudio.google.com/) → API key → `GEMINI_API_KEY`.
-2. `PARSER_ICP_CLASSIFY` / `PARSER_GEO_CLASSIFY` default to `true` but are no-ops without a key.
-3. Cold path (junk analyze, keyword diff) also needs Mongo.
-
-### Discord
-
-1. [Discord Developer Portal](https://discord.com/developers/applications) → Bot token → `DISCORD_BOT_TOKEN`.
-2. Enable **Message Content Intent**.
-3. Set `DISCORD_CHANNEL_IDS` (comma-separated).
-
-### GitHub
-
-1. Personal access token (classic) with `public_repo` → `GITHUB_TOKEN`.
-2. Optional: `GITHUB_SEARCH_QUERIES=voluum alternative;self-hosted tracker`.
+1. **uTLS TLS Fingerprinting (`utls.HelloChrome_Auto`)**:
+   * Replaces standard Go `crypto/tls` ClientHello handshake with Chrome 122+ TLS fingerprints and HTTP/2 ALPN (`h2`).
+2. **Browser Header Mirroring**:
+   * Injects `User-Agent`, `Accept`, `Accept-Language`, `Sec-Ch-Ua`, `Sec-Ch-Ua-Mobile`, `Sec-Ch-Ua-Platform`, `Sec-Fetch-Dest`, `Sec-Fetch-Mode`, `Sec-Fetch-Site`, `Sec-Fetch-User` into every outgoing HTTP request.
+3. **Automated Cloudflare Cooldown & Proxy Rotation**:
+   * If a proxy node encounters a Cloudflare `403 Forbidden` or `503 Service Unavailable` block (`CF-Ray` or `Server: cloudflare`), it enters a **10-minute cooldown**.
+   * Incoming requests dynamically route to alternative proxies in the pool via lock-free atomic round-robin.
 
 ---
 
-## Usage
+## 4. Source Execution Matrix & Profile Configuration
 
-Show commands:
+| Source | Resistance | Profile | Strategy & Limits |
+| :--- | :--- | :--- | :--- |
+| `reddit` | Low | High-Priority | PullPush & Arctic Shift search across `r/affiliatemarketing`, `r/media_buying`, `r/adops`, `r/PPC`. |
+| `github` | Low | High-Priority | GitHub REST Search API for Issues & Discussions (`"tracker alternative"`, `"openrtb"`, `"clickhouse tracker"`, `"voluum api"`, `"keitaro api"`). |
+| `telegram` | Low | High-Priority | Python Telethon sidecar (`parser telegram`) for CPA & arbitrage chats. |
+| `forum` | High (WAF) | Heavy Scrape | XenForo/vBulletin spidering with uTLS transport, residential proxies, and **0.5 RPS per host** rate limit. |
+| `reviews` | High (WAF) | Heavy Scrape | Trustpilot/G2 1–2★ review harvesting for competitor refugees (Voluum, Keitaro, RedTrack, Binom, FunnelFlux). |
+| `supply` | Low | Intel | Scans `/ads.txt`, `/app-ads.txt`, `/sellers.json` extracting `CONTACT=` directives & publisher emails. |
+| `serp` | Medium | Discovery | Google/Bing/DDG dork execution for tracker pain queries. |
 
-```bash
-parser help
-```
+---
 
-Smoke test (no network):
+## 5. Scoring Dictionary & Intent Qualification
 
-```bash
-parser scan
-# or: go run ./cmd/parser scan
-```
+Lead intent is evaluated using a 3-tier dictionary system (`data/keywords.json`):
 
-Single scan with live sources (needs seeds + network + tokens as applicable):
+* **Tier 1: Critical Intent (+50 score / Tag: `hot-lead`)**
+  * `voluum alternative`, `keitaro alternative`, `self-hosted tracker alternative`, `tracker migration`, `switch from voluum`, `voluum pricing too high`, `looking for high volume tracker`.
+* **Tier 2: Technical Pain & Financial Loss (+30 score / Tag: `pain-point`)**
+  * `postback failing`, `click loss`, `tracking lost events`, `redirect delay`, `slow click redirection`, `overage charges`, `event limits reached`, `tracker down`, `cloaking detection`.
+* **Tier 3: Infrastructure High-Rollers (+20 score / Tag: `high-roller`)**
+  * `dedicated server tracker`, `clickhouse for ad tracking`, `10m events per day`, `50k rps`, `usdt payment tracker`, `media buying team setup`, `custom openrtb endpoint`.
 
-```bash
-parser scan --source=all
-```
+### Pilot Qualification Tagging
 
-Polling loop:
+Leads scoring **$\ge 50$** or satisfying 3+ independent pilot signals (budget, competitor stack, pain, VPS, USDT, buyer role, volume, migration intent) automatically receive the **`pilot-qualified`** tag.
 
-```bash
-parser run --source=forum,supply
-```
+---
 
-Validate configuration:
+## 6. Output Data Format (JSONL & MongoDB)
 
-```bash
-parser config check
-```
+Leads are stored in MongoDB (`leads` collection) and append-only NDJSON file exports (`PARSER_EXPORT_JSON`):
 
-List sources:
-
-```bash
-parser sources list
-```
-
-### Docker
-
-`docker-compose.yaml` runs **only the parser** (`network_mode: host`). Mongo must run on the host (or update `MONGO_URI`).
-
-```bash
-make docker-build
-make docker-up
-# one-shot:
-make docker-run-once
-# with Telegram dry-run:
-docker compose run --rm parser telegram --dry-run
-```
-
-### Headless landers (optional)
-
-Playwright is not a Go dependency. Install separately, then:
-
-```bash
-pip install playwright
-playwright install chromium
-PARSER_LANDER_HEADLESS=true parser scan --source=lander
+```json
+{
+  "hash_id": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source": "reddit:affiliatemarketing",
+  "author": "media_buyer_mx",
+  "contact": {
+    "type": "telegram",
+    "value": "@buyer_mx"
+  },
+  "intent_score": 80,
+  "tags": ["pilot-qualified", "hot-lead", "pain-point"],
+  "matched_keywords": ["voluum alternative", "redirect delay"],
+  "context_snippet": "Keitaro postback died again on FTD. Looking for voluum alternative with flat fee pricing...",
+  "posted_at": "2026-08-17T10:00:00Z",
+  "status": "new"
+}
 ```
 
 ---
 
-## Core concepts
-
-### Geo and language
-
-- Hard-reject: `GEO_BLOCK_COUNTRIES` (default `RU,BY`), phone codes, `.ru`/`.by` domains.
-- Locale overlays: `KEYWORDS_LOCALE=es` or `KEYWORDS_LOCALE_PATH=data/keywords-es.json` (also `pt`, `pl`, `de`, `fr`).
-
-### Lead quality
-
-Scoring uses `data/keywords.json` (+ gray overlay):
-
-- **High (≥35):** competitor pain, stack needs (e.g. "Voluum too expensive").
-- **Pilot:** `pilot-qualified` tag when pain + contact signals match (`PARSER_PILOT_TAG=true`).
-
-### CRM handoff
-
-Lead status fields (`new`, `contacted`, `replied`, …) exist in the model but writes are gated by `PARSER_LEAD_STATUS_ENABLED=false` (default). Enable when wiring to `bidshard-leads` CRM.
-
----
-
-## Architecture
-
-| Path | Role |
-| --- | --- |
-| `cmd/parser` | CLI entry, scan loop, Telegram sidecar pipe |
-| `internal/sources` | Source adapters |
-| `internal/pipeline` | Worker pool, geo → score → dedup → sink |
-| `internal/sink` | MongoDB, JSONL, bulk writer |
-| `internal/gemini` | AI client, quotas, ICP/geo |
-| `internal/coldpath` | Junk queue, analyze/report loops |
-| `sources/telegram` | Telethon scraper (Python) |
-
----
-
-## Development
+## 7. Troubleshooting & Verification
 
 ```bash
-make test
-make test-py          # Telegram Python unit tests
-bash scripts/ci/check_parser_slop.sh
-```
+# Run unit tests across workspace
+go test ./... -count=1
 
-Backlog and verification gates: [MILESTONE.md](MILESTONE.md).
+# Run hot-path benchmarks
+go test -v ./internal/scoring -bench=BenchmarkKeywordExpander -benchmem
+
+# Check Docker container health
+docker inspect --format='{{.State.Health.Status}}' parser
+```

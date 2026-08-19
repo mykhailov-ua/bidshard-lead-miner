@@ -13,6 +13,7 @@ import (
 	"github.com/bidshard/parser/internal/sources/lander"
 	"github.com/bidshard/parser/internal/sources/reddit"
 	"github.com/bidshard/parser/internal/sources/reviews"
+	"github.com/bidshard/parser/internal/sources/serp"
 	"github.com/bidshard/parser/internal/sources/supply"
 	"github.com/bidshard/parser/internal/sources/warrior"
 )
@@ -49,7 +50,7 @@ func parseSourceList(raw string) []string {
 		return []string{"stub"}
 	}
 	if raw == "all" {
-		return []string{"forum", "supply", "lander", "reddit", "discord", "warrior"}
+		return []string{"forum", "supply", "lander", "reddit", "discord", "warrior", "serp"}
 	}
 	parts := strings.Split(raw, ",")
 	out := make([]string, 0, len(parts))
@@ -86,9 +87,29 @@ func buildOne(cfg config.Config, name string) (Source, bool) {
 		return wrapReviews(reviews.NewCrawler(cfg, nil)), true
 	case "github":
 		return wrapGitHub(github.NewCrawler(cfg)), true
+	case "serp":
+		return wrapSERP(serp.NewCrawler(cfg, nil)), true
 	default:
 		return nil, false
 	}
+}
+
+type serpSource struct {
+	inner *serp.Crawler
+}
+
+func wrapSERP(inner *serp.Crawler) Source {
+	return &serpSource{inner: inner}
+}
+
+func (s *serpSource) Name() string {
+	return s.inner.Name()
+}
+
+func (s *serpSource) Collect(ctx context.Context, emit EmitFunc) error {
+	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
+		return emit(ctx, item)
+	})
 }
 
 type gitHubSource struct {

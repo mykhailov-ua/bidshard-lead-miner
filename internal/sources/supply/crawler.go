@@ -81,6 +81,12 @@ func (c *Crawler) crawlDomain(ctx context.Context, domain string, emit EmitFunc)
 		slog.Debug("ads.txt fetch", "domain", domain, "error", adsErr)
 	}
 
+	appAdsBody, _, appAdsErr := c.fetcher.Get(ctx, domain, "/app-ads.txt")
+	if appAdsErr == nil {
+		appLines := ParseAdsTxt(string(appAdsBody))
+		adsLines = append(adsLines, appLines...)
+	}
+
 	sellersBody, sellersCode, sellersErr := c.fetcher.Get(ctx, domain, "/sellers.json")
 	var sellers []SellerContact
 	if sellersErr == nil {
@@ -94,10 +100,16 @@ func (c *Crawler) crawlDomain(ctx context.Context, domain string, emit EmitFunc)
 	}
 
 	snippet := BuildSnippet(domain, adsLines, sellers)
-	crawlHTML := string(adsBody) + "\n" + string(sellersBody)
+	crawlHTML := string(adsBody) + "\n" + string(appAdsBody) + "\n" + string(sellersBody)
 	contacts := collectContacts(sellers)
+	if directContact := ExtractContactDirective(string(adsBody)); directContact != "" {
+		contacts = append(contacts, directContact)
+	}
+	if directContact := ExtractContactDirective(string(appAdsBody)); directContact != "" {
+		contacts = append(contacts, directContact)
+	}
 	if len(contacts) == 0 {
-		return 0, nil
+		contacts = append(contacts, "domain:"+domain)
 	}
 
 	for _, contact := range contacts {

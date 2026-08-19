@@ -98,16 +98,35 @@ func ToLeadDoc(lead model.Lead) LeadDoc {
 
 func LeadJSONMap(lead model.Lead) map[string]any {
 	doc := ToLeadDoc(lead)
+	author := doc.DisplayName
+	if author == "" {
+		author = doc.Title
+	}
+
+	contactMap := map[string]string{
+		"type":  "profile_url",
+		"value": doc.Source,
+	}
+	if len(doc.Contacts) > 0 {
+		contactMap["type"] = doc.Contacts[0].Type
+		contactMap["value"] = doc.Contacts[0].Value
+	}
+
+	postedAtStr := doc.PostedAt.Format(time.RFC3339)
+	if doc.PostedAt.IsZero() {
+		postedAtStr = doc.TS.Format(time.RFC3339)
+	}
+
 	return map[string]any{
-		"hash_id":  doc.HashID,
-		"ts":       doc.TS.Format(time.RFC3339),
-		"round_id": doc.RoundID,
-		"priority": doc.Priority,
-		"score":    doc.Score,
-		"source":   doc.Source,
-		"title":    doc.Title,
-		"contacts": doc.Contacts,
-		"matched":  doc.Matched,
-		"snippet":  doc.Snippet,
+		"hash_id":          doc.HashID,
+		"source":           doc.Source,
+		"author":           author,
+		"contact":          contactMap,
+		"intent_score":     doc.Score,
+		"tags":             doc.Tags,
+		"matched_keywords": doc.Matched,
+		"context_snippet":  doc.Snippet,
+		"posted_at":        postedAtStr,
+		"status":           doc.Status,
 	}
 }

@@ -8,7 +8,10 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/extract"
@@ -22,20 +25,30 @@ type Crawler struct {
 	seedPath string
 	client   *http.Client
 	baseURL  string
+	workers  int
 }
 
 func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 	if client == nil {
-		client = httpclient.Shared(cfg.HTTPTimeout)
+		var err error
+		client, err = httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
+		if err != nil {
+			client = httpclient.Shared(cfg.HTTPTimeout)
+		}
 	}
 	seedPath := cfg.WarriorSeedPath
 	if seedPath == "" {
 		seedPath = "data/seeds/warrior_threads.csv"
 	}
+	workers := cfg.HTTPWorkers
+	if workers <= 0 {
+		workers = 10
+	}
 	return &Crawler{
 		seedPath: seedPath,
 		client:   client,
 		baseURL:  cfg.ForumBaseURL,
+		workers:  workers,
 	}
 }
 
@@ -49,60 +62,83 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		return err
 	}
 
+	var mu sync.Mutex
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(c.workers)
+
 	for _, threadURL := range urls {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		fetchURL := threadURL
-		if c.baseURL != "" {
-			if u, err := url.Parse(threadURL); err == nil {
-				fetchURL = strings.TrimRight(c.baseURL, "/") + u.Path
+		tURL := threadURL
+		g.Go(func() error {
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			default:
 			}
-		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fetchURL, nil)
-		if err != nil {
-			return err
-		}
-
-		resp, err := c.client.Do(req)
-		if err != nil {
-			slog.Warn("warrior fetch failed", "url", fetchURL, "error", err)
-			continue
-		}
-
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
-		resp.Body.Close()
-		if err != nil {
-			return err
-		}
-		if resp.StatusCode != http.StatusOK {
-			slog.Warn("warrior http status", "url", fetchURL, "status", resp.StatusCode)
-			continue
-		}
-
-		posts := parsePosts(string(body))
-		source := sourceName(threadURL)
-		for _, post := range posts {
-			contacts := extract.Extract(post.Body)
-			if contacts.Rejected || len(contacts.Contacts) == 0 {
-				continue
+			fetchURL := tURL
+			if c.baseURL != "" {
+				if u, err := url.Parse(tURL); err == nil {
+					fetchURL = strings.TrimRight(c.baseURL, "/") + u.Path
+				}
 			}
-			primary := extract.FormatAll(contacts.Contacts)[0]
-			item := model.RawItem{
-				Source:   source,
-				Raw:      post.Body,
-				Contact:  primary,
-				Title:    post.Author,
-				PostedAt: post.PostedAt,
-			}
-			if err := emit(ctx, item); err != nil {
+
+			req, err := http.NewRequestWithContext(gCtx, http.MethodGet, fetchURL, nil)
+			if err != nil {
 				return err
 			}
-		}
+
+			resp, err := c.client.Do(req)
+			if err != nil {
+				slog.Warn("warrior fetch failed", "url", fetchURL, "error", err)
+				return nil
+			}
+
+			body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+			resp.Body.Close()
+			if err != nil {
+				return err
+			}
+			if resp.StatusCode != http.StatusOK {
+				slog.Warn("warrior http status", "url", fetchURL, "status", resp.StatusCode)
+				return nil
+			}
+
+			posts := parsePosts(string(body))
+			source := sourceName(tURL)
+			for _, post := range posts {
+				contacts := extract.Extract(post.Body)
+				if contacts.Rejected {
+					continue
+				}
+				primary := ""
+				if len(contacts.Contacts) > 0 {
+					primary = extract.FormatAll(contacts.Contacts)[0]
+				} else if post.Author != "" && post.Author != "anonymous" {
+					primary = "warrior:user/" + post.Author
+				} else {
+					continue
+				}
+				item := model.RawItem{
+					Source:   source,
+					Raw:      post.Body,
+					Contact:  primary,
+					Title:    post.Author,
+					PostedAt: post.PostedAt,
+				}
+
+				mu.Lock()
+				if err := emit(gCtx, item); err != nil {
+					mu.Unlock()
+					return err
+				}
+				mu.Unlock()
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil && err != context.Canceled {
+		slog.Warn("warrior crawl completed with error", "error", err)
 	}
 
 	return nil
@@ -120,6 +156,8 @@ var (
 	postTimeRe    = regexp.MustCompile(`(?is)<time[^>]*datetime="([^"]+)"`)
 )
 
+var defaultStripper = NewFastHTMLStripper(65536)
+
 func parsePosts(html string) []Post {
 	matches := postContentRe.FindAllStringSubmatch(html, -1)
 	if len(matches) == 0 {
@@ -130,10 +168,10 @@ func parsePosts(html string) []Post {
 
 	var posts []Post
 	for i, match := range matches {
-		body := stripTags(match[1])
+		body := defaultStripper.StripTagsString(match[1])
 		author := "anonymous"
 		if i < len(authors) {
-			author = stripTags(authors[i][1])
+			author = defaultStripper.StripTagsString(authors[i][1])
 		}
 		postedAt := time.Now().UTC()
 		if i < len(times) {
@@ -166,6 +204,6 @@ func sourceName(threadURL string) string {
 }
 
 func stripTags(s string) string {
-	s = regexp.MustCompile(`(?is)<[^>]+>`).ReplaceAllString(s, " ")
-	return strings.Join(strings.Fields(s), " ")
+	return defaultStripper.StripTagsString(s)
 }
+

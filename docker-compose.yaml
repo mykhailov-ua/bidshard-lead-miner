@@ -15,8 +15,5 @@ services:
       - ./data:/app/data
       # Telegram source list (edit without rebuild)
       - ./config:/app/config:ro
+    command: ["run"]
     restart: unless-stopped
-    # Examples:
-    # command: ["scan"]
-    # command: ["telegram", "--dry-run", "--output=table"]
-    # command: ["scan", "--source=supply"]

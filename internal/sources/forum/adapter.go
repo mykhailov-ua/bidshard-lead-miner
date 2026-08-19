@@ -4,7 +4,10 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/extract"
@@ -16,15 +19,21 @@ type EmitFunc func(ctx context.Context, item model.RawItem) error
 type Adapter struct {
 	seedPath string
 	fetcher  *Fetcher
+	workers  int
 }
 
 func NewAdapter(cfg config.Config, fetcher *Fetcher) *Adapter {
 	if fetcher == nil {
-		fetcher = NewFetcher(cfg.HTTPTimeout, cfg.ForumBaseURL)
+		fetcher = NewFetcherWithConfig(cfg)
+	}
+	workers := cfg.HTTPWorkers
+	if workers <= 0 {
+		workers = 10
 	}
 	return &Adapter{
 		seedPath: cfg.ForumSeedPath,
 		fetcher:  fetcher,
+		workers:  workers,
 	}
 }
 
@@ -39,46 +48,94 @@ func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
 	}
 
 	start := time.Now()
-	emitted := 0
+	var (
+		mu      sync.Mutex
+		emitted int
+		visited = make(map[string]struct{})
+	)
 
-	for _, threadURL := range urls {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(a.workers)
+
+	var processURL func(rawURL string, depth int)
+	processURL = func(rawURL string, depth int) {
+		if depth > 2 {
+			return
 		}
 
-		html, err := a.fetcher.Get(ctx, threadURL)
-		if err != nil {
-			slog.Warn("forum fetch failed", "url", threadURL, "error", err)
-			continue
+		mu.Lock()
+		if _, seen := visited[rawURL]; seen {
+			mu.Unlock()
+			return
 		}
+		visited[rawURL] = struct{}{}
+		mu.Unlock()
 
-		for _, post := range ParsePostsFromHTML(html) {
-			if !HasPainSignal(post.Body) {
-				continue
+		g.Go(func() error {
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			default:
 			}
-			contacts := extract.Extract(post.Body)
-			if contacts.Rejected || len(contacts.Contacts) == 0 {
-				continue
+
+			html, err := a.fetcher.Get(gCtx, rawURL)
+			if err != nil {
+				slog.Warn("forum fetch failed", "url", rawURL, "error", err)
+				return nil
 			}
-			primary := extract.FormatAll(contacts.Contacts)[0]
-			item := model.RawItem{
-				Source:   sourceName(threadURL),
-				Raw:      post.Body,
-				Contact:  primary,
-				Title:    post.Author,
-				PostedAt: post.PostedAt,
+
+			discoveredThreads := ParseThreadURLsFromCategory(html)
+			for _, discURL := range discoveredThreads {
+				processURL(discURL, depth+1)
 			}
-			if err := emit(ctx, item); err != nil {
-				return err
+
+			for _, post := range ParsePostsFromHTML(html) {
+				if !HasPainSignal(post.Body) {
+					continue
+				}
+				contacts := extract.Extract(post.Body)
+				if contacts.Rejected {
+					continue
+				}
+				primary := ""
+				if len(contacts.Contacts) > 0 {
+					primary = extract.FormatAll(contacts.Contacts)[0]
+				} else if post.Author != "" {
+					primary = "forum:user/" + post.Author
+				} else {
+					continue
+				}
+
+				item := model.RawItem{
+					Source:   sourceName(rawURL),
+					Raw:      post.Body,
+					Contact:  primary,
+					Title:    post.Author,
+					PostedAt: post.PostedAt,
+				}
+
+				mu.Lock()
+				if err := emit(gCtx, item); err != nil {
+					mu.Unlock()
+					return err
+				}
+				emitted++
+				mu.Unlock()
 			}
-			emitted++
-		}
+			return nil
+		})
+	}
+
+	for _, seedURL := range urls {
+		processURL(seedURL, 0)
+	}
+
+	if err := g.Wait(); err != nil && err != context.Canceled {
+		slog.Warn("forum crawl completed with error", "error", err)
 	}
 
 	slog.Info("forum crawl finished",
-		"threads", len(urls),
+		"threads", len(visited),
 		"emitted", emitted,
 		"duration_ms", time.Since(start).Milliseconds(),
 	)
@@ -96,3 +153,4 @@ func sourceName(threadURL string) string {
 	}
 	return "forum:" + host
 }
+

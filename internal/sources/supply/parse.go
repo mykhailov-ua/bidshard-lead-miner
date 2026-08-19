@@ -62,6 +62,22 @@ func ParseAdsTxt(body string) []AdsTxtLine {
 	return out
 }
 
+func ExtractContactDirective(body string) string {
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(strings.ToUpper(line), "CONTACT=") || strings.HasPrefix(strings.ToUpper(line), "# CONTACT=") || strings.HasPrefix(strings.ToUpper(line), "#CONTACT=") {
+			idx := strings.Index(line, "=")
+			if idx >= 0 {
+				val := strings.TrimSpace(line[idx+1:])
+				if strings.Contains(val, "@") {
+					return val
+				}
+			}
+		}
+	}
+	return ""
+}
+
 type SellerContact struct {
 	Name         string
 	Domain       string

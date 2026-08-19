@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -35,7 +36,42 @@ func TestSharedTransportSettings(t *testing.T) {
 	}
 }
 
+func TestRotatingProxyTransport(t *testing.T) {
+	proxies := []string{
+		"http://10.0.0.1:8080",
+		"http://10.0.0.2:8080",
+		"http://10.0.0.3:8080",
+	}
+	trans, err := NewRotatingProxyTransport(proxies, nil)
+	if err != nil {
+		t.Fatalf("failed to create proxy transport: %v", err)
+	}
+	if len(trans.proxies) != 3 {
+		t.Fatalf("expected 3 parsed proxies, got %d", len(trans.proxies))
+	}
+}
+
+func BenchmarkRotatingProxySelection(b *testing.B) {
+	proxies := []string{
+		"http://10.0.0.1:8080",
+		"http://10.0.0.2:8080",
+		"http://10.0.0.3:8080",
+		"http://10.0.0.4:8080",
+	}
+	trans, _ := NewRotatingProxyTransport(proxies, nil)
+	req, _ := http.NewRequest(http.MethodGet, "http://example.com", nil)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		idx := atomic.AddUint64(&trans.counter, 1) % uint64(len(trans.proxies))
+		_ = trans.proxies[idx]
+		_ = req
+	}
+}
+
 func httpclientReset(t *testing.T) {
 	t.Helper()
 	ResetForTest()
 }
+

@@ -59,7 +59,7 @@ func TestReporterNDJSON(t *testing.T) {
 	})
 
 	out := strings.TrimSpace(buf.String())
-	if !strings.Contains(out, `"round_id":"abc123"`) {
+	if !strings.Contains(out, `"source":"stub:telegram_en"`) {
 		t.Fatalf("missing ndjson line: %q", out)
 	}
 }

@@ -32,7 +32,11 @@ type Crawler struct {
 
 func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 	if client == nil {
-		client = httpclient.Shared(cfg.HTTPTimeout)
+		var err error
+		client, err = httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
+		if err != nil {
+			client = httpclient.Shared(cfg.HTTPTimeout)
+		}
 	}
 	queries := cfg.CTQueries
 	if len(queries) == 0 {

@@ -99,6 +99,8 @@ type Config struct {
 	WarriorSeedPath        string
 	WarriorHostRPS         float64
 	KeywordStatsCollection string
+	HTTPWorkers            int
+	ProxyURLs              []string
 }
 
 func Load() (Config, error) {
@@ -110,6 +112,8 @@ func Load() (Config, error) {
 		ScanTimeout:            envDuration("PARSER_SCAN_TIMEOUT", 5*time.Minute),
 		HTTPTimeout:            envDuration("PARSER_HTTP_TIMEOUT", 30*time.Second),
 		ShutdownTimeout:        envDuration("PARSER_SHUTDOWN_TIMEOUT", 30*time.Second),
+		HTTPWorkers:            envInt("PARSER_HTTP_WORKERS", 10),
+		ProxyURLs:              parseCSV(env("PARSER_PROXY_LIST", "")),
 		LogFormat:              env("PARSER_LOG_FORMAT", "json"),
 		LogLevel:               env("PARSER_LOG_LEVEL", "info"),
 		Output:                 env("PARSER_OUTPUT", "table"),
@@ -148,8 +152,8 @@ func Load() (Config, error) {
 		ColdJunkQueueSize:      envInt("COLD_JUNK_QUEUE_SIZE", 512),
 		ColdJunkCollection:     env("COLD_JUNK_COLLECTION", "junk_leads"),
 		ColdReportCollection:   env("COLD_REPORT_COLLECTION", "junk_reports"),
-		RedditSubreddits:       parseCSV(env("REDDIT_SUBREDDITS", "affiliatemarketing,media_buying,juststart")),
-		RedditQueries:          parseSemicolonCSV(env("REDDIT_QUERIES", "voluum alternative;tracker too expensive;postback failing;self-hosted tracker")),
+		RedditSubreddits:       parseCSV(env("REDDIT_SUBREDDITS", "affiliatemarketing,media_buying,adops,PPC")),
+		RedditQueries:          parseSemicolonCSV(env("REDDIT_QUERIES", "voluum alternative;tracker too expensive;postback failing;self-hosted tracker;tracker migration;switch from voluum")),
 		RedditMaxResults:       envInt("REDDIT_MAX_RESULTS", 25),
 		GeminiKeywordDiffEvery: envInt("GEMINI_KEYWORD_DIFF_EVERY", 5),
 		GeminiKeywordDiffDir:   env("GEMINI_KEYWORD_DIFF_DIR", "data/suggestions"),

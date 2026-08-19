@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/breaker"
+	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/httpclient"
 	"github.com/bidshard/parser/internal/limit"
 )
@@ -23,9 +24,22 @@ type Fetcher struct {
 func NewFetcher(timeout time.Duration, baseURL string) *Fetcher {
 	return &Fetcher{
 		client:   httpclient.Shared(timeout),
-		limiters: limit.NewHostLimiters(1, 1),
+		limiters: limit.NewHostLimiters(0.5, 1),
 		breaker:  breaker.NewSourceBreaker(),
 		baseURL:  strings.TrimSuffix(baseURL, "/"),
+	}
+}
+
+func NewFetcherWithConfig(cfg config.Config) *Fetcher {
+	client, err := httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
+	if err != nil {
+		client = httpclient.Shared(cfg.HTTPTimeout)
+	}
+	return &Fetcher{
+		client:   client,
+		limiters: limit.NewHostLimiters(0.5, 1),
+		breaker:  breaker.NewSourceBreaker(),
+		baseURL:  strings.TrimSuffix(cfg.ForumBaseURL, "/"),
 	}
 }
 

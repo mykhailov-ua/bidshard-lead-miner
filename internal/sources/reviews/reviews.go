@@ -34,7 +34,11 @@ type Crawler struct {
 
 func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 	if client == nil {
-		client = httpclient.Shared(cfg.HTTPTimeout)
+		var err error
+		client, err = httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
+		if err != nil {
+			client = httpclient.Shared(cfg.HTTPTimeout)
+		}
 	}
 	return &Crawler{
 		client:  client,
@@ -51,7 +55,7 @@ func (c *Crawler) Name() string {
 }
 
 func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
-	products := []string{"voluum", "keitaro", "redtrack"}
+	products := []string{"voluum", "keitaro", "redtrack", "binom", "funnelflux"}
 	for _, prod := range products {
 		url := fmt.Sprintf("https://www.trustpilot.com/review/%s.com", prod)
 		if c.baseURL != "" {
@@ -109,6 +113,7 @@ var (
 	reviewBodyRe = regexp.MustCompile(`(?is)<p[^>]*class="[^"]*review-text[^"]*"[^>]*>(.*?)</p>`)
 	authorNameRe = regexp.MustCompile(`(?is)<span[^>]*class="[^"]*consumer-name[^"]*"[^>]*>(.*?)</span>`)
 	reviewTimeRe = regexp.MustCompile(`(?is)<time[^>]*datetime="([^"]+)"`)
+	stripTagRe   = regexp.MustCompile(`(?is)<[^>]+>`)
 )
 
 func parseReviews(html string, product string) []Review {
@@ -158,6 +163,6 @@ func parseReviews(html string, product string) []Review {
 }
 
 func stripTags(s string) string {
-	s = regexp.MustCompile(`(?is)<[^>]+>`).ReplaceAllString(s, " ")
+	s = stripTagRe.ReplaceAllString(s, " ")
 	return strings.Join(strings.Fields(s), " ")
 }
