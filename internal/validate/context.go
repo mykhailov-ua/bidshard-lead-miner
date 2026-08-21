@@ -22,6 +22,28 @@ var painContextHints = []string{
 	"affiliate network", "performance marketing", "arbitrage",
 }
 
+var strictPainContextHints = []string{
+	"voluum", "keitaro", "binom", "redtrack", "clickflare", "bemob", "thrivetracker",
+	"postback", "alternative", "afterburn", "ftd", "self-hosted", "self hosted",
+	"cloak", "cloaker", "safe page", "clickid", "click id", "conversion", "billing",
+	"expensive", "migrate", "switching from", "s2s", "openrtb", "budget overburn",
+	"missing ftd", "per-event", "tracker",
+}
+
+// HasStrictPainContext requires tracker-specific pain, not generic affiliate page copy.
+func HasStrictPainContext(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	if lower == "" {
+		return false
+	}
+	for _, hint := range strictPainContextHints {
+		if strings.Contains(lower, hint) {
+			return true
+		}
+	}
+	return false
+}
+
 // HasPainContext reports whether text has tracker-pain signals beyond a bare contact.
 func HasPainContext(text string) bool {
 	lower := strings.ToLower(strings.TrimSpace(text))

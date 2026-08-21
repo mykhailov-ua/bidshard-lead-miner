@@ -1,0 +1,20 @@
+# CRM edge proxy (Caddy) on host network (Linux).
+# Prereq: ./bin/crm-bot run  (127.0.0.1:8080)
+# Usage:
+#   make crm-caddy-up
+#   CRM_API_URL=https://localhost:8443 CRM_API_USER=sales CRM_API_PASSWORD=change-me crm-bot api stats
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: crm-caddy
+    network_mode: host
+    volumes:
+      - ./config/caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

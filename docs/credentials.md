@@ -109,6 +109,60 @@ Atlas: [register](https://www.mongodb.com/cloud/atlas/register) -> Connect -> Dr
 
 ---
 
+## CRM sidecar (`crm-bot`)
+
+HTTP sidecar + CLI. No web UI, no Telegram Bot API. Parser webhook: `POST /v1/leads` with Bearer auth.
+
+| Variable | Purpose |
+|----------|---------|
+| `CRM_WEBHOOK_ADDR` | Listen addr (default `127.0.0.1:8080`; bind localhost in prod) |
+| `CRM_WEBHOOK_SECRET` | Bearer token for parser only (`PARSER_CRM_WEBHOOK_SECRET`) |
+| `CRM_API_URL` | Remote CLI base URL (`https://crm.example.com`) |
+| `CRM_API_USER` / `CRM_API_PASSWORD` | Caddy basicauth for `crm-bot api` |
+| `PARSER_LEAD_STATUS_ENABLED` | Must be `true` on parser so leads get `status: new` |
+
+Sales access: **Caddy** on 443 with `basicauth`, reverse proxy to `127.0.0.1:8080`. See `config/caddy/Caddyfile.example`.
+
+```bash
+make build-crm-bot
+./bin/crm-bot config check
+./bin/crm-bot run
+```
+
+### Remote CLI (laptop -> VPS)
+
+```bash
+export CRM_API_URL=https://crm.example.com
+export CRM_API_USER=sales
+export CRM_API_PASSWORD=...
+./bin/crm-bot api stats
+./bin/crm-bot api list --status new --limit 20
+./bin/crm-bot api set-status --hash <hash_id> --status contacted
+./bin/crm-bot api purge --status spam --yes
+```
+
+### On-server Mongo CLI (SSH on VPS)
+
+```bash
+./bin/crm-bot db stats
+./bin/crm-bot db delete --hash <hash_id> --yes
+./bin/crm-bot db purge --status new --score-max 30 --yes
+./bin/crm-bot db set-status --hash <hash_id> --status spam
+```
+
+HTTP admin API (same operations, Caddy basicauth in prod):
+
+| Method | Path |
+|--------|------|
+| GET | `/v1/admin/stats` |
+| GET | `/v1/admin/leads?status=new&limit=50` |
+| GET | `/v1/admin/leads/get?hash_id=...` |
+| PATCH | `/v1/admin/leads` |
+| DELETE | `/v1/admin/leads?hash_id=...` |
+| POST | `/v1/admin/leads/purge` |
+
+---
+
 ## Reddit (PullPush)
 
 No API key. Tune:
@@ -127,8 +181,9 @@ PullPush may rate-limit without registration: [pullpush.io](https://api.pullpush
 
 | Variable | Purpose |
 |----------|---------|
-| `PARSER_PROXY_LIST` | Comma-separated HTTP proxies - see [OPS.md](OPS.md#proxy) |
+| `PARSER_PROXY_LIST` | Comma-separated HTTP proxies - see [ops.md](ops.md#proxy) |
 | `PARSER_MX_CHECK` | MX validation for email leads |
+| `PARSER_LEAD_STATUS_ENABLED` | Set `true` before CRM inbox - parser writes `status: new` on accept |
 | `PARSER_ENRICH_RDAP` / `DNS` / `EMAIL` | RDAP/DNS enrichment |
 | `SUPPLY_BASE_URL` | HTTP rewrite base for supply crawler (tests) |
 | `LANDER_BASE_URL` | HTTP rewrite base for lander crawler (tests) |

@@ -21,7 +21,7 @@ out = root / "data" / "seeds" / "forum_threads.csv"
 lines = [
     "# Forum seed threads for grey-market tracking pain harvesting.",
     "# forum-fixture.test URLs load HTML from testdata/forum/ (offline dev/CI).",
-    "# Live hosts (affiliatefix, BHW) need residential proxy - see docs/OPS.md.",
+    "# Live hosts (affiliatefix, BHW) need residential proxy - see docs/ops.md.",
     "url,notes",
 ]
 idx = 1001

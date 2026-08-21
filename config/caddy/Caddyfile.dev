@@ -1,0 +1,15 @@
+# Local CRM edge: HTTPS + basic_auth in front of host crm-bot.
+# Start: make crm-caddy-up  (crm-bot must listen on host 127.0.0.1:8080)
+# CLI: CRM_API_URL=https://localhost:8443 CRM_API_USER=sales CRM_API_PASSWORD=change-me crm-bot api stats
+
+https://localhost:8443 {
+	encode gzip zstd
+
+	tls internal
+
+	basic_auth {
+		sales $2a$14$fB7UiTeFMCcw2N0xeDFpsuvqK3M6KMJk5L43c31vNyr3ShqyEC1jq
+	}
+
+	reverse_proxy 127.0.0.1:8080
+}

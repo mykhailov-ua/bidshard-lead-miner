@@ -43,6 +43,9 @@ func Filter(text string, contacts ...string) Result {
 	if longCyrillicWithoutLatin(body) {
 		return Result{Reason: "cyrillic-only context"}
 	}
+	if cyrillicHeavyWithoutLatin(body) {
+		return Result{Reason: "cyrillic-heavy context"}
+	}
 
 	return Result{OK: true}
 }
@@ -69,6 +72,34 @@ func longCyrillicWithoutLatin(text string) bool {
 	return !latinSignalRe.MatchString(text)
 }
 
+func cyrillicHeavyWithoutLatin(text string) bool {
+	cyr, lat := scriptCounts(text)
+	if cyr < 20 {
+		return false
+	}
+	if lat >= 20 {
+		return false
+	}
+	total := cyr + lat
+	if total == 0 {
+		return false
+	}
+	return cyr*100/total >= 35
+}
+
+func scriptCounts(text string) (cyrillic, latin int) {
+	for _, r := range text {
+		if unicode.Is(unicode.Cyrillic, r) {
+			cyrillic++
+			continue
+		}
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+			latin++
+		}
+	}
+	return cyrillic, latin
+}
+
 func IsBlockedCountry(code string, blocked []string) bool {
 	code = strings.ToUpper(strings.TrimSpace(code))
 	for _, b := range blocked {
@@ -77,6 +108,26 @@ func IsBlockedCountry(code string, blocked []string) bool {
 		}
 	}
 	return false
+}
+
+var blockedTLDS = map[string]struct{}{
+	"ru": {}, "рф": {}, "by": {}, "бел": {}, "su": {},
+}
+
+// IsBlockedTLD reports RU/BY country-code TLDs used for geo hard reject.
+func IsBlockedTLD(host string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" {
+		return false
+	}
+	host = strings.TrimPrefix(host, "www.")
+	parts := strings.Split(host, ".")
+	if len(parts) < 2 {
+		return false
+	}
+	tld := parts[len(parts)-1]
+	_, blocked := blockedTLDS[tld]
+	return blocked
 }
 
 func HasCyrillicRun(text string, min int) bool {

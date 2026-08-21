@@ -1,0 +1,23 @@
+# CRM web console behind Caddy (production).
+#
+# 1. Replace crm.example.com with your domain (DNS A/AAAA to VPS).
+# 2. Generate password hash:
+#      docker run --rm caddy:2-alpine caddy hash-password --plaintext 'YOUR_PASSWORD'
+# 3. crm-bot binds localhost only: CRM_WEBHOOK_ADDR=127.0.0.1:8080
+# 4. Firewall: allow 443, deny public 8080 and 27017.
+
+crm.example.com {
+	encode gzip zstd
+
+	basic_auth {
+		sales REPLACE_WITH_CADDY_HASH_PASSWORD
+	}
+
+	reverse_proxy 127.0.0.1:8080
+}
+
+# Optional second operator:
+# basicauth {
+#   sales HASH1
+#   ops HASH2
+# }

@@ -24,7 +24,8 @@ COPY . .
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 go build -ldflags="-s -w" -trimpath -o /parser ./cmd/parser
+    CGO_ENABLED=0 go build -ldflags="-s -w" -trimpath -o /parser ./cmd/parser && \
+    CGO_ENABLED=0 go build -ldflags="-s -w" -trimpath -o /crm-bot ./cmd/crm-bot
 
 FROM python:3.12-alpine AS py-builder
 
@@ -41,6 +42,7 @@ WORKDIR /app
 
 COPY --from=py-builder /install /usr
 COPY --from=go-builder /parser /usr/local/bin/parser
+COPY --from=go-builder /crm-bot /usr/local/bin/crm-bot
 
 COPY --chown=parser:parser data/ /app/data/
 COPY --chown=parser:parser config/ /app/config/

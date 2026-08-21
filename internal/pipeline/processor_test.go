@@ -244,8 +244,8 @@ func TestProcessorTgWebAggressiveThinPageSkype(t *testing.T) {
 			Contact: "skype:aff.manager",
 		},
 	})
-	if !out.Accepted {
-		t.Fatal("expected aggressive tgweb skype lpr to accept thin page")
+	if out.Accepted {
+		t.Fatal("expected aggressive tgweb skype lpr without tracker pain to reject")
 	}
 }
 

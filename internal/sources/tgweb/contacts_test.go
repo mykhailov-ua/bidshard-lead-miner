@@ -108,6 +108,8 @@ func TestIsValidCrawlDomain(t *testing.T) {
 		{"durov.gram", false},
 		{"google.co.uk", false},
 		{"site.com", false},
+		{"shop.example.ru", false},
+		{"agency.by", false},
 	}
 	for _, tc := range cases {
 		if got := IsValidCrawlDomain(tc.domain); got != tc.ok {

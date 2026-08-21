@@ -187,9 +187,7 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 	}
 
 	if cfg.GeminiAPIKey == "" {
-		for _, msg := range config.GeminiMisconfigErrors(cfg, containsSource(active, "tgweb")) {
-			errors = append(errors, msg)
-		}
+		errors = append(errors, config.GeminiMisconfigErrors(cfg, containsSource(active, "tgweb"))...)
 	}
 	if cfg.CRMWebhookEnabled && strings.TrimSpace(cfg.CRMWebhookURL) == "" {
 		errors = append(errors, "PARSER_CRM_WEBHOOK enabled but PARSER_CRM_WEBHOOK_URL empty")

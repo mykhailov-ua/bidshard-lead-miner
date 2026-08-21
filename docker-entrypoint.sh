@@ -12,4 +12,12 @@ mkdir -p /app/data/runtime /app/data/export
 chown -R parser:parser /app/data/runtime /app/data/export
 
 # Drop to parser user before exec; CMD passes subcommand (run, scan, telegram, ...).
-exec su-exec parser parser "$@"
+case "$1" in
+crm-bot)
+	shift
+	exec su-exec parser crm-bot "$@"
+	;;
+*)
+	exec su-exec parser parser "$@"
+	;;
+esac

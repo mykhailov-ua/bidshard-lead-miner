@@ -11,15 +11,31 @@
 # BPF dev (Linux, root):
 #   make bpf-dev && sudo make bpf-session-start
 #
-# Docs: README.md, docs/OPS.md, docs/CREDENTIALS.md
+# Docs: README.md, docs/ops.md, docs/credentials.md
 
-.PHONY: build test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke docker-headless-build bpf-release-gate bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop
+.PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke docker-headless-build bpf-release-gate bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop
 
 VENV := .venv
 VENV_PY := $(VENV)/bin/python
+BIN_DIR := bin
 
-build:
-	go build -ldflags "-X github.com/bidshard/parser/cmd/parser.Version=dev" -o bin/parser ./cmd/parser
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
+
+build: $(BIN_DIR)
+	go build -ldflags "-X github.com/bidshard/parser/cmd/parser.Version=dev" -o $(BIN_DIR)/parser ./cmd/parser
+
+build-crm-bot: $(BIN_DIR)
+	go build -ldflags "-X github.com/bidshard/parser/cmd/crm-bot.Version=dev" -o $(BIN_DIR)/crm-bot ./cmd/crm-bot
+
+crm-bot-smoke:
+	bash scripts/dev/crm_bot_smoke.sh
+
+crm-caddy-up:
+	bash scripts/dev/crm_caddy_up.sh
+
+crm-caddy-down:
+	docker compose -f docker-compose.crm-edge.yaml down
 
 setup: venv
 	go mod download
@@ -32,7 +48,7 @@ test:
 	go test ./...
 
 test-integration:
-	go test -tags=integration ./internal/sink/...
+	go test -tags=integration ./internal/sink/... ./internal/crm/store/...
 
 test-py:
 	PYTHONPATH=. $(if $(wildcard $(VENV_PY)),$(VENV_PY),python3) -m unittest discover -s sources/telegram -p 'test_*.py'

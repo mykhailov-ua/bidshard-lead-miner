@@ -9,4 +9,4 @@ Datacenter HTTP proxy for parser crawl tests. Does not replace residential proxy
 | `check-proxy.sh` | Curl smoke test |
 | `print-env-snippet.sh` | Print `PARSER_PROXY_LIST=...` line |
 
-Docs: [docs/OPS.md#vps-squid-optional](../../docs/OPS.md#vps-squid-optional), [docs/DEPLOY_VPS.md#appendix-a-vps-squid-datacenter-egress-only](../../docs/DEPLOY_VPS.md#appendix-a-vps-squid-datacenter-egress-only).
+Docs: [docs/ops.md#vps-squid-optional](../../docs/ops.md#vps-squid-optional), [docs/deploy.md#appendix-a-vps-squid-datacenter-egress-only](../../docs/deploy.md#appendix-a-vps-squid-datacenter-egress-only).

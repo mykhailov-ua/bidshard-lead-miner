@@ -55,6 +55,32 @@ services:
       retries: 3
       start_period: 45s
 
+  crm-bot:
+    image: bidshard-parser:local
+    container_name: crm-bot
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      CRM_WEBHOOK_ADDR: :8080
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+    command: ["crm-bot", "run"]
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "crm-bot", "config", "check"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+
 volumes:
   mongo_data:
   parser_runtime:

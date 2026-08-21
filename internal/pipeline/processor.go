@@ -115,6 +115,20 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		return out
 	}
 
+	if filter.IsTgWebSource(task.Item.Source) {
+		if domain := tgweb.SiteDomainFromSource(task.Item.Source); geo.IsBlockedTLD(domain) {
+			out.RejectedGeo = true
+			slog.Debug("geo reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", "ru/by tld")
+			p.captureJunk(ctx, task, coldpath.ReasonGeoReject, "ru/by tld", 0, nil)
+			return out
+		}
+		if reject, reason := filter.RejectHTMLBoilerplate(text); reject {
+			logTgWebReject(task, reason, nil)
+			p.captureJunk(ctx, task, coldpath.ReasonLangReject, reason, 0, nil)
+			return out
+		}
+	}
+
 	if reject, reason := filter.RejectLongCyrillicWithoutLatin(text); reject {
 		slog.Debug("lang reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
 		p.captureJunk(ctx, task, coldpath.ReasonLangReject, reason, 0, nil)
@@ -206,7 +220,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	}
 	if hasEmailContact(contacts.Contacts) && validate.EmailWithoutPainContext(text) {
 		// Allow bare site emails when tgweb already validated an on-domain LPR at crawl time.
-		if filter.IsTgWebSource(task.Item.Source) && tgwebEmailAllowed(task.Item, contacts.Contacts, p.TgWebPrescanMode) {
+		if filter.IsTgWebSource(task.Item.Source) && tgwebEmailAllowed(task.Item, contacts.Contacts, p.TgWebPrescanMode, text) {
 			logTgWebInfo(task, "tgweb email allowed with site lpr")
 		} else {
 			logTgWebReject(task, "email without pain context", nil)
@@ -251,11 +265,13 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		TimeDecay: p.TimeDecayEnabled,
 	})
 	if priority == scoring.PriorityLow && p.TgWebPrescanMode.Aggressive() && filter.IsTgWebSource(task.Item.Source) && tgweb.HasSiteLPRContact(task.Item.Source, contacts.Contacts) {
-		// Lift site LPR leads to at least Medium when keyword score alone would drop them.
-		if min := mediumMinFromReg(p.Registry); leadText.Score < min {
-			leadText.Score = min
-			priority = scoring.PriorityFromScore(p.Registry, leadText.Score)
-			slog.Debug("tgweb aggressive score floor", "round_id", task.RoundID, "source", task.Item.Source, "score", leadText.Score)
+		// Lift site LPR leads only when text has tracker pain, not generic affiliate HTML.
+		if validate.HasStrictPainContext(text) {
+			if min := mediumMinFromReg(p.Registry); leadText.Score < min {
+				leadText.Score = min
+				priority = scoring.PriorityFromScore(p.Registry, leadText.Score)
+				slog.Debug("tgweb aggressive score floor", "round_id", task.RoundID, "source", task.Item.Source, "score", leadText.Score)
+			}
 		}
 	}
 	if priority == scoring.PriorityLow {
@@ -552,18 +568,17 @@ func mediumMinFromReg(reg *scoring.Registry) int {
 	return mediumMin
 }
 
-func tgwebEmailAllowed(item model.RawItem, contacts []extract.Contact, mode scoring.TgWebPrescanMode) bool {
+func tgwebEmailAllowed(item model.RawItem, contacts []extract.Contact, mode scoring.TgWebPrescanMode, text string) bool {
 	if hasDirectMessengerContact(contacts) {
-		return true
+		return validate.HasStrictPainContext(text)
 	}
 	if !mode.Aggressive() {
 		return false
 	}
-	// Accept thin affiliate pages when crawl already pinned an on-domain LPR contact.
 	if tgweb.HasSiteLPRContact(item.Source, contacts) {
-		return true
+		return validate.HasStrictPainContext(text)
 	}
-	return tgweb.AggressivePrescanFromContact(item.Source, item.Contact)
+	return tgweb.AggressivePrescanFromContact(item.Source, item.Contact) && validate.HasStrictPainContext(text)
 }
 
 func (p *Processor) applyPilotAndOutreach(

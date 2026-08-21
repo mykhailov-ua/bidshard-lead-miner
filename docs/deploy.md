@@ -2,19 +2,69 @@
 
 Single path: fresh Ubuntu VPS + residential proxy -> parser 24/7 with leads in Mongo/JSONL.
 
-Related: [CREDENTIALS.md](CREDENTIALS.md), [OPS.md](OPS.md).
+Related: [credentials.md](credentials.md), [ops.md](ops.md).
 
 ---
 
 ## 1. Server requirements
 
-| Item | Minimum |
+| Item | Minimum | Full prod (boxed) |
+| --- | --- | --- |
+| OS | Ubuntu 22.04 / 24.04 | Ubuntu 24.04 LTS |
+| RAM | 2 GB | **4 GB** (Mongo + Telethon bg); **8 GB** if `PARSER_LANDER_HEADLESS=true` on same host |
+| vCPU | 1 | **2** (`PARSER_WORKERS=4`, `PARSER_SOURCE_CONCURRENCY=3`) |
+| Disk | 20 GB | **40-80 GB** (Mongo, JSONL, `parser_runtime`, backups) |
+| Egress | Residential HTTP proxy for forum/tgweb on datacenter IP | same |
+| Secrets | `GEMINI_API_KEY`, `TELEGRAM_API_*`, `PARSER_PROXY_LIST` | + optional `DISCORD_*`, `GITHUB_TOKEN` |
+
+Full prod profile: `config/env/.env.vps.example` (`forum,supply,lander,tgweb`, `PARSER_BG_TELEGRAM=1`).
+
+### What to buy (defaults)
+
+Account signup: **email + card**, no passport upload on standard plans. **Not RU providers** (Selectel, Timeweb, RuVDS, ...). Provider policies change - confirm at checkout.
+
+| Role | Pick | Plan | Payment | Notes |
+| --- | --- | --- | --- | --- |
+| **VPS** (parser + Mongo) | [Servury](https://servury.com) or [EQVPS](https://eqvps.com) | **4 GB RAM**, 2 vCPU, 40+ GB disk | Visa/Mastercard | Email signup; Servury can use a generated credential |
+| **VPS** (mainstream alt.) | [Hetzner](https://www.hetzner.com/cloud) CPX22 | 4 GB RAM, 2 vCPU, 80 GB NVMe | Card / PayPal | Referenced in [ops.md](ops.md); stable 24/7 |
+| **Residential proxy** | [DataImpulse](https://dataimpulse.com) | Pay-as-you-go (~$1/GB) | Card | Primary example in repo; traffic does not expire |
+| **Residential proxy** (alt.) | [IPRoyal](https://iproyal.com/residential-proxies/) | Pay-as-you-go | Card | Also wired in `config/env/.env.residential.example` |
+
+**VPS location:** Germany or Netherlands (EU egress; stable for this stack).
+
+**Do not use datacenter VPS IP alone** for forum/tgweb on Cloudflare - set `PARSER_PROXY_LIST` to residential. Optional VPS Squid is datacenter egress only ([Appendix A](#appendix-a-vps-squid-datacenter-egress-only)).
+
+### Monthly budget (full prod, rough)
+
+| Item | Cost |
 | --- | --- |
-| OS | Ubuntu 22.04 / 24.04 |
-| RAM | 2 GB (4 GB with Mongo + Telethon) |
-| Disk | 20 GB |
-| Egress | Residential HTTP proxy for forum/tgweb on datacenter IP |
-| Secrets | `GEMINI_API_KEY`, `TELEGRAM_API_*`, `PARSER_PROXY_LIST` |
+| VPS 4 GB | ~$10-15 / EUR 6-7 (Hetzner) |
+| Residential 5-15 GB | ~$5-15 (DataImpulse) |
+| Gemini API | $0 on free tier (watch RPM/RPD) |
+| **Total** | ~$15-30 / month |
+
+### Wire residential proxy into `.env`
+
+DataImpulse (geo/session in username - see provider dashboard):
+
+```bash
+PARSER_PROXY_LIST=http://user-country-de-session-prod1:PASS@gw.dataimpulse.com:823
+```
+
+IPRoyal:
+
+```bash
+PARSER_PROXY_LIST=http://USER:PASS@geo.iproyal.com:12321
+```
+
+Verify before 24/7:
+
+```bash
+make proxy-check
+make vps-preflight
+```
+
+More proxy modes: [ops.md#proxy](ops.md#proxy).
 
 ---
 
@@ -157,7 +207,7 @@ make backup
 | All crawls `raw=0` | `make proxy-check`; verify residential creds; see Appendix A for datacenter Squid |
 | Telethon session lost | Use named volume `parser_runtime`; re-run `telegram login --qr` |
 
-Deep dives: [OPS.md](OPS.md) (tgweb, proxy, BPF).
+Deep dives: [ops.md](ops.md) (tgweb, proxy, BPF).
 
 ---
 
@@ -180,7 +230,7 @@ make vps-proxy-docker
 make vps-proxy-down                        # stop
 ```
 
-Full guide: [OPS.md#vps-squid-optional](OPS.md#vps-squid-optional). Scripts: [scripts/vps-proxy/README.md](../scripts/vps-proxy/README.md).
+Full guide: [ops.md#vps-squid-optional](ops.md#vps-squid-optional). Scripts: [scripts/vps-proxy/README.md](../scripts/vps-proxy/README.md).
 
 ---
 
@@ -192,7 +242,19 @@ Full guide: [OPS.md#vps-squid-optional](OPS.md#vps-squid-optional). Scripts: [sc
 | Playwright in Docker | `make docker-headless-build`; `PARSER_LANDER_HEADLESS=true` |
 | BPF release gate | `PARSER_BPF_GATE=1 make tgweb-crawl-bpf`; `make bpf-release-gate SESSION=var/bpf-session/...` |
 | BPF leak probe | `PARSER_BPF_LEAK_GATE=1` + `make bpf-leak-gate SESSION=...`; scrape `:9464` for `parser_bpf_fd_delta` |
-| CRM webhook | `PARSER_CRM_WEBHOOK_URL=https://crm.example/hook`; optional `PARSER_CRM_WEBHOOK_SECRET` |
+| CRM webhook | `PARSER_CRM_WEBHOOK=true`; `PARSER_CRM_WEBHOOK_URL=http://crm-bot:8080/v1/leads`; shared `PARSER_CRM_WEBHOOK_SECRET` / `CRM_WEBHOOK_SECRET`; parser needs `PARSER_LEAD_STATUS_ENABLED=true` for inbox |
+
+### CRM sidecar (docker compose)
+
+```bash
+cp .env.example .env
+# set CRM_WEBHOOK_SECRET, MONGO_URI; expose UI via Caddy (config/caddy/Caddyfile.example)
+docker compose up -d mongo crm-bot
+docker compose run --rm crm-bot config check
+bash scripts/dev/crm_bot_smoke.sh
+```
+
+Compose service `crm-bot` publishes `127.0.0.1:8080` on the host and uses `MONGO_URI=mongodb://mongo:27017` inside the bridge network. Remote CLI: `CRM_API_URL=http://127.0.0.1:8080 ./bin/crm-bot api stats`. Host-local dev: `make build-crm-bot && ./bin/crm-bot run`.
 
 ---
 

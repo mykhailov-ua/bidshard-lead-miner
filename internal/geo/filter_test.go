@@ -23,6 +23,7 @@ func TestFilterRejectCases(t *testing.T) {
 		{"belarus bio", "office in Belarus", "", "ru/by bio signal"},
 		{"europe moscow tz", "timezone Europe/Moscow", "", "ru/by bio signal"},
 		{"cyrillic only", "ищем альтернативу трекеру для арбитража без английского", "", "cyrillic-only context"},
+		{"cyrillic heavy", stringsRepeatCyrillic(25) + " tracker voluum", "", "cyrillic-heavy context"},
 	}
 
 	for _, tc := range cases {
@@ -64,5 +65,27 @@ func TestFilterPassCases(t *testing.T) {
 				t.Fatalf("expected pass, got reject: %s", got.Reason)
 			}
 		})
+	}
+}
+
+func stringsRepeatCyrillic(n int) string {
+	r := 'а'
+	out := make([]rune, n)
+	for i := range out {
+		out[i] = r
+	}
+	return string(out)
+}
+
+func TestIsBlockedTLD(t *testing.T) {
+	t.Parallel()
+	if !IsBlockedTLD("shop.example.ru") {
+		t.Fatal("expected .ru blocked")
+	}
+	if !IsBlockedTLD("www.agency.by") {
+		t.Fatal("expected .by blocked")
+	}
+	if IsBlockedTLD("bojoko.com") {
+		t.Fatal("expected .com allowed")
 	}
 }

@@ -16,6 +16,16 @@ func TestHasPainContext(t *testing.T) {
 	}
 }
 
+func TestHasStrictPainContext(t *testing.T) {
+	t.Parallel()
+	if !HasStrictPainContext("voluum alternative postback failing") {
+		t.Fatal("expected strict pain")
+	}
+	if HasStrictPainContext("igaming affiliate program and media buying partner program") {
+		t.Fatal("generic affiliate copy should not pass strict pain gate")
+	}
+}
+
 func TestEmailWithoutPainContext(t *testing.T) {
 	t.Parallel()
 
