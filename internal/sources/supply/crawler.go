@@ -121,7 +121,7 @@ func (c *Crawler) crawlDomain(ctx context.Context, domain string, emit EmitFunc)
 			Raw:       snippet,
 			Contact:   contact,
 			Title:     "Supply contact",
-			CrawlHTML: crawlHTML,
+			CrawlHTML: model.LimitCrawlHTML(crawlHTML),
 		}
 		if err := emit(ctx, item); err != nil {
 			return emitted, err

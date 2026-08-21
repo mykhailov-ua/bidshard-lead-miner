@@ -3,8 +3,8 @@ package forum
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -31,12 +31,8 @@ func NewFetcher(timeout time.Duration, baseURL string) *Fetcher {
 }
 
 func NewFetcherWithConfig(cfg config.Config) *Fetcher {
-	client, err := httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
-	if err != nil {
-		client = httpclient.Shared(cfg.HTTPTimeout)
-	}
 	return &Fetcher{
-		client:   client,
+		client:   httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLs),
 		limiters: limit.NewHostLimiters(0.5, 1),
 		breaker:  breaker.NewSourceBreaker(),
 		baseURL:  strings.TrimSuffix(cfg.ForumBaseURL, "/"),
@@ -44,6 +40,10 @@ func NewFetcherWithConfig(cfg config.Config) *Fetcher {
 }
 
 func (f *Fetcher) Get(ctx context.Context, rawURL string) (string, error) {
+	if isFixtureURL(rawURL) {
+		return loadFixtureHTML(rawURL)
+	}
+
 	if f.breaker != nil && !f.breaker.Allow("forum") {
 		return "", fmt.Errorf("source circuit open")
 	}
@@ -53,16 +53,19 @@ func (f *Fetcher) Get(ctx context.Context, rawURL string) (string, error) {
 		return "", err
 	}
 
-	url := rawURL
+	fetchURL := rawURL
 	if f.baseURL != "" {
-		if idx := strings.Index(rawURL, "/threads/"); idx >= 0 {
-			url = f.baseURL + rawURL[idx:]
-		} else {
-			url = f.baseURL + "/"
+		parsed, err := url.Parse(rawURL)
+		if err != nil {
+			return "", err
+		}
+		fetchURL = f.baseURL + parsed.Path
+		if parsed.RawQuery != "" {
+			fetchURL += "?" + parsed.RawQuery
 		}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fetchURL, nil)
 	if err != nil {
 		return "", err
 	}
@@ -70,12 +73,12 @@ func (f *Fetcher) Get(ctx context.Context, rawURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
+	// RecordResponse before body read; DoBytes would not allow this ordering without a hook.
 	if f.breaker != nil {
 		f.breaker.RecordResponse("forum", resp)
 	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	body, err := httpclient.ReadResponseBody(resp, 2<<20)
 	if err != nil {
 		return "", err
 	}

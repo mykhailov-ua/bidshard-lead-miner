@@ -13,6 +13,7 @@ import (
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/dedup"
 	"github.com/bidshard/parser/internal/enrich"
+	"github.com/bidshard/parser/internal/entity"
 	"github.com/bidshard/parser/internal/gemini"
 	"github.com/bidshard/parser/internal/httpclient"
 	"github.com/bidshard/parser/internal/ingest"
@@ -23,6 +24,7 @@ import (
 	"github.com/bidshard/parser/internal/sink"
 	"github.com/bidshard/parser/internal/telethon"
 	"github.com/bidshard/parser/internal/validate"
+	"github.com/bidshard/parser/internal/warmpath"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -30,6 +32,7 @@ type runtimeDeps struct {
 	processor   *pipeline.Processor
 	bulkStore   *sink.BulkStore
 	coldPath    *coldpath.Service
+	warmPath    *warmpath.Service
 	mongoClient *mongo.Client
 }
 
@@ -60,7 +63,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		slog.Info("blacklist emails loaded", "path", cfg.BlacklistEmailsPath, "count", validate.BlacklistEmailCount())
 	}
 
-	_ = httpclient.Shared(cfg.HTTPTimeout)
+	_ = httpclient.Shared(cfg.HTTPTimeout) // warm default client for supply/enrich; HTTP crawlers use NewClientWithProxies when configured
 
 	mx := validate.MXValidator(validate.StubMX{OK: true})
 	if cfg.MXCheck {
@@ -72,6 +75,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 	var junkCapturer *coldpath.Capturer
 	var sourceStats *sink.SourceStatsStore
 	var keywordStats *sink.KeywordStatsStore
+	var entityRecorder entity.Recorder
 	var geminiClient *gemini.Client
 
 	if cfg.GeminiAPIKey != "" {
@@ -87,6 +91,10 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 				"tpm", limits.TPM,
 				"rpd", limits.RPD,
 				"max_retries", limits.MaxRetries,
+				"quota_critical_pct", cfg.GeminiQuotaCriticalPct,
+				"quota_high_pct", cfg.GeminiQuotaHighPct,
+				"quota_normal_pct", cfg.GeminiQuotaNormalPct,
+				"quota_low_pct", cfg.GeminiQuotaLowPct,
 			)
 		}
 	}
@@ -97,37 +105,51 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 			slog.Warn("mongo connect failed", "error", err)
 		} else {
 			deps.mongoClient = client
-			if stats, err := sink.ConnectSourceStats(ctx, client, cfg.MongoDB, cfg.SourceStatsCollection); err != nil {
-				slog.Warn("source stats store failed", "error", err)
-			} else {
-				sourceStats = stats
-			}
-			if stats, err := sink.ConnectKeywordStats(ctx, client, cfg.MongoDB, cfg.KeywordStatsCollection); err != nil {
-				slog.Warn("keyword stats store failed", "error", err)
-			} else {
-				keywordStats = stats
+			sourceStats = connectOptional("source stats store", func() (*sink.SourceStatsStore, error) {
+				return sink.ConnectSourceStats(ctx, client, cfg.MongoDB, cfg.SourceStatsCollection)
+			}, nil)
+			keywordStats = connectOptional("keyword stats store", func() (*sink.KeywordStatsStore, error) {
+				return sink.ConnectKeywordStats(ctx, client, cfg.MongoDB, cfg.KeywordStatsCollection)
+			}, func(v *sink.KeywordStatsStore) {
 				slog.Info("keyword stats store connected", "collection", cfg.KeywordStatsCollection)
+			})
+			if cfg.ParserEntitySightings {
+				if store := connectOptional("entity store", func() (*sink.EntityStore, error) {
+					return sink.ConnectEntityStore(ctx, client, cfg.MongoDB, cfg.EntityCollection)
+				}, func(v *sink.EntityStore) {
+					v.CrossSourceWindow = cfg.CrossSourceHotWindow
+					slog.Info("entity sightings enabled", "collection", cfg.EntityCollection)
+				}); store != nil {
+					entityRecorder = store
+				}
 			}
 		}
 	}
 
 	sourceRep := scoring.NewSourceReputation(sourceStats)
 
+	var embedStore *sink.EmbeddingStore
+	if deps.mongoClient != nil {
+		embedStore = connectOptional("embedding store", func() (*sink.EmbeddingStore, error) {
+			return sink.ConnectEmbeddingStore(ctx, deps.mongoClient, cfg.MongoDB, cfg.EmbeddingCollection)
+		}, nil)
+	}
+
 	if cfg.GeminiAPIKey != "" && cfg.MongoURI != "" && deps.mongoClient != nil && geminiClient != nil {
 		junkCapturer = coldpath.NewCapturer(cfg.ColdJunkQueueSize)
-		junkStore, err := sink.ConnectJunkStore(ctx, deps.mongoClient, cfg.MongoDB, cfg.ColdJunkCollection, cfg.ColdReportCollection)
-		if err != nil {
-			slog.Warn("cold path junk store failed", "error", err)
-		} else {
+		if junkStore := connectOptional("cold path junk store", func() (*sink.JunkStore, error) {
+			return sink.ConnectJunkStore(ctx, deps.mongoClient, cfg.MongoDB, cfg.ColdJunkCollection, cfg.ColdReportCollection)
+		}, nil); junkStore != nil {
 			crmStore, _ := sink.ConnectCrmBoost(ctx, deps.mongoClient, cfg.MongoDB, cfg.CrmBoostCollection)
-			embedStore, _ := sink.ConnectEmbeddingStore(ctx, deps.mongoClient, cfg.MongoDB, cfg.EmbeddingCollection)
 			deps.coldPath = coldpath.NewService(coldpath.Config{
-				AnalyzeInterval:  cfg.GeminiAnalyzeInterval,
-				ReportInterval:   cfg.GeminiReportInterval,
-				BatchSize:        cfg.GeminiBatchSize,
-				KeywordDiffEvery: cfg.GeminiKeywordDiffEvery,
-				KeywordDiffDir:   cfg.GeminiKeywordDiffDir,
-				EmbedThreshold:   cfg.GeminiEmbedThreshold,
+				AnalyzeInterval:   cfg.GeminiAnalyzeInterval,
+				ReportInterval:    cfg.GeminiReportInterval,
+				BatchSize:         cfg.GeminiBatchSize,
+				KeywordDiffEvery:  cfg.GeminiKeywordDiffEvery,
+				KeywordDiffDir:    cfg.GeminiKeywordDiffDir,
+				DiscoverDiffEvery: cfg.GeminiDiscoverDiffEvery,
+				DiscoverDiffDir:   cfg.GeminiDiscoverDiffDir,
+				EmbedThreshold:    cfg.GeminiEmbedThreshold,
 			}, junkCapturer, junkStore, geminiClient, crmStore, embedStore, keywordStats)
 			slog.Info("cold path gemini enabled",
 				"model", cfg.GeminiModel,
@@ -139,8 +161,17 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		}
 	}
 
-	inner := sink.OpenStore(ctx, cfg.MongoURI, cfg.MongoDB, cfg.MongoCollection, cfg.WriteSlots, cfg.ExportJSONPath)
-	bulk := sink.NewBulkStore(inner, 50, 2*time.Second)
+	inner := sink.OpenStore(ctx, cfg.MongoURI, cfg.MongoDB, cfg.MongoCollection, cfg.WriteSlots, cfg.ExportJSONPath, cfg.ExportJSONFormat)
+	// Wrap before BulkStore so webhook fires only after inner upsert succeeds (not on buffer flush batch edge).
+	if inner != nil && cfg.CRMWebhookEnabled && cfg.CRMWebhookURL != "" {
+		inner = sink.WrapWebhook(inner, cfg.CRMWebhookURL, cfg.CRMWebhookSecret, cfg.HTTPTimeout)
+		slog.Info("crm webhook enabled", "url", "set")
+	}
+	if inner != nil {
+		deps.bulkStore = sink.NewBulkStore(inner, 50, 2*time.Second)
+	} else {
+		slog.Warn("leads will not be persisted without MONGO_URI or PARSER_EXPORT_JSON")
+	}
 
 	httpClient := httpclient.Shared(cfg.HTTPTimeout)
 	var enricher *enrich.Enricher
@@ -154,25 +185,103 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		}, enrich.NewRDAPLookup(httpClient), enrich.NewDNSLookup(), enrich.NewEmailLookup(httpClient, cfg.EnrichSMTPVerify, cfg.HTTPTimeout))
 	}
 
-	deps.processor = &pipeline.Processor{
-		Registry:          reg,
-		Seen:              dedup.NewSeenCache(50_000, 24*time.Hour),
-		Store:             bulk,
-		MX:                mx,
-		Junk:              junkCapturer,
-		SourceRep:         sourceRep,
-		KeywordStats:      keywordStats,
-		ICP:               geminiClient,
-		ICPEnabled:        cfg.ParserICPClassify && geminiClient != nil,
-		Geo:               geminiClient,
-		GeoEnabled:        cfg.ParserGeoClassify && geminiClient != nil,
-		GeoBlockCountries: cfg.GeoBlockCountries,
-		Enricher:          enricher,
-		TimeDecayEnabled:  cfg.ParserTimeDecay,
-		PilotTagEnabled:   cfg.ParserPilotTag,
-		LeadStatusEnabled: cfg.ParserLeadStatusEnabled,
+	var embedPrescan *gemini.Prescan
+	var leadCluster *gemini.LeadCluster
+	var warmCapturer *warmpath.Capturer
+	var leadPatcher sink.LeadAnalysisPatcher
+
+	geminiDefer := cfg.ParserGeminiDefer && geminiClient != nil && deps.mongoClient != nil
+	// ParserGeminiDefer matrix when true:
+	//   ON:  warm-path batch (geo/ICP/engage/enrich), AnalysisStatus=pending on accept
+	//   OFF: inline prescan, cluster, engage, enrich, ICP (except ICPTgWebEnabled)
+	//   SYNC: geo when ParserGeminiSyncGeo; tgweb ICP always when ICPTgWebEnabled
+	if geminiDefer {
+		var err error
+		leadPatcher, err = sink.ConnectLeadAnalysisPatcher(ctx, deps.mongoClient, cfg.MongoDB, cfg.MongoCollection, cfg.WriteSlots)
+		if err != nil {
+			slog.Warn("warm path lead patcher failed", "error", err)
+			geminiDefer = false
+		} else {
+			warmCapturer = warmpath.NewCapturer(cfg.WarmLeadQueueSize)
+			deps.warmPath = warmpath.NewService(warmpath.Config{
+				AnalyzeInterval:   cfg.GeminiLeadAnalyzeInterval,
+				BatchSize:         cfg.GeminiLeadBatchSize,
+				EngageEnabled:     cfg.ParserGeminiEngage,
+				EnrichEnabled:     cfg.ParserGeminiEnrichSynth,
+				PilotTagEnabled:   cfg.ParserPilotTag,
+				GeoBlockCountries: cfg.GeoBlockCountries,
+			}, warmCapturer, leadPatcher, geminiClient, reg)
+			slog.Info("warm path gemini enabled",
+				"analyze_interval", cfg.GeminiLeadAnalyzeInterval,
+				"batch_size", cfg.GeminiLeadBatchSize,
+				"sync_geo", cfg.ParserGeminiSyncGeo,
+			)
+		}
 	}
-	deps.bulkStore = bulk
+
+	if geminiClient != nil && !geminiDefer {
+		if cfg.ParserEmbedPrescan {
+			embedPrescan = gemini.NewPrescan(geminiClient, cfg.GeminiEmbedPainMin, cfg.GeminiEmbedSpamMin)
+		}
+		if cfg.ParserEmbedCluster && embedStore != nil {
+			leadCluster = gemini.NewLeadCluster(geminiClient, embedStore, cfg.GeminiEmbedThreshold)
+		}
+	}
+
+	icpEnabled := cfg.ParserICPClassify && geminiClient != nil && !geminiDefer
+	// Tgweb sync ICP stays on under gemini defer so site leads are gated before Mongo write.
+	icpTgWebEnabled := cfg.ParserICPClassifyTgWeb && geminiClient != nil
+	geoEnabled := cfg.ParserGeoClassify && geminiClient != nil && (!geminiDefer || cfg.ParserGeminiSyncGeo)
+	engageEnabled := cfg.ParserGeminiEngage && geminiClient != nil && !geminiDefer
+	enrichSynthEnabled := cfg.ParserGeminiEnrichSynth && geminiClient != nil && !geminiDefer
+	prescanEnabled := cfg.ParserEmbedPrescan && embedPrescan != nil && !geminiDefer
+	clusterEnabled := cfg.ParserEmbedCluster && leadCluster != nil && !geminiDefer
+
+	if cfg.ParserTgWebPrescanMode != "" {
+		slog.Info("tgweb prescan mode", "mode", scoring.ParseTgWebPrescanMode(cfg.ParserTgWebPrescanMode))
+	}
+	if icpTgWebEnabled {
+		slog.Info("tgweb sync icp enabled", "gemini_defer", geminiDefer)
+	}
+	leadStore := sink.Store(sink.NewStubStore())
+	if deps.bulkStore != nil {
+		leadStore = deps.bulkStore
+	}
+	deps.processor = &pipeline.Processor{
+		Registry:           reg,
+		Seen:               dedup.NewSeenCache(50_000, 24*time.Hour),
+		Store:              leadStore,
+		MX:                 mx,
+		Junk:               junkCapturer,
+		SourceRep:          sourceRep,
+		KeywordStats:       keywordStats,
+		ICP:                geminiClient,
+		ICPEnabled:         icpEnabled,
+		ICPTgWebEnabled:    icpTgWebEnabled,
+		TgWebPrescanMode:   scoring.ParseTgWebPrescanMode(cfg.ParserTgWebPrescanMode),
+		Geo:                geminiClient,
+		GeoEnabled:         geoEnabled,
+		GeoBlockCountries:  cfg.GeoBlockCountries,
+		Engage:             geminiClient,
+		EngageEnabled:      engageEnabled,
+		Prescan:            embedPrescan,
+		PrescanEnabled:     prescanEnabled,
+		LeadCluster:        leadCluster,
+		LeadClusterEnabled: clusterEnabled,
+		Enricher:           enricher,
+		EnrichSynth:        geminiClient,
+		EnrichSynthEnabled: enrichSynthEnabled,
+		TimeDecayEnabled:   cfg.ParserTimeDecay,
+		PilotTagEnabled:    cfg.ParserPilotTag,
+		LeadStatusEnabled:  cfg.ParserLeadStatusEnabled,
+		GeminiDefer:        geminiDefer,
+		WarmPath:           warmCapturer,
+		EntityRecorder:     entityRecorder,
+		EntitySightings:    cfg.ParserEntitySightings && entityRecorder != nil,
+		CrossSourceHot:     cfg.ParserCrossSourceHot && cfg.ParserEntitySightings && entityRecorder != nil,
+		CrossSourceWindow:  cfg.CrossSourceHotWindow,
+		CrossSourceBoost:   cfg.CrossSourceHotBoost,
+	}
 
 	if cfg.MetricsAddr != "" {
 		metrics.StartMetricsServer(ctx, cfg.MetricsAddr)
@@ -183,6 +292,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 }
 
 func (d *runtimeDeps) flushStore(ctx context.Context) {
+	// Flush bulk Mongo buffer only; warm/cold workers drain their own queues on ctx cancel.
 	if d == nil || d.bulkStore == nil {
 		return
 	}
@@ -213,8 +323,11 @@ func runIngestOnce(ctx context.Context, cfg config.Config, deps *runtimeDeps, re
 	if deps.coldPath != nil {
 		deps.coldPath.Run(ctx, &wg)
 	}
+	if deps.warmPath != nil {
+		deps.warmPath.Run(ctx, &wg)
+	}
 
-	pool := pipeline.NewPool(cfg.WorkerCount, deps.processor)
+	pool := pipeline.NewPool(cfg.WorkerCount, deps.processor, cfg.ProcessorTaskTimeout)
 	pool.Run(ctx, &wg, taskCh)
 
 	reporter := output.NewReporter(cfg.Output, nil)
@@ -268,6 +381,9 @@ func newRoundID() string {
 }
 
 func runTelegramSidecarOnce(ctx context.Context, cfg config.Config, deps *runtimeDeps) error {
+	if cfg.TelegramDryRun {
+		slog.Warn("telegram dry-run: emitting fixtures only; pipeline skips fixture:* (no Mongo writes)")
+	}
 	pr, pw := io.Pipe()
 
 	sidecarCtx, sidecarCancel := context.WithCancel(ctx)
@@ -277,6 +393,7 @@ func runTelegramSidecarOnce(ctx context.Context, cfg config.Config, deps *runtim
 	go func() {
 		err := telethon.Run(sidecarCtx, telethon.Options{
 			ConfigPath: cfg.TelegramConfigPath,
+			PythonBin:  cfg.TelethonPython,
 			DryRun:     cfg.TelegramDryRun,
 			Once:       true,
 		}, pw)

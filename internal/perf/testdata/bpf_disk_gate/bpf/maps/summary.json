@@ -1,0 +1,37 @@
+{
+  "duration_sec": 60.0,
+  "pid_stats": [
+    {
+      "pid": 1001,
+      "name": "parser",
+      "role": "parser",
+      "ctx_switch_per_sec": 120.0,
+      "oncpu_pct": 8.5
+    }
+  ],
+  "hot_syscalls": [
+    {
+      "pid": 1001,
+      "role": "parser",
+      "syscall_id": 19,
+      "syscall": "writev",
+      "count": 980,
+      "avg_us": 12.4,
+      "p99_us": 48.2,
+      "max_us": 130.0
+    },
+    {
+      "pid": 1001,
+      "role": "parser",
+      "syscall_id": 75,
+      "syscall": "fdatasync",
+      "count": 16,
+      "avg_us": 820.0,
+      "p99_us": 1520.0,
+      "max_us": 2100.0
+    }
+  ],
+  "syscalls": [],
+  "markers": [],
+  "network": []
+}

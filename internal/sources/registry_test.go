@@ -6,8 +6,7 @@ func TestParseSourceList(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string][]string{
-		"":             {"stub"},
-		"stub":         {"stub"},
+		"":             nil,
 		"all":          {"forum", "supply", "lander", "reddit", "discord", "warrior", "serp"},
 		"forum,reddit": {"forum", "reddit"},
 	}

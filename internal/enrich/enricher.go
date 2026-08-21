@@ -115,9 +115,7 @@ func dedupeStack(stack []string) []string {
 func CompetitorStackFromResult(stack []string) []string {
 	var out []string
 	for _, s := range stack {
-		for _, hit := range scoring.DetectCompetitorStack(s) {
-			out = append(out, hit)
-		}
+		out = append(out, scoring.DetectCompetitorStack(s)...)
 		if strings.HasPrefix(s, "cname:") {
 			out = append(out, s)
 		}

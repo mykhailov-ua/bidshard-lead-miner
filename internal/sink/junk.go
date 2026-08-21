@@ -117,7 +117,7 @@ func (s *JunkStore) FindPendingAnalysis(ctx context.Context, limit int) ([]JunkD
 	if err != nil {
 		return nil, err
 	}
-	defer cur.Close(ctx)
+	defer func() { _ = cur.Close(ctx) }()
 
 	var out []JunkDoc
 	if err := cur.All(ctx, &out); err != nil {
@@ -152,7 +152,7 @@ func (s *JunkStore) ReasonBreakdown(ctx context.Context, since time.Time) ([]Rea
 	if err != nil {
 		return nil, err
 	}
-	defer cur.Close(ctx)
+	defer func() { _ = cur.Close(ctx) }()
 
 	type row struct {
 		ID    string `bson:"_id"`
@@ -182,7 +182,7 @@ func (s *JunkStore) SampleAnalyzed(ctx context.Context, since time.Time, limit i
 	if err != nil {
 		return nil, err
 	}
-	defer cur.Close(ctx)
+	defer func() { _ = cur.Close(ctx) }()
 
 	var out []JunkDoc
 	if err := cur.All(ctx, &out); err != nil {
@@ -207,7 +207,7 @@ func (s *JunkStore) FindByCategorySince(ctx context.Context, category string, si
 	if err != nil {
 		return nil, err
 	}
-	defer cur.Close(ctx)
+	defer func() { _ = cur.Close(ctx) }()
 	var out []JunkDoc
 	return out, cur.All(ctx, &out)
 }

@@ -12,6 +12,7 @@ var (
 	linkedInRe = regexp.MustCompile(`https?://(?:www\.)?linkedin\.com/in/[a-zA-Z0-9\-_%]+/?`)
 	telegramRe = regexp.MustCompile(`(?:telegram:)?@([a-zA-Z][a-zA-Z0-9_]{4,})`)
 	tmeRe      = regexp.MustCompile(`(?i)(?:https?://)?(?:t\.me|telegram\.me)/([a-zA-Z][a-zA-Z0-9_]{4,})`)
+	skypeRe    = regexp.MustCompile(`(?i)(?:skype|live)\s*[:@]\s*([a-zA-Z][a-zA-Z0-9.,\-_]{3,32})`)
 )
 
 type Contact struct {
@@ -65,6 +66,9 @@ func Extract(text string, hints ...string) Result {
 	for _, m := range tmeRe.FindAllStringSubmatch(scratch, -1) {
 		add("telegram", "@"+m[1])
 	}
+	for _, m := range skypeRe.FindAllStringSubmatch(scratch, -1) {
+		add("skype", strings.ToLower(m[1]))
+	}
 
 	for _, hint := range hints {
 		hint = strings.TrimSpace(hint)
@@ -108,6 +112,10 @@ func Extract(text string, hints ...string) Result {
 		}
 		if strings.HasPrefix(strings.ToLower(hint), "telegram:") {
 			add("telegram", strings.TrimPrefix(hint, "telegram:"))
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(hint), "skype:") {
+			add("skype", strings.TrimPrefix(strings.ToLower(hint), "skype:"))
 			continue
 		}
 		if strings.Contains(hint, "@") && emailRe.MatchString(hint) {
@@ -166,6 +174,11 @@ func FormatAll(contacts []Contact) []string {
 		if c.Type == "review" {
 			value := strings.TrimPrefix(c.Value, "review:")
 			out = append(out, "review:"+value)
+			continue
+		}
+		if c.Type == "skype" {
+			value := strings.TrimPrefix(strings.ToLower(c.Value), "skype:")
+			out = append(out, "skype:"+value)
 			continue
 		}
 		out = append(out, c.Value)

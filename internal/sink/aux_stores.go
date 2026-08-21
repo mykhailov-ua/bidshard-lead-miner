@@ -21,14 +21,13 @@ type SourceStatsStore struct {
 }
 
 func ConnectSourceStats(ctx context.Context, client *mongo.Client, dbName, collection string) (*SourceStatsStore, error) {
-	if collection == "" {
-		collection = "source_stats"
-	}
-	store := &SourceStatsStore{coll: client.Database(dbName).Collection(collection)}
-	_, err := store.coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+	coll, err := connectIndexedCollectionOne(ctx, client, dbName, collection, "source_stats", mongo.IndexModel{
 		Keys: bson.D{{Key: "source", Value: 1}}, Options: options.Index().SetUnique(true),
 	})
-	return store, err
+	if err != nil {
+		return nil, err
+	}
+	return &SourceStatsStore{coll: coll}, nil
 }
 
 func (s *SourceStatsStore) RecordAccepted(source string) {
@@ -103,14 +102,13 @@ type CrmBoostStore struct {
 }
 
 func ConnectCrmBoost(ctx context.Context, client *mongo.Client, dbName, collection string) (*CrmBoostStore, error) {
-	if collection == "" {
-		collection = "crm_boosts"
-	}
-	store := &CrmBoostStore{coll: client.Database(dbName).Collection(collection)}
-	_, err := store.coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+	coll, err := connectIndexedCollectionOne(ctx, client, dbName, collection, "crm_boosts", mongo.IndexModel{
 		Keys: bson.D{{Key: "ts", Value: -1}},
 	})
-	return store, err
+	if err != nil {
+		return nil, err
+	}
+	return &CrmBoostStore{coll: coll}, nil
 }
 
 func (s *CrmBoostStore) Insert(ctx context.Context, doc CrmBoostDoc) error {
@@ -131,11 +129,22 @@ func (s *CrmBoostStore) Insert(ctx context.Context, doc CrmBoostDoc) error {
 }
 
 type EmbeddingDoc struct {
-	Key        string    `bson:"key"`
-	Vector     []float32 `bson:"vector"`
-	TS         time.Time `bson:"ts"`
-	SemanticDup bool     `bson:"semantic_dup,omitempty"`
-	DupOf      string    `bson:"dup_of,omitempty"`
+	Key         string    `bson:"key"`
+	Vector      []float32 `bson:"vector"`
+	TS          time.Time `bson:"ts"`
+	Kind        string    `bson:"kind,omitempty"`
+	HashID      string    `bson:"hash_id,omitempty"`
+	SemanticDup bool      `bson:"semantic_dup,omitempty"`
+	DupOf       string    `bson:"dup_of,omitempty"`
+}
+
+const (
+	EmbedKindJunk = "junk"
+	EmbedKindLead = "lead"
+)
+
+func LeadEmbedKey(hashID string) string {
+	return "lead:" + hashID
 }
 
 type EmbeddingStore struct {
@@ -143,14 +152,13 @@ type EmbeddingStore struct {
 }
 
 func ConnectEmbeddingStore(ctx context.Context, client *mongo.Client, dbName, collection string) (*EmbeddingStore, error) {
-	if collection == "" {
-		collection = "snippet_embeddings"
-	}
-	store := &EmbeddingStore{coll: client.Database(dbName).Collection(collection)}
-	_, err := store.coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+	coll, err := connectIndexedCollectionOne(ctx, client, dbName, collection, "snippet_embeddings", mongo.IndexModel{
 		Keys: bson.D{{Key: "key", Value: 1}}, Options: options.Index().SetUnique(true),
 	})
-	return store, err
+	if err != nil {
+		return nil, err
+	}
+	return &EmbeddingStore{coll: coll}, nil
 }
 
 func (s *EmbeddingStore) Upsert(ctx context.Context, doc EmbeddingDoc) error {
@@ -169,16 +177,27 @@ func (s *EmbeddingStore) Upsert(ctx context.Context, doc EmbeddingDoc) error {
 }
 
 func (s *EmbeddingStore) RecentVectors(ctx context.Context, limit int) ([]EmbeddingDoc, error) {
+	return s.RecentVectorsByKind(ctx, "", limit)
+}
+
+func (s *EmbeddingStore) RecentVectorsByKind(ctx context.Context, kind string, limit int) ([]EmbeddingDoc, error) {
+	if s == nil {
+		return nil, nil
+	}
 	if limit <= 0 {
 		limit = 200
 	}
-	cur, err := s.coll.Find(ctx, bson.M{}, options.Find().
+	filter := bson.M{}
+	if kind != "" {
+		filter["kind"] = kind
+	}
+	cur, err := s.coll.Find(ctx, filter, options.Find().
 		SetSort(bson.D{{Key: "ts", Value: -1}}).
 		SetLimit(int64(limit)))
 	if err != nil {
 		return nil, err
 	}
-	defer cur.Close(ctx)
+	defer func() { _ = cur.Close(ctx) }()
 	var out []EmbeddingDoc
 	return out, cur.All(ctx, &out)
 }

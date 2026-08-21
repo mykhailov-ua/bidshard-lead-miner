@@ -3,7 +3,6 @@ package reviews
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -34,11 +33,7 @@ type Crawler struct {
 
 func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 	if client == nil {
-		var err error
-		client, err = httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
-		if err != nil {
-			client = httpclient.Shared(cfg.HTTPTimeout)
-		}
+		client = httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLs)
 	}
 	return &Crawler{
 		client:  client,
@@ -67,15 +62,12 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 			continue
 		}
 
-		resp, err := c.client.Do(req)
+		body, status, err := httpclient.DoBytes(c.client, req, 2<<20)
 		if err != nil {
 			slog.Warn("reviews fetch failed", "product", prod, "error", err)
 			continue
 		}
-
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
-		resp.Body.Close()
-		if err != nil || resp.StatusCode != http.StatusOK {
+		if status != http.StatusOK {
 			continue
 		}
 

@@ -1,20 +1,30 @@
-chats:
-  - name: affiliate_latam
-    username: affiliate_latam_en
-    geo: latam
+# Telethon MTProto sidecar config (parser telegram / discover / web crawl registry).
+#
+# Usage:
+#   docker compose run --rm -it parser telegram login --qr
+#   make tgweb-discover
+#   parser telegram scrape  (sidecar reads this yaml)
+#
+# Paths under data/runtime/ are gitignored; Docker uses parser_runtime named volume.
+# Manual chats[] only for private groups or numeric chat_id overrides.
+#
+discover:
+  enabled: true
+  icp_path: config/discover.icp.json  # telegram_search + serp dorks (discovery only)
+  limit_per_query: 15
+  serp_channels_path: data/runtime/discovered_telegram_channels.json
+  domains_path: data/runtime/discovered_telegram_domains.json  # tgweb crawl registry
+  # queries: []  # override; default loads telegram_search from discover.icp.json
+  cross_mention:
     enabled: true
+    max_seeds: 60
+    messages_per_channel: 50
+    rescan_days: 30  # skip channels crawled within this window
 
-  - name: igaming_eu
-    username: igaming_acquisition
-    geo: eu
-    enabled: true
+# Manual additions only (joined private groups, numeric chat_id, etc.)
+chats: []
 
-  - name: stm_global
-    username: stmaffiliate
-    geo: global
-    enabled: true
-
-session: data/telethon.session
-cursor_db: data/crawler.db
+session: data/runtime/telethon.session
+cursor_db: data/runtime/crawler.db
 poll_delay_sec: 2
 message_limit: 500

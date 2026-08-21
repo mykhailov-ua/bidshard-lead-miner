@@ -44,7 +44,7 @@ func TestPilotQualifiedTable(t *testing.T) {
 			wantTag:       "pilot-usdt-ok",
 		},
 		{
-			name:          "6. Buyer role",
+			name:          "6. Decision maker role",
 			text:          "I am head of media buying team for igaming",
 			wantQualified: false,
 			wantTag:       "pilot-buyer-role",

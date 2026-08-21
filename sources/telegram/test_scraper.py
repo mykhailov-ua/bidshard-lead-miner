@@ -5,6 +5,7 @@ from pathlib import Path
 from sources.telegram.config import load_config
 from sources.telegram.cursor import CursorStore
 
+
 class ConfigTest(unittest.TestCase):
     def test_excludes_ru_and_disabled(self) -> None:
         yaml_text = """

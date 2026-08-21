@@ -20,6 +20,7 @@ const (
 	contactDomain   = "domain"
 	contactGitHub   = "github"
 	contactReview   = "review"
+	contactSkype    = "skype"
 )
 
 func ToStoredContacts(contacts []extract.Contact) []StoredContact {
@@ -93,6 +94,15 @@ func ToStoredContacts(contacts []extract.Contact) []StoredContact {
 				Type:  contactReview,
 				Value: strings.ToLower(value),
 			})
+		case "skype":
+			value = strings.TrimPrefix(strings.ToLower(value), "skype:")
+			if value == "" {
+				continue
+			}
+			out = append(out, StoredContact{
+				Type:  contactSkype,
+				Value: value,
+			})
 		}
 	}
 	return out
@@ -148,6 +158,13 @@ func ParseFormattedContacts(formatted []string) []extract.Contact {
 			out = append(out, extract.Contact{
 				Type:  "review",
 				Value: strings.TrimPrefix(raw, "review:"),
+			})
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(raw), "skype:") {
+			out = append(out, extract.Contact{
+				Type:  "skype",
+				Value: strings.TrimPrefix(strings.ToLower(raw), "skype:"),
 			})
 			continue
 		}

@@ -10,6 +10,10 @@ func TestAcceptEmailRejectsJunk(t *testing.T) {
 		"ops@example.com",
 		"bad-email",
 		"noreply@users.noreply.github.com",
+		"support@igaming-team.com",
+		"sales@acme.com",
+		"marketing@acme.com",
+		"accounting@cpa-firm.com",
 	}
 	for _, email := range rejects {
 		if AcceptEmail(email) {
@@ -18,6 +22,9 @@ func TestAcceptEmailRejectsJunk(t *testing.T) {
 	}
 	if !AcceptEmail("ops@igaming-team.com") {
 		t.Fatal("expected valid email")
+	}
+	if !AcceptEmail("ceo@igaming-team.com") {
+		t.Fatal("expected executive email")
 	}
 	if AcceptEmail("buyer+test@gmail.com") {
 		t.Fatal("expected reject for gmail plus tag")
@@ -29,7 +36,13 @@ func TestIsRoleEmail(t *testing.T) {
 	if !IsRoleEmail("ads@acme.com") {
 		t.Fatal("ads@ should be role")
 	}
+	if !IsRoleEmail("sales.manager@acme.com") {
+		t.Fatal("sales* prefix should be role")
+	}
 	if IsRoleEmail("buyer@acme.com") {
 		t.Fatal("buyer@ should not be role")
+	}
+	if IsRoleEmail("ceo@acme.com") {
+		t.Fatal("ceo@ should not be role")
 	}
 }

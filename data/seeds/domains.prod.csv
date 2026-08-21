@@ -1,0 +1,13 @@
+# Production supply seeds: public ads.txt / sellers.json hosts (no .example TLD).
+# Requires PARSER_PROXY_LIST on datacenter VPS when hosts block direct egress.
+domain,geo,notes
+google.com,global,ads.txt
+taboola.com,global,ads.txt
+criteo.com,eu,ads.txt
+outbrain.com,global,ads.txt
+pubmatic.com,global,ads.txt
+openx.com,global,ads.txt
+indexexchange.com,global,ads.txt
+sharethrough.com,global,ads.txt
+magnite.com,global,ads.txt
+triplelift.com,global,ads.txt

@@ -8,7 +8,7 @@ func TestHasPainContext(t *testing.T) {
 	if !HasPainContext("voluum alternative postback failing ops@team.com") {
 		t.Fatal("expected pain context")
 	}
-	if HasPainContext("ops@igaming-team.com") {
+	if HasPainContext("ops@example.com") {
 		t.Fatal("expected no pain context for email only")
 	}
 	if !HasPainContext("ops@team.com " + stringsRepeat("looking for advice ", 8)) {
@@ -19,10 +19,10 @@ func TestHasPainContext(t *testing.T) {
 func TestEmailWithoutPainContext(t *testing.T) {
 	t.Parallel()
 
-	if !EmailWithoutPainContext("contact me ops@igaming-team.com") {
+	if !EmailWithoutPainContext("contact me ops@example.com") {
 		t.Fatal("expected email-only reject")
 	}
-	if EmailWithoutPainContext("voluum bill too high ops@igaming-team.com") {
+	if EmailWithoutPainContext("voluum bill too high ops@example.com") {
 		t.Fatal("expected pass with pain keyword")
 	}
 }

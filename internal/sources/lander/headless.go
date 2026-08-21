@@ -3,6 +3,9 @@ package lander
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"strings"
 	"sync"
 	"time"
 )
@@ -75,6 +78,34 @@ func (p *PlaywrightPoolFetcher) Fetch(ctx context.Context, pageURL string) (stri
 		return runner(ctx, pageURL)
 	}
 
-	// Default fallback when external browser process is not connected
-	return "", fmt.Errorf("headless browser process unavailable")
+	python := strings.TrimSpace(os.Getenv("PARSER_TELETHON_PYTHON"))
+	if python == "" {
+		python = "python3"
+	}
+	// One subprocess per fetch (Playwright). BPF may show thread_fork noise; not an FD leak if processes exit.
+	cmd := exec.CommandContext(ctx, python, "-m", "sources.headless.fetch", pageURL)
+	cmd.Env = append(os.Environ(), "PYTHONPATH="+headlessRepoRoot())
+	out, err := cmd.Output()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+			return "", fmt.Errorf("headless fetch: %s", strings.TrimSpace(string(ee.Stderr)))
+		}
+		return "", fmt.Errorf("headless fetch: %w", err)
+	}
+	html := strings.TrimSpace(string(out))
+	if html == "" {
+		return "", fmt.Errorf("headless fetch returned empty HTML")
+	}
+	return html, nil
+}
+
+func headlessRepoRoot() string {
+	if v := strings.TrimSpace(os.Getenv("PYTHONPATH")); v != "" {
+		return strings.Split(v, string(os.PathListSeparator))[0]
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	return wd
 }

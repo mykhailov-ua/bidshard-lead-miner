@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -17,8 +16,8 @@ import (
 )
 
 const (
-	pullPushSubmissions   = "https://api.pullpush.io/reddit/search/submission/"
-	pullPushComments      = "https://api.pullpush.io/reddit/search/comment/"
+	pullPushSubmissions    = "https://api.pullpush.io/reddit/search/submission/"
+	pullPushComments       = "https://api.pullpush.io/reddit/search/comment/"
 	arcticShiftSubmissions = "https://api.arctic-shift.com/reddit/search/submission/"
 )
 
@@ -51,10 +50,7 @@ func NewCrawler(cfg config.Config) *Crawler {
 	if maxResults <= 0 {
 		maxResults = 25
 	}
-	client, err := httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
-	if err != nil {
-		client = httpclient.Shared(cfg.HTTPTimeout)
-	}
+	client := httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLs)
 	return &Crawler{
 		subreddits: subs,
 		queries:    queries,
@@ -173,18 +169,12 @@ func (c *Crawler) searchEndpoint(ctx context.Context, endpointURL, subreddit, qu
 		return nil, err
 	}
 
-	resp, err := c.client.Do(req)
+	body, status, err := httpclient.DoBytes(c.client, req, 2<<20)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("pullpush http %d", resp.StatusCode)
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("pullpush http %d", status)
 	}
 
 	var parsed searchResponse
@@ -193,8 +183,3 @@ func (c *Crawler) searchEndpoint(ctx context.Context, endpointURL, subreddit, qu
 	}
 	return parsed.Data, nil
 }
-
-func (c *Crawler) search(ctx context.Context, subreddit, query string) ([]submission, error) {
-	return c.searchEndpoint(ctx, c.baseURL, subreddit, query)
-}
-

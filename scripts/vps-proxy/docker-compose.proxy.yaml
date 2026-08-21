@@ -1,0 +1,17 @@
+# Local Squid HTTP proxy for parser crawl tests (not for Cloudflare igaming).
+#
+# Usage:
+#   cd scripts/vps-proxy && ./setup-docker-proxy.sh
+#   docker compose -f scripts/vps-proxy/docker-compose.proxy.yaml down
+#
+# Requires: scripts/vps-proxy/passwd from setup-docker-proxy.sh
+services:
+  crawl-proxy:
+    image: ubuntu/squid:5.2-22.04_beta
+    container_name: bidshard-crawl-proxy
+    ports:
+      - "${PROXY_PORT:-3128}:3128"
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro
+      - ./passwd:/etc/squid/passwd:ro
+    restart: unless-stopped

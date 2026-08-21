@@ -6,19 +6,23 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bidshard/parser/internal/batch"
 	"github.com/bidshard/parser/internal/gemini"
 	"github.com/bidshard/parser/internal/sink"
+	"github.com/bidshard/parser/internal/worker"
 )
 
 type Config struct {
-	AnalyzeInterval  time.Duration
-	ReportInterval   time.Duration
-	BatchSize        int
-	FlushInterval    time.Duration
-	FlushBatch       int
-	KeywordDiffEvery int
-	KeywordDiffDir   string
-	EmbedThreshold   float64
+	AnalyzeInterval   time.Duration
+	ReportInterval    time.Duration
+	BatchSize         int
+	FlushInterval     time.Duration
+	FlushBatch        int
+	KeywordDiffEvery  int
+	KeywordDiffDir    string
+	DiscoverDiffEvery int
+	DiscoverDiffDir   string
+	EmbedThreshold    float64
 }
 
 type Service struct {
@@ -30,47 +34,43 @@ type Service struct {
 	embed        *sink.EmbeddingStore
 	keywordStats *sink.KeywordStatsStore
 
-	lastReportEnd    time.Time
-	reportCount      int
-	embedThreshold   float64
-	keywordDiffEvery int
-	keywordDiffDir   string
+	lastReportEnd     time.Time
+	reportCount       int
+	embedThreshold    float64
+	keywordDiffEvery  int
+	keywordDiffDir    string
+	discoverDiffEvery int
+	discoverDiffDir   string
 }
 
 func NewService(cfg Config, capturer *Capturer, junk *sink.JunkStore, client *gemini.Client, crm *sink.CrmBoostStore, embed *sink.EmbeddingStore, keywordStats *sink.KeywordStatsStore) *Service {
-	if cfg.AnalyzeInterval <= 0 {
-		cfg.AnalyzeInterval = 15 * time.Minute
+	cfg.AnalyzeInterval = worker.DurationOr(cfg.AnalyzeInterval, 15*time.Minute)
+	cfg.ReportInterval = worker.DurationOr(cfg.ReportInterval, 6*time.Hour)
+	cfg.BatchSize = worker.IntOr(cfg.BatchSize, 20)
+	cfg.FlushInterval = worker.DurationOr(cfg.FlushInterval, 2*time.Second)
+	cfg.FlushBatch = worker.IntOr(cfg.FlushBatch, 50)
+	cfg.EmbedThreshold = worker.FloatOr(cfg.EmbedThreshold, 0.92)
+	cfg.KeywordDiffEvery = worker.IntOr(cfg.KeywordDiffEvery, 5)
+	if cfg.DiscoverDiffEvery <= 0 {
+		cfg.DiscoverDiffEvery = cfg.KeywordDiffEvery
 	}
-	if cfg.ReportInterval <= 0 {
-		cfg.ReportInterval = 6 * time.Hour
-	}
-	if cfg.BatchSize <= 0 {
-		cfg.BatchSize = 20
-	}
-	if cfg.FlushInterval <= 0 {
-		cfg.FlushInterval = 2 * time.Second
-	}
-	if cfg.FlushBatch <= 0 {
-		cfg.FlushBatch = 50
-	}
-	if cfg.EmbedThreshold <= 0 {
-		cfg.EmbedThreshold = 0.92
-	}
-	if cfg.KeywordDiffEvery <= 0 {
-		cfg.KeywordDiffEvery = 5
+	if cfg.DiscoverDiffDir == "" {
+		cfg.DiscoverDiffDir = cfg.KeywordDiffDir
 	}
 	return &Service{
-		cfg:              cfg,
-		capturer:         capturer,
-		junk:             junk,
-		gemini:           client,
-		crm:              crm,
-		embed:            embed,
-		keywordStats:     keywordStats,
-		lastReportEnd:    time.Now().UTC(),
-		embedThreshold:   cfg.EmbedThreshold,
-		keywordDiffEvery: cfg.KeywordDiffEvery,
-		keywordDiffDir:   cfg.KeywordDiffDir,
+		cfg:               cfg,
+		capturer:          capturer,
+		junk:              junk,
+		gemini:            client,
+		crm:               crm,
+		embed:             embed,
+		keywordStats:      keywordStats,
+		lastReportEnd:     time.Now().UTC(),
+		embedThreshold:    cfg.EmbedThreshold,
+		keywordDiffEvery:  cfg.KeywordDiffEvery,
+		keywordDiffDir:    cfg.KeywordDiffDir,
+		discoverDiffEvery: cfg.DiscoverDiffEvery,
+		discoverDiffDir:   cfg.DiscoverDiffDir,
 	}
 }
 
@@ -78,12 +78,7 @@ func (s *Service) Run(ctx context.Context, wg *sync.WaitGroup) {
 	if s == nil || s.capturer == nil || s.junk == nil || s.gemini == nil {
 		return
 	}
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		s.run(ctx)
-	}()
+	worker.Run(ctx, wg, s.run)
 }
 
 func (s *Service) run(ctx context.Context) {
@@ -96,19 +91,9 @@ func (s *Service) run(ctx context.Context) {
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(3)
-	go func() {
-		defer wg.Done()
-		s.ingestLoop(ctx)
-	}()
-	go func() {
-		defer wg.Done()
-		s.analyzeLoop(ctx)
-	}()
-	go func() {
-		defer wg.Done()
-		s.reportLoop(ctx)
-	}()
+	worker.Run(ctx, &wg, s.ingestLoop)
+	worker.Run(ctx, &wg, s.analyzeLoop)
+	worker.Run(ctx, &wg, s.reportLoop)
 	wg.Wait()
 
 	if dropped := s.capturer.Dropped(); dropped > 0 {
@@ -118,46 +103,21 @@ func (s *Service) run(ctx context.Context) {
 }
 
 func (s *Service) ingestLoop(ctx context.Context) {
-	events := s.capturer.Events()
-	if events == nil {
-		return
-	}
-
-	buf := make([]sink.JunkDoc, 0, s.cfg.FlushBatch)
-	flush := func() {
-		if len(buf) == 0 {
-			return
+	batch.RunTickerFlush(ctx, s.capturer.Events(), s.cfg.FlushBatch, s.cfg.FlushInterval, func(events []Event) error {
+		if len(events) == 0 {
+			return nil
 		}
-		batch := append([]sink.JunkDoc(nil), buf...)
-		buf = buf[:0]
-		if err := s.junk.InsertMany(ctx, batch); err != nil {
-			slog.Warn("junk insert failed", "count", len(batch), "error", err)
-		} else {
-			slog.Debug("junk batch inserted", "count", len(batch))
+		docs := make([]sink.JunkDoc, 0, len(events))
+		for _, ev := range events {
+			docs = append(docs, JunkDocFromEvent(ev))
 		}
-	}
-
-	ticker := time.NewTicker(s.cfg.FlushInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			flush()
-			return
-		case <-ticker.C:
-			flush()
-		case ev, ok := <-events:
-			if !ok {
-				flush()
-				return
-			}
-			buf = append(buf, JunkDocFromEvent(ev))
-			if len(buf) >= s.cfg.FlushBatch {
-				flush()
-			}
+		if err := s.junk.InsertMany(ctx, docs); err != nil {
+			slog.Warn("junk insert failed", "count", len(docs), "error", err)
+			return err
 		}
-	}
+		slog.Debug("junk batch inserted", "count", len(docs))
+		return nil
+	})
 }
 
 func (s *Service) analyzeLoop(ctx context.Context) {
@@ -213,6 +173,7 @@ func (s *Service) runAnalyze(ctx context.Context) {
 			slog.Warn("junk save analysis failed", "id", doc.ID.Hex(), "error", err)
 			continue
 		}
+		// Run CRM boost and semantic dedup after analysis is persisted.
 		s.processFalseNegative(ctx, doc, r)
 		s.processSemanticDedup(ctx, doc)
 		applied++
@@ -289,6 +250,7 @@ func (s *Service) runReport(ctx context.Context) {
 
 	reportID := doc.ID.Hex()
 	s.maybeWriteKeywordDiff(ctx, reportID, result, periodStart)
+	s.maybeWriteDiscoverDiff(ctx, reportID, result, periodStart)
 
 	s.lastReportEnd = periodEnd
 	slog.Info("gemini junk report saved",

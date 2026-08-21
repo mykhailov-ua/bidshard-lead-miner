@@ -6,13 +6,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/mail"
 	"net/smtp"
 	"strings"
 	"time"
+
+	"github.com/bidshard/parser/internal/httpclient"
 )
 
 type EmailLookup struct {
@@ -92,16 +93,15 @@ func (e *EmailLookup) gravatarName(ctx context.Context, email string) (string, b
 	if err != nil {
 		return "", false, err
 	}
-	defer resp.Body.Close()
+	body, err := httpclient.ReadResponseBody(resp, 64<<10)
+	if err != nil {
+		return "", false, err
+	}
 	if resp.StatusCode == http.StatusNotFound {
 		return "", false, nil
 	}
 	if resp.StatusCode != http.StatusOK {
 		return "", false, fmt.Errorf("gravatar http %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-	if err != nil {
-		return "", false, err
 	}
 	var parsed []struct {
 		DisplayName string `json:"displayName"`
@@ -135,13 +135,13 @@ func verifySMTP(ctx context.Context, email string, timeout time.Duration) (bool,
 	if err != nil {
 		return false, nil
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	client, err := smtp.NewClient(conn, host)
 	if err != nil {
 		return false, nil
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	_ = client.Hello("bidshard-parser.local")
 	_ = client.Mail("probe@bidshard-parser.local")

@@ -14,9 +14,9 @@ const (
 )
 
 type SourceBreaker struct {
-	mu           sync.Mutex
-	failures     map[string]int
-	openUntil    map[string]time.Time
+	mu            sync.Mutex
+	failures      map[string]int
+	openUntil     map[string]time.Time
 	failThreshold int
 	openTimeout   time.Duration
 }

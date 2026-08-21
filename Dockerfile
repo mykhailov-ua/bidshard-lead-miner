@@ -1,4 +1,14 @@
 # syntax=docker/dockerfile:1
+#
+# Multi-stage image: Go parser + Python Telethon sidecar deps.
+#
+# Usage:
+#   docker compose build
+#   docker compose run --rm parser scan
+#   docker compose run --rm -it parser telegram login --qr
+#
+# Default CMD: parser run (override with scan, telegram, config check, ...).
+# Entrypoint drops to UID 10001 and chowns data/runtime + data/export for bind mounts.
 
 FROM golang:1.25-alpine AS go-builder
 
@@ -24,7 +34,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 FROM alpine:3.20
 
-RUN apk add --no-cache ca-certificates python3 && \
+RUN apk add --no-cache ca-certificates python3 su-exec && \
     adduser -D -u 10001 -h /app parser
 
 WORKDIR /app
@@ -35,6 +45,7 @@ COPY --from=go-builder /parser /usr/local/bin/parser
 COPY --chown=parser:parser data/ /app/data/
 COPY --chown=parser:parser config/ /app/config/
 COPY --chown=parser:parser sources/ /app/sources/
+COPY docker-entrypoint.sh /docker-entrypoint.sh
 
 ENV KEYWORDS_JSON_PATH=/app/data/keywords.json \
     KEYWORDS_GRAY_JSON_PATH=/app/data/keywords-gray.json \
@@ -44,11 +55,11 @@ ENV KEYWORDS_JSON_PATH=/app/data/keywords.json \
     LANDER_SEED_PATH=/app/data/seeds/lander_urls.csv \
     PYTHONPATH=/app
 
-RUN mkdir -p /app/data/export && chown -R parser:parser /app/data
+RUN mkdir -p /app/data/export /app/data/runtime && \
+    chown -R parser:parser /app/data && \
+    chmod +x /docker-entrypoint.sh
 
-USER parser
-
-ENTRYPOINT ["parser"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Continuous scan loop (override with `scan` for one-shot / cron)
-CMD []
+CMD ["run"]

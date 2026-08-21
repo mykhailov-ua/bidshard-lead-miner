@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# Backup parser MongoDB database (default: db "parser").
-# Requires mongodump (mongodb-database-tools) OR MONGO_CONTAINER for docker exec.
+#
+# Backup parser MongoDB to backups/mongo-YYYYMMDD-HHMMSS/dump.gz.
+#
+# Usage:
+#   make backup
+#   BACKUP_ROOT=/path KEEP_DAYS=7 make backup
+#
+# Requires: mongodump in PATH, or MONGO_CONTAINER for docker exec.
+#
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/../.." && pwd)"

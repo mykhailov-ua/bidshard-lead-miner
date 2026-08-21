@@ -7,21 +7,22 @@ import (
 	"strings"
 
 	"github.com/bidshard/parser/internal/geo"
+	"github.com/bidshard/parser/internal/pretty"
 )
 
 const geoSystemPrompt = `You are a geo-compliance analyst for an affiliate/iGaming lead parser (BidShard).
 Goal: detect if the lead operator or their company is based in or legally registered in blocked countries (Russia/Belarus by default).
 
 Analyze:
-1. Company legal registration — ООО/АО/ИП/UNP, INN/KPP, "registered in", юрлицо, corporate domain TLD, legal address
-2. Operator location — city/region/timezone, phone codes, bank names (Sberbank, Tinkoff, Belarusbank), Mir card, RUB/BYN pricing
-3. Language/context — RU/BY market focus, Cyrillic business identity without international footprint
+1. Company legal registration - ООО/АО/ИП/UNP, INN/KPP, "registered in", юрлицо, corporate domain TLD, legal address
+2. Operator location - city/region/timezone, phone codes, bank names (Sberbank, Tinkoff, Belarusbank), Mir card, RUB/BYN pricing
+3. Language/context - RU/BY market focus, Cyrillic business identity without international footprint
 
 Rules:
 - blocked=true only when there is credible evidence the person OR company is in a blocked country
 - confidence=high: explicit location/registration (e.g. "ООО из Москвы", +7 phone, .ru corporate email)
 - confidence=medium: strong indirect signals (Belarus bank, Minsk office, BY legal form)
-- confidence=low: weak/ambiguous Cyrillic or generic Eastern Europe hints — do NOT set blocked=true
+- confidence=low: weak/ambiguous Cyrillic or generic Eastern Europe hints - do NOT set blocked=true
 - person_country / company_country: ISO 3166-1 alpha-2 (RU, BY, US, ...) or "unknown"
 - List concrete signals in ru_by_signals and registration_signals arrays
 - Contacts may be masked; never invent PII`
@@ -87,7 +88,7 @@ func (c *Client) ClassifyGeo(ctx context.Context, text string, contacts []string
 
 	payload, err := json.Marshal(map[string]any{
 		"blocked_countries": blockedCountries,
-		"snippet":           truncate(text, 2500),
+		"snippet":           pretty.Truncate(text, 2500),
 		"contacts":          contacts,
 	})
 	if err != nil {
@@ -100,13 +101,8 @@ func (c *Client) ClassifyGeo(ctx context.Context, text string, contacts []string
 		string(payload),
 	)
 
-	raw, err := c.generateJSON(ctx, geoSystemPrompt, userPrompt, geoSchema)
+	parsed, err := classifyJSON[geoResponse](c, ctx, PriorityCritical, geoSystemPrompt, userPrompt, geoSchema)
 	if err != nil {
-		return GeoResult{}, err
-	}
-
-	var parsed geoResponse
-	if err := decodeModelJSON(raw, &parsed); err != nil {
 		return GeoResult{}, err
 	}
 

@@ -31,8 +31,8 @@ func TestCrawlerCollect(t *testing.T) {
 	defer srv.Close()
 
 	c := NewCrawler(config.Config{
-		DiscordBotToken:   "test-token",
-		DiscordChannelIDs: []string{"123"},
+		DiscordBotToken:    "test-token",
+		DiscordChannelIDs:  []string{"123"},
 		DiscordMaxMessages: 10,
 	})
 	c.baseURL = srv.URL

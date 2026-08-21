@@ -13,11 +13,11 @@ import (
 type Registry struct {
 	mu sync.RWMutex
 
-	keywordRules     []keywordRule
-	titleRules       []keywordRule
-	negativeRules    []keywordRule
-	hardRejectRules  []keywordRule
-	phraseSet        map[string]string
+	keywordRules    []keywordRule
+	titleRules      []keywordRule
+	negativeRules   []keywordRule
+	hardRejectRules []keywordRule
+	phraseSet       map[string]string
 
 	highMin   int
 	mediumMin int

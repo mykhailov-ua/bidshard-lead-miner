@@ -20,7 +20,7 @@ var mockSERPHTML = `
 func TestSERPCrawler(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockSERPHTML))
+		_, _ = w.Write([]byte(mockSERPHTML))
 	}))
 	defer ts.Close()
 

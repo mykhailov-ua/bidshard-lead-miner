@@ -11,7 +11,7 @@ import (
 
 const analyzerSystemPrompt = `You analyze rejected affiliate/iGaming lead candidates for a self-hosted ad tracker (BidShard).
 Audience: media buyers outside Russia/Belarus looking for tracker alternatives (Voluum, Keitaro, RedTrack, etc.).
-Contacts in input are already masked — never ask for or invent PII.
+Contacts in input are already masked - never ask for or invent PII.
 Classify each item:
 - true_junk: spam, off-topic, newbie with no spend, job seeker, course seller, white AdTech, RU/BY geo signals
 - false_negative: likely real buyer pain we should not have dropped (tune keywords/scoring/geo)
@@ -100,15 +100,9 @@ func (c *Client) AnalyzeJunkBatch(ctx context.Context, docs []sink.JunkDoc) ([]A
 		return nil, err
 	}
 
-	raw, err := c.generateJSON(ctx, analyzerSystemPrompt,
-		"Analyze each rejected lead. Return one output item per input id.\n\n"+string(payload),
-		analyzeSchema)
+	prompt := "Analyze each rejected lead. Return one output item per input id.\n\n" + string(payload)
+	parsed, err := classifyJSON[analyzeResponse](c, ctx, PriorityNormal, analyzerSystemPrompt, prompt, analyzeSchema)
 	if err != nil {
-		return nil, err
-	}
-
-	var parsed analyzeResponse
-	if err := decodeModelJSON(raw, &parsed); err != nil {
 		return nil, err
 	}
 
@@ -213,15 +207,9 @@ func (c *Client) BuildJunkReport(ctx context.Context, in ReportInput) (ReportRes
 		return ReportResult{}, err
 	}
 
-	raw, err := c.generateJSON(ctx, reporterSystemPrompt,
-		"Write a tuning report for this rejection window.\n\n"+string(payload),
-		reportSchema)
+	prompt := "Write a tuning report for this rejection window.\n\n" + string(payload)
+	parsed, err := classifyJSON[reportResponse](c, ctx, PriorityLow, reporterSystemPrompt, prompt, reportSchema)
 	if err != nil {
-		return ReportResult{}, err
-	}
-
-	var parsed reportResponse
-	if err := decodeModelJSON(raw, &parsed); err != nil {
 		return ReportResult{}, err
 	}
 

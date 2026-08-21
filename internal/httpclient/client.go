@@ -22,21 +22,25 @@ var (
 	shared     *http.Client
 )
 
+const defaultSharedTimeout = 30 * time.Second
+
 // RotatingProxyTransport implements http.RoundTripper with lock-free proxy selection,
 // uTLS TLS fingerprinting (Chrome_Auto), browser header mirroring, and 10-min Cloudflare cooldowns.
 type RotatingProxyTransport struct {
-	counter   uint64
-	proxies   []*url.URL
-	baseTrans http.RoundTripper
-	cooldowns map[string]time.Time
-	coolMu    sync.Mutex
+	counter      uint64
+	proxies      []*url.URL
+	baseTrans    http.RoundTripper
+	transport    *http.Transport
+	currentProxy atomic.Pointer[url.URL]
+	cooldowns    map[string]time.Time
+	coolMu       sync.Mutex
 }
 
 func NewRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper) (*RotatingProxyTransport, error) {
 	if baseTrans == nil {
 		tTrans := &http.Transport{
 			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 20,
+			MaxIdleConnsPerHost: 20, // tgweb multi-domain crawl; idle expiry -> connect churn in BPF, not always a leak
 			IdleConnTimeout:     90 * time.Second,
 			ForceAttemptHTTP2:   true,
 			DialContext: (&net.Dialer{
@@ -44,6 +48,7 @@ func NewRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper) 
 				KeepAlive: 30 * time.Second,
 			}).DialContext,
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				// Terminate TLS with Chrome ClientHello; skip verify because residential proxies often MITM HTTPS.
 				dialer := &net.Dialer{
 					Timeout:   10 * time.Second,
 					KeepAlive: 30 * time.Second,
@@ -59,7 +64,7 @@ func NewRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper) 
 					NextProtos:         []string{"h2", "http/1.1"},
 				}, utls.HelloChrome_Auto)
 				if err := uConn.HandshakeContext(ctx); err != nil {
-					rawConn.Close()
+					_ = rawConn.Close()
 					return nil, err
 				}
 				return uConn, nil
@@ -79,30 +84,37 @@ func NewRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper) 
 		}
 		parsed = append(parsed, u)
 	}
-	return &RotatingProxyTransport{
+	t := &RotatingProxyTransport{
 		proxies:   parsed,
 		baseTrans: baseTrans,
 		cooldowns: make(map[string]time.Time),
-	}, nil
+	}
+	if tTrans, ok := baseTrans.(*http.Transport); ok {
+		cloned := tTrans.Clone()
+		cloned.Proxy = t.proxyFunc
+		t.transport = cloned
+	}
+	return t, nil
+}
+
+func (t *RotatingProxyTransport) proxyFunc(req *http.Request) (*url.URL, error) {
+	if len(t.proxies) == 0 {
+		return nil, nil
+	}
+	proxy := t.selectActiveProxy()
+	t.currentProxy.Store(proxy)
+	return proxy, nil
 }
 
 func (t *RotatingProxyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	cloned := req.Clone(req.Context())
 	applyBrowserHeaders(cloned)
 
-	if len(t.proxies) == 0 {
-		return t.baseTrans.RoundTrip(cloned)
-	}
-
-	proxy := t.selectActiveProxy()
-	if proxy != nil {
-		if tTrans, ok := t.baseTrans.(*http.Transport); ok {
-			clonedTrans := tTrans.Clone()
-			clonedTrans.Proxy = http.ProxyURL(proxy)
-			resp, err := clonedTrans.RoundTrip(cloned)
-			t.checkCloudflareCooldown(proxy, resp)
-			return resp, err
-		}
+	if t.transport != nil {
+		resp, err := t.transport.RoundTrip(cloned)
+		proxy := t.currentProxy.Load()
+		t.checkCloudflareCooldown(proxy, resp)
+		return resp, err
 	}
 
 	return t.baseTrans.RoundTrip(cloned)
@@ -120,6 +132,7 @@ func (t *RotatingProxyTransport) selectActiveProxy() *url.URL {
 	t.coolMu.Unlock()
 
 	if len(available) == 0 {
+		// All proxies cooling down: fall back to full pool rather than failing the request.
 		idx := atomic.AddUint64(&t.counter, 1) % uint64(len(t.proxies))
 		return t.proxies[idx]
 	}
@@ -132,9 +145,12 @@ func (t *RotatingProxyTransport) checkCloudflareCooldown(proxy *url.URL, resp *h
 	if resp == nil || proxy == nil {
 		return
 	}
+	// Ban the proxy URL for 10m on Cloudflare 403/503; key is full proxy string for per-endpoint cooldown.
 	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusServiceUnavailable {
 		isCF := resp.Header.Get("CF-Ray") != "" || strings.Contains(strings.ToLower(resp.Header.Get("Server")), "cloudflare")
 		if isCF {
+			// Drain body before returning so idle conns are not poisoned when callers skip read on 403/503.
+			DiscardResponseBody(resp, 64<<10)
 			t.coolMu.Lock()
 			t.cooldowns[proxy.String()] = time.Now().Add(10 * time.Minute)
 			t.coolMu.Unlock()
@@ -177,7 +193,13 @@ func applyBrowserHeaders(req *http.Request) {
 }
 
 func Shared(timeout time.Duration) *http.Client {
+	// Default direct-egress client (supply seed fetch, enrich RDAP/DNS, etc.).
+	// HTTP crawlers that honor PARSER_PROXY_LIST build a separate client via NewClientWithProxies.
+	// Timeout is fixed on first call (deps warm-up); later calls ignore timeout to avoid races.
 	sharedOnce.Do(func() {
+		if timeout <= 0 {
+			timeout = defaultSharedTimeout
+		}
 		transport := &http.Transport{
 			MaxIdleConns:        100,
 			MaxIdleConnsPerHost: 20,
@@ -193,10 +215,19 @@ func Shared(timeout time.Duration) *http.Client {
 			Timeout:   timeout,
 		}
 	})
-	if timeout > 0 {
-		shared.Timeout = timeout
-	}
 	return shared
+}
+
+// ClientWithSharedTransport reuses Shared()'s connection pool with a separate request timeout.
+// Gemini uses a longer Timeout than crawl; sharing Transport avoids a second idle conn pool.
+func ClientWithSharedTransport(requestTimeout time.Duration) *http.Client {
+	if requestTimeout <= 0 {
+		requestTimeout = defaultSharedTimeout
+	}
+	return &http.Client{
+		Transport: Shared(requestTimeout).Transport,
+		Timeout:   requestTimeout,
+	}
 }
 
 func NewClientWithProxies(timeout time.Duration, proxies []string) (*http.Client, error) {
@@ -214,5 +245,3 @@ func ResetForTest() {
 	sharedOnce = sync.Once{}
 	shared = nil
 }
-
-

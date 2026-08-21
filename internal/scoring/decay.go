@@ -3,7 +3,7 @@ package scoring
 import "time"
 
 const (
-	timeDecayFreshBoost = 10
+	timeDecayFreshBoost   = 10
 	timeDecayStalePenalty = 10
 )
 

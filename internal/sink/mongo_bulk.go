@@ -3,6 +3,7 @@ package sink
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/bidshard/parser/internal/model"
@@ -20,6 +21,7 @@ type BulkStore struct {
 	flushInterval time.Duration
 	lastFlush     time.Time
 	FlushCount    int
+	leadsWritten  atomic.Int64
 }
 
 func NewBulkStore(inner Store, batchSize int, flushInterval time.Duration) *BulkStore {
@@ -37,8 +39,13 @@ func NewBulkStore(inner Store, batchSize int, flushInterval time.Duration) *Bulk
 	}
 }
 
+func (b *BulkStore) LeadsWritten() int64 {
+	return b.leadsWritten.Load()
+}
+
 func (b *BulkStore) Exists(ctx context.Context, hashID string) (bool, error) {
 	b.mu.Lock()
+	// Treat pending batch as written to avoid duplicate upserts within the same crawl flush window.
 	for _, lead := range b.batch {
 		if lead.HashID == hashID {
 			b.mu.Unlock()
@@ -50,12 +57,19 @@ func (b *BulkStore) Exists(ctx context.Context, hashID string) (bool, error) {
 }
 
 func (b *BulkStore) Upsert(ctx context.Context, lead model.Lead) error {
+	var flushBatch []model.Lead
 	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	b.batch = append(b.batch, lead)
 	if len(b.batch) >= b.batchSize || time.Since(b.lastFlush) >= b.flushInterval {
-		return b.flushLocked(ctx)
+		// Copy batch and release mu before Mongo I/O so Exists/Upsert from workers are not blocked.
+		flushBatch = append([]model.Lead(nil), b.batch...)
+		b.batch = b.batch[:0]
+		b.lastFlush = time.Now()
+		b.FlushCount++
+	}
+	b.mu.Unlock()
+	if flushBatch != nil {
+		return b.flushBatch(ctx, flushBatch)
 	}
 	return nil
 }
@@ -64,70 +78,47 @@ func (b *BulkStore) UpdateStatus(ctx context.Context, hashID, status string) err
 	return b.inner.UpdateStatus(ctx, hashID, status)
 }
 
-func (b *BulkStore) Flush(ctx context.Context) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.flushLocked(ctx)
+func (b *BulkStore) ApplyCrossSourceHot(ctx context.Context, hashID string, boost int) error {
+	if patcher, ok := b.inner.(CrossSourceHotPatcher); ok {
+		return patcher.ApplyCrossSourceHot(ctx, hashID, boost)
+	}
+	return nil
 }
 
-func (b *BulkStore) flushLocked(ctx context.Context) error {
-	if len(b.batch) == 0 {
+func (b *BulkStore) Flush(ctx context.Context) error {
+	b.mu.Lock()
+	var flushBatch []model.Lead
+	if len(b.batch) > 0 {
+		flushBatch = append([]model.Lead(nil), b.batch...)
+		b.batch = b.batch[:0]
+		b.lastFlush = time.Now()
+		b.FlushCount++
+	}
+	b.mu.Unlock()
+	if flushBatch == nil {
+		return nil
+	}
+	return b.flushBatch(ctx, flushBatch)
+}
+
+func (b *BulkStore) flushBatch(ctx context.Context, leads []model.Lead) error {
+	if len(leads) == 0 {
 		return nil
 	}
 
-	leads := append([]model.Lead(nil), b.batch...)
-	b.batch = b.batch[:0]
-	b.lastFlush = time.Now()
-	b.FlushCount++
-
 	if bw, ok := b.inner.(BulkWriter); ok {
-		return bw.BulkUpsert(ctx, leads)
+		if err := bw.BulkUpsert(ctx, leads); err != nil {
+			return err
+		}
+		b.leadsWritten.Add(int64(len(leads)))
+		return nil
 	}
+	// Fallback for stores without BulkWriter: upsert one lead at a time.
 	for _, lead := range leads {
 		if err := b.inner.Upsert(ctx, lead); err != nil {
 			return err
 		}
+		b.leadsWritten.Add(1)
 	}
-	return nil
-}
-
-type MockBulkWriter struct {
-	BulkCalls   int
-	UpsertCalls int
-	records     map[string]struct{}
-}
-
-func NewMockBulkWriter() *MockBulkWriter {
-	return &MockBulkWriter{records: make(map[string]struct{})}
-}
-
-func (m *MockBulkWriter) Exists(ctx context.Context, hashID string) (bool, error) {
-	_, ok := m.records[hashID]
-	return ok, nil
-}
-
-func (m *MockBulkWriter) BulkUpsert(ctx context.Context, leads []model.Lead) error {
-	m.BulkCalls++
-	m.UpsertCalls += len(leads)
-	for _, lead := range leads {
-		if lead.HashID != "" {
-			m.records[lead.HashID] = struct{}{}
-		}
-	}
-	return nil
-}
-
-func (m *MockBulkWriter) Upsert(ctx context.Context, lead model.Lead) error {
-	m.UpsertCalls++
-	if lead.HashID != "" {
-		m.records[lead.HashID] = struct{}{}
-	}
-	return nil
-}
-
-func (m *MockBulkWriter) UpdateStatus(ctx context.Context, hashID, status string) error {
-	_ = ctx
-	_ = hashID
-	_ = status
 	return nil
 }

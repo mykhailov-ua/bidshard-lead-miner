@@ -1,0 +1,3 @@
+# Optional headless lander deps (also installed by `make venv` for IDE/pyright).
+# Browser binaries: playwright install chromium
+playwright>=1.40.0

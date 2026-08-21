@@ -19,7 +19,8 @@ type ModelLimits struct {
 
 type LimitConfig struct {
 	ModelLimits
-	EmbedRPM int // embedContent shares project quota; separate bucket optional
+	EmbedRPM   int // embedContent shares project quota; separate bucket optional
+	QuotaSplit QuotaSplit
 }
 
 func DefaultLimitConfig(model string) LimitConfig {
@@ -27,6 +28,7 @@ func DefaultLimitConfig(model string) LimitConfig {
 	return LimitConfig{
 		ModelLimits: limits,
 		EmbedRPM:    max(1, limits.RPM/3),
+		QuotaSplit:  DefaultQuotaSplit(),
 	}
 }
 
@@ -36,9 +38,11 @@ func LimitsForModel(model string) ModelLimits {
 	case strings.Contains(m, "flash-lite"), strings.Contains(m, "flash_lite"):
 		return ModelLimits{RPM: 15, TPM: 250_000, RPD: 1000, MaxRetries: 4, RetryBase: 2 * time.Second, RetryMax: 60 * time.Second}
 	case strings.Contains(m, "2.5-flash"), strings.Contains(m, "2.5_flash"):
-		return ModelLimits{RPM: 10, TPM: 250_000, RPD: 250, MaxRetries: 4, RetryBase: 2 * time.Second, RetryMax: 60 * time.Second}
+		return ModelLimits{RPM: 20, TPM: 250_000, RPD: 250, MaxRetries: 4, RetryBase: 2 * time.Second, RetryMax: 60 * time.Second}
 	case strings.Contains(m, "2.5-pro"), strings.Contains(m, "2.5_pro"):
 		return ModelLimits{RPM: 5, TPM: 250_000, RPD: 100, MaxRetries: 3, RetryBase: 3 * time.Second, RetryMax: 90 * time.Second}
+	case strings.Contains(m, "3.6-flash"), strings.Contains(m, "3.6_flash"):
+		return ModelLimits{RPM: 15, TPM: 1_000_000, RPD: 1500, MaxRetries: 4, RetryBase: 2 * time.Second, RetryMax: 60 * time.Second}
 	case strings.Contains(m, "2.0-flash"), strings.Contains(m, "2.0_flash"):
 		return ModelLimits{RPM: 15, TPM: 1_000_000, RPD: 1500, MaxRetries: 4, RetryBase: 2 * time.Second, RetryMax: 60 * time.Second}
 	default:
@@ -76,7 +80,7 @@ func max(a, b int) int {
 	return b
 }
 
-// EstimateTokens is a cheap heuristic (≈4 chars/token). Used for TPM budgeting.
+// EstimateTokens is a cheap heuristic (~4 chars/token). Used for TPM budgeting.
 func EstimateTokens(parts ...string) int {
 	var n int
 	for _, p := range parts {

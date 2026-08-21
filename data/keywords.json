@@ -1821,13 +1821,13 @@
     {
       "id": "title-affiliate-manager",
       "phrase": "affiliate manager",
-      "weight": 8,
+      "weight": 4,
       "tag": "title"
     },
     {
       "id": "title-ad-ops-manager",
       "phrase": "ad ops manager",
-      "weight": 8,
+      "weight": 4,
       "tag": "title"
     },
     {
@@ -1857,13 +1857,13 @@
     {
       "id": "title-media-buyer",
       "phrase": "media buyer",
-      "weight": 12,
+      "weight": 6,
       "tag": "title"
     },
     {
       "id": "title-performance-marketer",
       "phrase": "performance marketer",
-      "weight": 10,
+      "weight": 4,
       "tag": "title"
     },
     {
@@ -1881,12 +1881,48 @@
     {
       "id": "title-traffic-manager",
       "phrase": "traffic manager",
-      "weight": 10,
+      "weight": 4,
       "tag": "title"
     },
     {
       "id": "title-affiliate-director",
       "phrase": "affiliate director",
+      "weight": 12,
+      "tag": "title"
+    },
+    {
+      "id": "title-owner",
+      "phrase": "owner",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-managing-director",
+      "phrase": "managing director",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-president",
+      "phrase": "president",
+      "weight": 8,
+      "tag": "title"
+    },
+    {
+      "id": "title-head-of-affiliate",
+      "phrase": "head of affiliate",
+      "weight": 12,
+      "tag": "title"
+    },
+    {
+      "id": "title-vp-acquisition",
+      "phrase": "vp acquisition",
+      "weight": 10,
+      "tag": "title"
+    },
+    {
+      "id": "title-director-of-acquisition",
+      "phrase": "director of acquisition",
       "weight": 10,
       "tag": "title"
     }
@@ -1981,6 +2017,54 @@
       "phrase": "best tracker 202",
       "weight": -8,
       "tag": "negative"
+    },
+    {
+      "id": "neg-sales-manager",
+      "phrase": "sales manager",
+      "weight": -12,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-customer-support",
+      "phrase": "customer support",
+      "weight": -12,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-support-specialist",
+      "phrase": "support specialist",
+      "weight": -10,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-account-executive",
+      "phrase": "account executive",
+      "weight": -8,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-junior-media-buyer",
+      "phrase": "junior media buyer",
+      "weight": -10,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-certified-public-accountant",
+      "phrase": "certified public accountant",
+      "weight": -15,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-tax-accountant",
+      "phrase": "tax accountant",
+      "weight": -12,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-cpa-exam",
+      "phrase": "cpa exam",
+      "weight": -12,
+      "tag": "negative"
     }
   ],
   "hard_reject": [
@@ -2007,6 +2091,10 @@
     {"id": "hr-join-our-channel", "phrase": "join our channel", "tag": "anti-icp"},
     {"id": "hr-white-label-adtech", "phrase": "prebid publisher", "tag": "anti-icp"},
     {"id": "hr-google-ad-manager", "phrase": "google ad manager", "tag": "anti-icp"},
-    {"id": "hr-keitaro-vs-binom-start", "phrase": "keitaro vs binom for start", "tag": "anti-icp"}
+    {"id": "hr-keitaro-vs-binom-start", "phrase": "keitaro vs binom for start", "tag": "anti-icp"},
+    {"id": "hr-certified-public-accountant", "phrase": "certified public accountant", "tag": "anti-icp"},
+    {"id": "hr-tax-accountant", "phrase": "tax accountant", "tag": "anti-icp"},
+    {"id": "hr-accounting-firm", "phrase": "accounting firm", "tag": "anti-icp"},
+    {"id": "hr-cpa-exam", "phrase": "cpa exam", "tag": "anti-icp"}
   ]
 }

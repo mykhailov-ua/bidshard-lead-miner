@@ -45,3 +45,14 @@ func (c *CompositeStore) UpdateStatus(ctx context.Context, hashID, status string
 	}
 	return nil
 }
+
+func (c *CompositeStore) ApplyCrossSourceHot(ctx context.Context, hashID string, boost int) error {
+	for _, s := range c.stores {
+		if patcher, ok := s.(CrossSourceHotPatcher); ok {
+			if err := patcher.ApplyCrossSourceHot(ctx, hashID, boost); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}

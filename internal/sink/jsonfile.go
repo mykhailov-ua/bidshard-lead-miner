@@ -2,44 +2,33 @@ package sink
 
 import (
 	"context"
-	"encoding/json"
 	"os"
-	"sync"
+	"path/filepath"
 
 	"github.com/bidshard/parser/internal/model"
 )
 
-// JSONFileSink appends one JSON object per line for each new accepted lead.
+// JSONFileSink appends lead JSON export records to a file.
 type JSONFileSink struct {
-	mu  sync.Mutex
-	f   *os.File
-	enc *json.Encoder
+	appendOnlyStore
+	f      *os.File
+	format string
 }
 
-func NewJSONFileSink(path string) (*JSONFileSink, error) {
+func NewJSONFileSink(path, format string) (*JSONFileSink, error) {
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, err
+		}
+	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		return nil, err
 	}
-	return &JSONFileSink{f: f, enc: json.NewEncoder(f)}, nil
-}
-
-func (s *JSONFileSink) Exists(ctx context.Context, hashID string) (bool, error) {
-	_ = ctx
-	_ = hashID
-	return false, nil
+	return &JSONFileSink{f: f, format: ResolveExportFormat(path, format)}, nil
 }
 
 func (s *JSONFileSink) Upsert(ctx context.Context, lead model.Lead) error {
 	_ = ctx
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.enc.Encode(LeadJSONMap(lead))
-}
-
-func (s *JSONFileSink) UpdateStatus(ctx context.Context, hashID, status string) error {
-	_ = ctx
-	_ = hashID
-	_ = status
-	return nil
+	return s.appendLead(s.f, lead, s.format)
 }

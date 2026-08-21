@@ -69,6 +69,18 @@ func TestLeadHashIDOrderIndependent(t *testing.T) {
 	}
 }
 
+func TestLeadHashIDWithScopeDiffersBySite(t *testing.T) {
+	t.Parallel()
+
+	contacts := []extract.Contact{{Type: "email", Value: "partners@example.com"}}
+	a := LeadHashIDWithScope("bojoko.com", contacts)
+	b := LeadHashIDWithScope("gamingamerica.com", contacts)
+	base := LeadHashIDFromExtract(contacts)
+	if a == b || a == base || b == base {
+		t.Fatalf("scope hash collision: base=%s a=%s b=%s", base, a, b)
+	}
+}
+
 func TestToLeadDocStoresNormalizedContacts(t *testing.T) {
 	t.Parallel()
 

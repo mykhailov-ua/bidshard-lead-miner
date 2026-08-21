@@ -5,6 +5,26 @@ import (
 	"testing"
 )
 
+func TestParseXenForoHTML(t *testing.T) {
+	t.Parallel()
+
+	html, err := os.ReadFile("../../../testdata/forum/xenforo_thread.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	posts := ParsePostsFromHTML(string(html))
+	if len(posts) < 2 {
+		t.Fatalf("posts=%d want >=2", len(posts))
+	}
+	if posts[0].Author != "media_buyer_mx" {
+		t.Fatalf("author=%q want media_buyer_mx", posts[0].Author)
+	}
+	if !HasPainSignal(posts[0].Body) {
+		t.Fatal("expected pain signal in xenforo post")
+	}
+}
+
 func TestParsePostsFromHTML(t *testing.T) {
 	t.Parallel()
 

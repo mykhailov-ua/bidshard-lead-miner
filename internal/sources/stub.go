@@ -54,15 +54,3 @@ func (s *StubSource) Collect(ctx context.Context, emit EmitFunc) error {
 	}
 	return nil
 }
-
-func DefaultStubs() []Source {
-	return []Source{
-		NewStubSource("stub:telegram_en", []model.RawItem{
-			{Raw: "voluum alternative needed. postback failing on FTD again", Contact: "telegram:@buyer"},
-			{Raw: "Looking for self-hosted tracker. voluum alternative", Contact: "telegram:@media_buyer_mx"},
-		}),
-		NewStubSource("stub:ads_txt", []model.RawItem{
-			{Raw: "Voluum pricing too high. postback failing every night", Contact: "ops@igaming-team.com"},
-		}),
-	}
-}

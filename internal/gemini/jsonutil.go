@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/bidshard/parser/internal/pretty"
 )
 
 func jsonUnmarshal(data []byte, v any) error {
@@ -31,7 +33,7 @@ func decodeModelJSON(raw []byte, v any) error {
 	dec := json.NewDecoder(bytes.NewReader(clean))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		return fmt.Errorf("decode model json: %w (head=%q)", err, truncate(string(clean), 120))
+		return fmt.Errorf("decode model json: %w (head=%q)", err, pretty.Truncate(string(clean), 120))
 	}
 	return nil
 }

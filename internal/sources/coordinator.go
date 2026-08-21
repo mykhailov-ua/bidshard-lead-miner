@@ -29,9 +29,6 @@ type roundHandle struct {
 }
 
 func NewCoordinator(cfg config.Config, sources []Source) *Coordinator {
-	if len(sources) == 0 {
-		sources = DefaultStubs()
-	}
 	return &Coordinator{cfg: cfg, sources: sources}
 }
 
@@ -65,6 +62,9 @@ func (c *Coordinator) loop(
 			return
 		case <-scanCh:
 			c.cancelActiveRound()
+			// Wait for the prior round goroutine to exit before starting another; avoids overlapping
+			// taskCh pressure and duplicate round_id work when PARSER_POLL_SEC fires early.
+			roundWG.Wait()
 			roundWG.Add(1)
 			go func() {
 				defer roundWG.Done()
@@ -87,6 +87,7 @@ func (c *Coordinator) beginRound(parent context.Context) (context.Context, *roun
 	c.roundMu.Lock()
 	defer c.roundMu.Unlock()
 
+	// loop.cancelActiveRound may already have cancelled the prior handle; cancel again is idempotent.
 	if c.activeRound != nil {
 		c.activeRound.cancel()
 	}
@@ -126,36 +127,40 @@ func (c *Coordinator) runRound(
 	for _, src := range c.sources {
 		src := src
 		g.Go(func() error {
-			reqCtx, cancel := context.WithTimeout(gctx, c.cfg.HTTPTimeout)
-			defer cancel()
-
-			err := src.Collect(reqCtx, func(ctx context.Context, item model.RawItem) error {
+			slog.Info("source collect started", "round_id", roundID, "source", src.Name())
+			// Collect shares the round deadline (ScanTimeout). Per-request HTTPTimeout is enforced
+			// inside fetchers; capping whole Collect at HTTPTimeout truncates multi-URL crawls.
+			err := src.Collect(gctx, func(ctx context.Context, item model.RawItem) error {
 				return c.emit(ctx, roundID, taskCh, state, item)
 			})
 			if err != nil {
-				if ctxErr := reqCtx.Err(); ctxErr != nil {
+				if ctxErr := gctx.Err(); ctxErr != nil {
 					state.SourcesFail.Add(1)
+					slog.Warn("source collect timeout",
+						"round_id", roundID,
+						"source", src.Name(),
+						"error", ctxErr,
+					)
 					return nil
 				}
 				state.SourcesFail.Add(1)
-				slog.Warn("source collect failed", "source", src.Name(), "error", err)
+				slog.Warn("source collect failed", "round_id", roundID, "source", src.Name(), "error", err)
 				return nil
 			}
 			state.SourcesOK.Add(1)
+			slog.Info("source collect finished", "round_id", roundID, "source", src.Name())
+			// Return nil so errgroup does not cancel sibling sources on one failure.
 			return nil
 		})
 	}
 
 	_ = g.Wait()
 
+	// Block until processor workers call FinishTask for every enqueued item.
 	state.Wait()
 
 	stats := state.Snapshot(roundID, time.Since(start))
-	select {
-	case statsCh <- stats:
-	default:
-		slog.Warn("stats channel full, dropping round stats", "round_id", roundID)
-	}
+	pipeline.TrySendStats(statsCh, stats)
 
 	slog.Info("scan round finished",
 		"round_id", stats.RoundID,
@@ -184,21 +189,19 @@ func (c *Coordinator) emit(
 		Stats:   state,
 	}
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case taskCh <- task:
-		state.TrackTask()
-		return nil
-	default:
-		slog.Warn("task channel full",
-			"round_id", roundID,
-			"source", item.Source,
-			"contact", item.MaskedContact(),
-		)
-		state.Dropped.Add(1)
+	err := pipeline.TryEnqueue(ctx, taskCh, task)
+	if err == nil {
 		return nil
 	}
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	slog.Warn("task channel full",
+		"round_id", roundID,
+		"source", item.Source,
+		"contact", item.MaskedContact(),
+	)
+	return nil
 }
 
 func (c *Coordinator) ActiveRoundCancel() context.CancelFunc {

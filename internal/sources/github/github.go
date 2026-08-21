@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -55,10 +54,7 @@ func NewCrawler(cfg config.Config) *Crawler {
 			"self-hosted tracker",
 		}
 	}
-	client, err := httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
-	if err != nil {
-		client = httpclient.Shared(cfg.HTTPTimeout)
-	}
+	client := httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLs)
 	return &Crawler{
 		token:   cfg.GitHubToken,
 		queries: queries,
@@ -102,7 +98,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == 429 {
 			retryAfter := resp.Header.Get("Retry-After")
 			slog.Warn("github rate limit reached", "query", q, "retry_after", retryAfter)
-			resp.Body.Close()
+			_, _ = httpclient.ReadResponseBody(resp, 4096)
 			if sec, err := strconv.Atoi(retryAfter); err == nil && sec > 0 {
 				select {
 				case <-ctx.Done():
@@ -113,8 +109,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 			continue
 		}
 
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
-		resp.Body.Close()
+		body, err := httpclient.ReadResponseBody(resp, 2<<20)
 		if err != nil || resp.StatusCode != http.StatusOK {
 			continue
 		}

@@ -1,0 +1,51 @@
+# Example Prometheus alert rules for parser metrics (BOX-7).
+# Scrape target: PARSER_METRICS_ADDR (default :9465 on VPS profile).
+#
+# Alert when no leads written in 24h while parser is up:
+groups:
+  - name: parser
+    rules:
+      - alert: ParserZeroLeadsWritten24h
+        expr: increase(parser_leads_written_total[24h]) == 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: Parser wrote zero leads in 24h
+          description: Check proxy, GEMINI_API_KEY, seeds, and crawl logs.
+
+      - alert: ParserFDDriftHigh
+        expr: parser_bpf_fd_delta{role="parser"} > 16
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Parser open FD count drifting up during BPF session
+          description: Check http.ResponseBody close, proxy pool, and collect-once drain.
+
+      - alert: ParserZeroLeadsAccepted24h
+        expr: increase(parser_leads_accepted_total[24h]) == 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: Parser accepted zero leads in 24h
+          description: Pipeline may be rejecting everything (geo, ICP, prescan).
+
+      - alert: ParserTasksDropped
+        expr: increase(parser_tasks_dropped_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Parser dropped tasks (taskCh full)
+          description: Raise PARSER_TASK_BUFFER or PARSER_WORKERS; check soak logs for dropped>0.
+
+      - alert: ParserStatsDropped
+        expr: increase(parser_stats_dropped_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Parser dropped scan round stats
+          description: Reporter backlog; statsCh buffer too small for concurrent rounds.

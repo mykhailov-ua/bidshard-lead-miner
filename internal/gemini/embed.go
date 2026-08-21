@@ -5,11 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+
+	"github.com/bidshard/parser/internal/pretty"
 )
 
+const defaultEmbedModel = "gemini-embedding-001"
+const defaultEmbedDims = 768
+
 type embedRequest struct {
-	Model   string     `json:"model"`
-	Content embedContent `json:"content"`
+	Model                string       `json:"model"`
+	Content              embedContent `json:"content"`
+	OutputDimensionality int          `json:"outputDimensionality,omitempty"`
 }
 
 type embedContent struct {
@@ -23,19 +29,18 @@ type embedResponse struct {
 	Error *apiError `json:"error"`
 }
 
-const defaultEmbedModel = "text-embedding-004"
-
 func (c *Client) EmbedText(ctx context.Context, text string) ([]float32, error) {
 	body := embedRequest{
-		Model:   "models/" + defaultEmbedModel,
-		Content: embedContent{Parts: []part{{Text: truncate(text, 1500)}}},
+		Model:                "models/" + defaultEmbedModel,
+		Content:              embedContent{Parts: []part{{Text: pretty.Truncate(text, 1500)}}},
+		OutputDimensionality: defaultEmbedDims,
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	url := fmt.Sprintf("%s/models/%s:embedContent?key=%s", c.baseURL, defaultEmbedModel, c.apiKey)
-	respBody, err := c.postWithQuota(ctx, callEmbed, url, raw, EstimateTokens(text))
+	respBody, err := c.postWithQuota(ctx, callEmbed, PriorityLow, url, raw, EstimateTokens(text))
 	if err != nil {
 		return nil, err
 	}

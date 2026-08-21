@@ -1,0 +1,4 @@
+# Production lander URLs (affiliate / partner pages). PARSER_PROXY_LIST recommended on VPS.
+url,notes
+https://buylink.pro/,home
+https://buylink.pro/about,team

@@ -26,7 +26,7 @@ func LoadBlacklistDomains(path string) error {
 		}
 		return fmt.Errorf("open blacklist domains: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	blacklistMu.Lock()
 	defer blacklistMu.Unlock()
@@ -54,7 +54,7 @@ func LoadBlacklistEmails(path string) error {
 		}
 		return fmt.Errorf("open blacklist emails: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	blacklistMu.Lock()
 	defer blacklistMu.Unlock()
@@ -119,5 +119,25 @@ func IsBlacklisted(email, domain string) bool {
 		}
 	}
 
+	return false
+}
+
+// IsBlacklistedDomain reports whether a hostname is on the crawl blacklist.
+func IsBlacklistedDomain(domain string) bool {
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	domain = strings.TrimPrefix(domain, "www.")
+	if domain == "" {
+		return false
+	}
+	blacklistMu.RLock()
+	defer blacklistMu.RUnlock()
+	if _, ok := blacklistedDomains[domain]; ok {
+		return true
+	}
+	for blocked := range blacklistedDomains {
+		if strings.HasSuffix(domain, "."+blocked) {
+			return true
+		}
+	}
 	return false
 }

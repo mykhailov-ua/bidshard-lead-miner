@@ -16,7 +16,7 @@ func TestCatalog(t *testing.T) {
 		}
 		names[info.Name] = true
 	}
-	for _, required := range []string{"stub", "forum", "discord"} {
+	for _, required := range []string{"forum", "discord"} {
 		if !names[required] {
 			t.Fatalf("catalog missing %q", required)
 		}

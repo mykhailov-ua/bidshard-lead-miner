@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -32,11 +31,7 @@ type Crawler struct {
 
 func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 	if client == nil {
-		var err error
-		client, err = httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
-		if err != nil {
-			client = httpclient.Shared(cfg.HTTPTimeout)
-		}
+		client = httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLs)
 	}
 	queries := cfg.CTQueries
 	if len(queries) == 0 {
@@ -69,9 +64,9 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 
 	for _, q := range c.queries {
 		select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-c.rateTicker.C:
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-c.rateTicker.C:
 		}
 
 		reqURL := fmt.Sprintf("%s/?q=%%25.%s.%%25&output=json", c.baseURL, url.QueryEscape(q))
@@ -81,16 +76,13 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 			continue
 		}
 
-		resp, err := c.client.Do(req)
+		body, status, err := httpclient.DoBytes(c.client, req, 5<<20)
 		if err != nil {
 			slog.Warn("ct fetch failed", "query", q, "error", err)
 			continue
 		}
-
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 5<<20))
-		resp.Body.Close()
-		if err != nil || resp.StatusCode != http.StatusOK {
-			slog.Warn("ct bad response", "query", q, "status", resp.StatusCode)
+		if status != http.StatusOK {
+			slog.Warn("ct bad response", "query", q, "status", status)
 			continue
 		}
 

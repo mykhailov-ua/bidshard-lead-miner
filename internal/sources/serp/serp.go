@@ -2,7 +2,6 @@ package serp
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -27,11 +26,7 @@ type Crawler struct {
 
 func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 	if client == nil {
-		var err error
-		client, err = httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
-		if err != nil {
-			client = httpclient.Shared(cfg.HTTPTimeout)
-		}
+		client = httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLs)
 	}
 	dorks := []string{
 		`site:blackhatworld.com "voluum alternative"`,
@@ -39,6 +34,10 @@ func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 		`site:warriorforum.com "self-hosted tracker"`,
 		`"voluum too expensive" affiliate`,
 		`"keitaro alternative" tracker`,
+		`site:t.me affiliate marketing`,
+		`site:t.me igaming affiliate`,
+		`site:tgstat.com affiliate`,
+		`telegram channel affiliate marketing tracker`,
 	}
 	return &Crawler{
 		client:     client,
@@ -81,20 +80,20 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		}
 		req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
-		resp, err := c.client.Do(req)
+		body, status, err := httpclient.DoBytes(c.client, req, 2<<20)
 		if err != nil {
 			slog.Warn("serp fetch failed", "dork", dork, "error", err)
 			continue
 		}
-
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
-		resp.Body.Close()
-		if err != nil || resp.StatusCode != http.StatusOK {
-			slog.Warn("serp bad status", "dork", dork, "status", resp.StatusCode)
+		if status != http.StatusOK {
+			slog.Warn("serp bad status", "dork", dork, "status", status)
 			continue
 		}
 
 		results := parseSERPResults(string(body))
+		if err := appendTelegramChannelDiscoveries(defaultTGChannelsPath, dork, results); err != nil {
+			slog.Warn("serp telegram channel registry write failed", "error", err)
+		}
 		for _, res := range results {
 			contacts := extract.Extract(res.Snippet)
 			contactStr := ""
@@ -106,7 +105,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 
 			item := model.RawItem{
 				Source:   "serp:" + res.Domain,
-				Raw:      res.Title + " — " + res.Snippet,
+				Raw:      res.Title + " - " + res.Snippet,
 				Contact:  contactStr,
 				Title:    res.Title,
 				PostedAt: time.Now().UTC(),
@@ -127,8 +126,8 @@ type SERPResult struct {
 }
 
 var (
-	linkRe    = regexp.MustCompile(`(?is)<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>`)
-	snippetRe = regexp.MustCompile(`(?is)<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</a>`)
+	linkRe     = regexp.MustCompile(`(?is)<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>`)
+	snippetRe  = regexp.MustCompile(`(?is)<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</a>`)
 	stripTagRe = regexp.MustCompile(`(?is)<[^>]+>`)
 )
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/bidshard/parser/internal/scoring"
 )
@@ -11,10 +12,18 @@ import (
 type Pool struct {
 	workerCount int
 	processor   *Processor
+	taskTimeout time.Duration
 }
 
-func NewPool(workerCount int, processor *Processor) *Pool {
-	return &Pool{workerCount: workerCount, processor: processor}
+func NewPool(workerCount int, processor *Processor, taskTimeout time.Duration) *Pool {
+	if taskTimeout <= 0 {
+		taskTimeout = 90 * time.Second
+	}
+	return &Pool{
+		workerCount: workerCount,
+		processor:   processor,
+		taskTimeout: taskTimeout,
+	}
 }
 
 func (p *Pool) Run(ctx context.Context, wg *sync.WaitGroup, tasks <-chan Task) {
@@ -60,13 +69,20 @@ func (p *Pool) process(ctx context.Context, id int, task Task) {
 		return
 	}
 
-	outcome := p.processor.Process(ctx, task)
+	taskCtx, cancel := context.WithTimeout(ctx, p.taskTimeout)
+	defer cancel()
+
+	outcome := p.processor.Process(taskCtx, task)
 	if task.Stats == nil {
 		return
 	}
 
 	if outcome.RejectedGeo {
 		task.Stats.RejectedGeo.Add(1)
+		return
+	}
+	if outcome.HardRejected {
+		task.Stats.HardRejected.Add(1)
 		return
 	}
 	if outcome.Dedup {

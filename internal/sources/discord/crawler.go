@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -130,18 +129,12 @@ func (c *Crawler) fetchMessages(ctx context.Context, channelID string) ([]messag
 	}
 	req.Header.Set("Authorization", "Bot "+c.token)
 
-	resp, err := c.client.Do(req)
+	body, status, err := httpclient.DoBytes(c.client, req, 2<<20)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("discord http %d", resp.StatusCode)
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("discord http %d", status)
 	}
 
 	var msgs []message

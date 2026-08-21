@@ -47,30 +47,17 @@ type ingestWaitGroup interface {
 	Done()
 }
 
-func scan(ctx context.Context, r io.Reader, taskCh chan<- pipeline.Task, stats *pipeline.RoundState, roundID string) {
-	Scan(ctx, r, taskCh, stats, roundID)
-}
-
 func emit(ctx context.Context, taskCh chan<- pipeline.Task, stats *pipeline.RoundState, roundID string, item model.RawItem) {
 	task := pipeline.Task{
 		RoundID: roundID,
 		Item:    item,
 		Stats:   stats,
 	}
-	select {
-	case <-ctx.Done():
-	case taskCh <- task:
-		if stats != nil {
-			stats.TrackTask()
-		}
-	default:
+	if err := pipeline.TryEnqueue(ctx, taskCh, task); err != nil && ctx.Err() == nil {
 		slog.Warn("task channel full",
 			"round_id", roundID,
 			"source", item.Source,
 			"contact", item.MaskedContact(),
 		)
-		if stats != nil {
-			stats.Dropped.Add(1)
-		}
 	}
 }

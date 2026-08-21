@@ -12,6 +12,7 @@ type Store interface {
 	UpdateStatus(ctx context.Context, hashID, status string) error
 }
 
+// StubStore is an in-memory Store for unit tests only.
 type StubStore struct {
 	ExistsCalls int
 	records     map[string]struct{}

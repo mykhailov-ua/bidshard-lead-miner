@@ -99,3 +99,19 @@ func TestExtractDomainGitHubReviewHints(t *testing.T) {
 	}
 }
 
+func TestExtractSkype(t *testing.T) {
+	t.Parallel()
+	got := Extract("voluum alternative contact Skype: media.buyer or live:aff_lead_mgr")
+	if got.Rejected {
+		t.Fatal("unexpected reject")
+	}
+	found := map[string]bool{}
+	for _, c := range got.Contacts {
+		if c.Type == "skype" {
+			found[c.Value] = true
+		}
+	}
+	if !found["media.buyer"] || !found["aff_lead_mgr"] {
+		t.Fatalf("contacts=%v", got.Contacts)
+	}
+}

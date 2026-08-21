@@ -17,6 +17,7 @@ type Config struct {
 	ScanTimeout           time.Duration
 	HTTPTimeout           time.Duration
 	ShutdownTimeout       time.Duration
+	CollectDrainTimeout   time.Duration
 	LogFormat             string
 	LogLevel              string
 	Output                string
@@ -27,6 +28,7 @@ type Config struct {
 	TelegramSidecar       bool
 	TelegramDryRun        bool
 	TelegramConfigPath    string
+	TelethonPython        string
 	Source                string
 	SupplySeedPath        string
 	SupplyHostRPS         float64
@@ -43,6 +45,7 @@ type Config struct {
 	MongoDB               string
 	MongoCollection       string
 	ExportJSONPath        string
+	ExportJSONFormat      string
 	MXCheck               bool
 	KeywordsJSONPath      string
 	KeywordsGrayPath      string
@@ -68,123 +71,207 @@ type Config struct {
 	RedditQueries    []string
 	RedditMaxResults int
 
-	GeminiKeywordDiffEvery int
-	GeminiKeywordDiffDir   string
-	GeminiEmbedThreshold   float64
-	ParserICPClassify      bool
-	ParserGeoClassify      bool
-	ParserTimeDecay        bool
-	EnrichRDAP             bool
-	EnrichDNS              bool
-	EnrichEmail            bool
-	EnrichSMTPVerify       bool
-	DiscordBotToken        string
-	DiscordChannelIDs      []string
-	DiscordMaxMessages     int
-	SourceStatsCollection  string
-	CrmBoostCollection     string
-	EmbeddingCollection    string
+	GeminiKeywordDiffEvery    int
+	GeminiKeywordDiffDir      string
+	GeminiDiscoverDiffEvery   int
+	GeminiDiscoverDiffDir     string
+	GeminiEmbedThreshold      float64
+	GeminiEmbedPainMin        float64
+	GeminiEmbedSpamMin        float64
+	GeminiLeadAnalyzeInterval time.Duration
+	GeminiLeadBatchSize       int
+	GeminiQuotaCriticalPct    int
+	GeminiQuotaHighPct        int
+	GeminiQuotaNormalPct      int
+	GeminiQuotaLowPct         int
+	WarmLeadQueueSize         int
+	ParserICPClassify         bool
+	ParserICPClassifyTgWeb    bool   // sync ICP on tgweb hot path even when ParserGeminiDefer is true
+	ParserTgWebPrescanMode    string // aggressive: site LPR bypasses keyword prescan; strict: require affiliate hits
+	ParserGeoClassify         bool
+	ParserTimeDecay           bool
+	EnrichRDAP                bool
+	EnrichDNS                 bool
+	EnrichEmail               bool
+	EnrichSMTPVerify          bool
+	DiscordBotToken           string
+	DiscordChannelIDs         []string
+	DiscordMaxMessages        int
+	SourceStatsCollection     string
+	CrmBoostCollection        string
+	EmbeddingCollection       string
 
-	BlacklistDomainsPath   string
-	BlacklistEmailsPath    string
-	ParserPilotTag         bool
-	ParserLeadStatusEnabled bool
-	KeywordsLocalePath     string
-	KeywordsLocale         string
-	CTQueries              []string
-	CTMaxResults           int
-	GitHubToken            string
-	GitHubSearchQueries    []string
-	MetricsAddr            string
-	WarriorSeedPath        string
-	WarriorHostRPS         float64
-	KeywordStatsCollection string
-	HTTPWorkers            int
-	ProxyURLs              []string
+	BlacklistDomainsPath       string
+	BlacklistEmailsPath        string
+	ParserPilotTag             bool
+	ParserGeminiEngage         bool
+	ParserEmbedPrescan         bool
+	ParserEmbedCluster         bool
+	ParserGeminiEnrichSynth    bool
+	ParserGeminiDefer          bool // batch geo/ICP/engage/enrich on warm path; see deps.go geminiDefer matrix
+	ParserGeminiSyncGeo        bool // inline geo on hot path when defer=true (PARSER_GEMINI_SYNC_GEO)
+	ParserLeadStatusEnabled    bool
+	KeywordsLocalePath         string
+	KeywordsLocale             string
+	CTQueries                  []string
+	CTMaxResults               int
+	GitHubToken                string
+	GitHubSearchQueries        []string
+	MetricsAddr                string
+	CRMWebhookURL              string
+	CRMWebhookSecret           string
+	CRMWebhookEnabled          bool
+	WarriorSeedPath            string
+	WarriorHostRPS             float64
+	KeywordStatsCollection     string
+	ParserEntitySightings      bool
+	EntityCollection           string
+	ParserCrossSourceHot       bool
+	CrossSourceHotWindow       time.Duration
+	CrossSourceHotBoost        int
+	HTTPWorkers                int
+	ProxyURLs                  []string // PARSER_PROXY_LIST; HTTP crawlers only (not Mongo/Gemini)
+	TelegramProxyURL           string   // TELEGRAM_PROXY_URL; MTProto sidecar only (socks5/http)
+	BGWorkerEnabled            bool
+	BGTelegramEnabled          bool
+	BGSerpTelegramInterval     time.Duration
+	BGTelegramDiscoverInterval time.Duration
+	BGTelegramScrapeInterval   time.Duration
+	BGTelegramWebInterval      time.Duration
+	TelegramDomainsPath        string
+	TelegramWebMaxDomains      int
+	TelegramWebRescanDays      int
+	TelegramWebDomains         []string // allowlist; empty = pending queue from registry
+	ProcessorTaskTimeout       time.Duration
 }
 
 func Load() (Config, error) {
+	LoadDotEnv()
+	// Empty PARSER_PROXY_LIST means direct egress. Comma-separated HTTP proxy URLs; no shell expansion.
+	// GeminiRPM/RPD/TPM/EmbedRPM/MaxRetries at 0 -> gemini.NewClient applies model-tier defaults.
 	cfg := Config{
-		PollInterval:           time.Duration(envInt("PARSER_POLL_SEC", 120)) * time.Second,
-		WorkerCount:            envInt("PARSER_WORKERS", 4),
-		TaskBuffer:             envInt("PARSER_TASK_BUFFER", 128),
-		SourceConcurrency:      envInt("PARSER_SOURCE_CONCURRENCY", 3),
-		ScanTimeout:            envDuration("PARSER_SCAN_TIMEOUT", 5*time.Minute),
-		HTTPTimeout:            envDuration("PARSER_HTTP_TIMEOUT", 30*time.Second),
-		ShutdownTimeout:        envDuration("PARSER_SHUTDOWN_TIMEOUT", 30*time.Second),
-		HTTPWorkers:            envInt("PARSER_HTTP_WORKERS", 10),
-		ProxyURLs:              parseCSV(env("PARSER_PROXY_LIST", "")),
-		LogFormat:              env("PARSER_LOG_FORMAT", "json"),
-		LogLevel:               env("PARSER_LOG_LEVEL", "info"),
-		Output:                 env("PARSER_OUTPUT", "table"),
-		WriteSlots:             envInt("PARSER_WRITE_SLOTS", 8),
-		TelegramAPIHash:        env("TELEGRAM_API_HASH", ""),
-		MongoURI:               env("MONGO_URI", ""),
-		MongoDB:                env("MONGO_DB", "parser"),
-		MongoCollection:        env("PARSER_MONGO_COLLECTION", "leads"),
-		ExportJSONPath:         env("PARSER_EXPORT_JSON", ""),
-		MXCheck:                envBool("PARSER_MX_CHECK", false),
-		KeywordsJSONPath:       env("KEYWORDS_JSON_PATH", "data/keywords.json"),
-		KeywordsGrayPath:       env("KEYWORDS_GRAY_JSON_PATH", "data/keywords-gray.json"),
-		GeoBlockCountries:      parseCSV(env("GEO_BLOCK_COUNTRIES", "RU,BY")),
-		DisposableDomainsPath:  env("DISPOSABLE_DOMAINS_PATH", "data/disposable_domains.txt"),
-		TelegramConfigPath:     env("TELEGRAM_CONFIG_PATH", "config/sources.telegram.yaml"),
-		Source:                 env("PARSER_SOURCE", "stub"),
-		SupplySeedPath:         env("SUPPLY_SEED_PATH", "data/seeds/domains.csv"),
-		SupplyHostRPS:          envFloat("SUPPLY_HOST_RPS", 2),
-		SupplyBaseURL:          env("SUPPLY_BASE_URL", ""),
-		ForumSeedPath:          env("FORUM_SEED_PATH", "data/seeds/forum_threads.csv"),
-		ForumBaseURL:           env("FORUM_BASE_URL", ""),
-		LanderSeedPath:         env("LANDER_SEED_PATH", "data/seeds/lander_urls.csv"),
-		LanderBaseURL:          env("LANDER_BASE_URL", ""),
-		LanderHeadless:         envBool("PARSER_LANDER_HEADLESS", false),
-		GeminiAPIKey:           env("GEMINI_API_KEY", ""),
-		GeminiModel:            env("GEMINI_MODEL", "gemini-2.0-flash"),
-		GeminiAnalyzeInterval:  envDuration("GEMINI_ANALYZE_INTERVAL", 15*time.Minute),
-		GeminiReportInterval:   envDuration("GEMINI_REPORT_INTERVAL", 6*time.Hour),
-		GeminiBatchSize:        envInt("GEMINI_BATCH_SIZE", 20),
-		GeminiRPM:              envInt("GEMINI_RPM", 0),
-		GeminiRPD:              envInt("GEMINI_RPD", 0),
-		GeminiTPM:              envInt("GEMINI_TPM", 0),
-		GeminiEmbedRPM:         envInt("GEMINI_EMBED_RPM", 0),
-		GeminiMaxRetries:       envInt("GEMINI_MAX_RETRIES", 0),
-		GeminiRequestTimeout:   envDuration("GEMINI_REQUEST_TIMEOUT", 60*time.Second),
-		ColdJunkQueueSize:      envInt("COLD_JUNK_QUEUE_SIZE", 512),
-		ColdJunkCollection:     env("COLD_JUNK_COLLECTION", "junk_leads"),
-		ColdReportCollection:   env("COLD_REPORT_COLLECTION", "junk_reports"),
-		RedditSubreddits:       parseCSV(env("REDDIT_SUBREDDITS", "affiliatemarketing,media_buying,adops,PPC")),
-		RedditQueries:          parseSemicolonCSV(env("REDDIT_QUERIES", "voluum alternative;tracker too expensive;postback failing;self-hosted tracker;tracker migration;switch from voluum")),
-		RedditMaxResults:       envInt("REDDIT_MAX_RESULTS", 25),
-		GeminiKeywordDiffEvery: envInt("GEMINI_KEYWORD_DIFF_EVERY", 5),
-		GeminiKeywordDiffDir:   env("GEMINI_KEYWORD_DIFF_DIR", "data/suggestions"),
-		GeminiEmbedThreshold:   envFloat("GEMINI_EMBED_THRESHOLD", 0.92),
-		ParserICPClassify:      envBool("PARSER_ICP_CLASSIFY", true),
-		ParserGeoClassify:      envBool("PARSER_GEO_CLASSIFY", true),
-		ParserTimeDecay:        envBool("PARSER_TIME_DECAY", true),
-		EnrichRDAP:             envBool("PARSER_ENRICH_RDAP", true),
-		EnrichDNS:              envBool("PARSER_ENRICH_DNS", true),
-		EnrichEmail:            envBool("PARSER_ENRICH_EMAIL", true),
-		EnrichSMTPVerify:       envBool("PARSER_ENRICH_SMTP_VERIFY", false),
-		DiscordBotToken:        env("DISCORD_BOT_TOKEN", ""),
-		DiscordChannelIDs:      parseCSV(env("DISCORD_CHANNEL_IDS", "")),
-		DiscordMaxMessages:     envInt("DISCORD_MAX_MESSAGES", 50),
-		SourceStatsCollection:  env("SOURCE_STATS_COLLECTION", "source_stats"),
-		CrmBoostCollection:     env("CRM_BOOST_COLLECTION", "crm_boosts"),
-		EmbeddingCollection:    env("EMBEDDING_COLLECTION", "snippet_embeddings"),
-		BlacklistDomainsPath:   env("BLACKLIST_DOMAINS_PATH", "data/blacklist_domains.txt"),
-		BlacklistEmailsPath:    env("BLACKLIST_EMAILS_PATH", "data/blacklist_emails.txt"),
-		ParserPilotTag:         envBool("PARSER_PILOT_TAG", true),
-		ParserLeadStatusEnabled: envBool("PARSER_LEAD_STATUS_ENABLED", false),
-		KeywordsLocalePath:     env("KEYWORDS_LOCALE_PATH", ""),
-		KeywordsLocale:         env("KEYWORDS_LOCALE", ""),
-		CTQueries:              parseCSV(env("CT_QUERIES", "track,click,go")),
-		CTMaxResults:           envInt("CT_MAX_RESULTS", 100),
-		GitHubToken:            env("GITHUB_TOKEN", ""),
-		GitHubSearchQueries:    parseSemicolonCSV(env("GITHUB_SEARCH_QUERIES", "voluum alternative;self-hosted tracker;keitaro docker")),
-		MetricsAddr:            env("PARSER_METRICS_ADDR", ""),
-		WarriorSeedPath:        env("WARRIOR_SEED_PATH", "data/seeds/warrior_threads.csv"),
-		WarriorHostRPS:         envFloat("WARRIOR_HOST_RPS", 1),
-		KeywordStatsCollection: env("KEYWORD_STATS_COLLECTION", "keyword_stats"),
+		PollInterval:               time.Duration(envInt("PARSER_POLL_SEC", 120)) * time.Second,
+		WorkerCount:                envInt("PARSER_WORKERS", 4),
+		TaskBuffer:                 envInt("PARSER_TASK_BUFFER", 128),
+		SourceConcurrency:          envInt("PARSER_SOURCE_CONCURRENCY", 3),
+		ScanTimeout:                envDuration("PARSER_SCAN_TIMEOUT", 5*time.Minute),
+		HTTPTimeout:                envDuration("PARSER_HTTP_TIMEOUT", 30*time.Second),
+		ShutdownTimeout:            envDuration("PARSER_SHUTDOWN_TIMEOUT", 120*time.Second),
+		CollectDrainTimeout:        envDuration("PARSER_COLLECT_DRAIN_TIMEOUT", 120*time.Second),
+		HTTPWorkers:                envInt("PARSER_HTTP_WORKERS", 10),
+		ProxyURLs:                  parseCSV(env("PARSER_PROXY_LIST", "")),
+		LogFormat:                  env("PARSER_LOG_FORMAT", "auto"),
+		LogLevel:                   env("PARSER_LOG_LEVEL", "info"),
+		Output:                     env("PARSER_OUTPUT", "auto"),
+		WriteSlots:                 envInt("PARSER_WRITE_SLOTS", 8),
+		TelegramAPIHash:            env("TELEGRAM_API_HASH", ""),
+		MongoURI:                   env("MONGO_URI", ""),
+		MongoDB:                    env("MONGO_DB", "parser"),
+		MongoCollection:            env("PARSER_MONGO_COLLECTION", "leads"),
+		ExportJSONPath:             env("PARSER_EXPORT_JSON", ""),
+		ExportJSONFormat:           env("PARSER_EXPORT_JSON_FORMAT", "auto"),
+		MXCheck:                    envBool("PARSER_MX_CHECK", false),
+		KeywordsJSONPath:           env("KEYWORDS_JSON_PATH", "data/keywords.json"),
+		KeywordsGrayPath:           env("KEYWORDS_GRAY_JSON_PATH", "data/keywords-gray.json"),
+		GeoBlockCountries:          parseCSV(env("GEO_BLOCK_COUNTRIES", "RU,BY")),
+		DisposableDomainsPath:      env("DISPOSABLE_DOMAINS_PATH", "data/disposable_domains.txt"),
+		TelegramConfigPath:         env("TELEGRAM_CONFIG_PATH", "config/sources.telegram.yaml"),
+		TelethonPython:             env("PARSER_TELETHON_PYTHON", ""),
+		Source:                     env("PARSER_SOURCE", "all"),
+		SupplySeedPath:             env("SUPPLY_SEED_PATH", "data/seeds/domains.csv"),
+		SupplyHostRPS:              envFloat("SUPPLY_HOST_RPS", 2),
+		SupplyBaseURL:              env("SUPPLY_BASE_URL", ""),
+		ForumSeedPath:              env("FORUM_SEED_PATH", "data/seeds/forum_threads.csv"),
+		ForumBaseURL:               env("FORUM_BASE_URL", ""),
+		LanderSeedPath:             env("LANDER_SEED_PATH", "data/seeds/lander_urls.csv"),
+		LanderBaseURL:              env("LANDER_BASE_URL", ""),
+		LanderHeadless:             envBool("PARSER_LANDER_HEADLESS", false),
+		GeminiAPIKey:               env("GEMINI_API_KEY", ""),
+		GeminiModel:                env("GEMINI_MODEL", "gemini-2.5-flash"),
+		GeminiAnalyzeInterval:      envDuration("GEMINI_ANALYZE_INTERVAL", 15*time.Minute),
+		GeminiReportInterval:       envDuration("GEMINI_REPORT_INTERVAL", 6*time.Hour),
+		GeminiBatchSize:            envInt("GEMINI_BATCH_SIZE", 20),
+		GeminiRPM:                  envInt("GEMINI_RPM", 0),
+		GeminiRPD:                  envInt("GEMINI_RPD", 0),
+		GeminiTPM:                  envInt("GEMINI_TPM", 0),
+		GeminiEmbedRPM:             envInt("GEMINI_EMBED_RPM", 0),
+		GeminiMaxRetries:           envInt("GEMINI_MAX_RETRIES", 0),
+		GeminiRequestTimeout:       envDuration("GEMINI_REQUEST_TIMEOUT", 60*time.Second),
+		ColdJunkQueueSize:          envInt("COLD_JUNK_QUEUE_SIZE", 512),
+		ColdJunkCollection:         env("COLD_JUNK_COLLECTION", "junk_leads"),
+		ColdReportCollection:       env("COLD_REPORT_COLLECTION", "junk_reports"),
+		RedditSubreddits:           parseCSV(env("REDDIT_SUBREDDITS", "affiliatemarketing,media_buying,adops,PPC")),
+		RedditQueries:              parseSemicolonCSV(env("REDDIT_QUERIES", "voluum alternative;tracker too expensive;postback failing;click id not found;subid not found;tracker numbers don't match;conversion tracking discrepancy;self-hosted tracker;tracker migration;switch from voluum")),
+		RedditMaxResults:           envInt("REDDIT_MAX_RESULTS", 25),
+		GeminiKeywordDiffEvery:     envInt("GEMINI_KEYWORD_DIFF_EVERY", 5),
+		GeminiKeywordDiffDir:       env("GEMINI_KEYWORD_DIFF_DIR", "data/suggestions"),
+		GeminiDiscoverDiffEvery:    envInt("GEMINI_DISCOVER_DIFF_EVERY", 0),
+		GeminiDiscoverDiffDir:      env("GEMINI_DISCOVER_DIFF_DIR", ""),
+		GeminiEmbedThreshold:       envFloat("GEMINI_EMBED_THRESHOLD", 0.92),
+		GeminiEmbedPainMin:         envFloat("GEMINI_EMBED_PAIN_MIN", 0.78),
+		GeminiEmbedSpamMin:         envFloat("GEMINI_EMBED_SPAM_MIN", 0.82),
+		GeminiLeadAnalyzeInterval:  envDuration("GEMINI_LEAD_ANALYZE_INTERVAL", 5*time.Minute),
+		GeminiLeadBatchSize:        envInt("GEMINI_LEAD_BATCH_SIZE", 15),
+		GeminiQuotaCriticalPct:     envInt("GEMINI_QUOTA_CRITICAL_PCT", 20),
+		GeminiQuotaHighPct:         envInt("GEMINI_QUOTA_HIGH_PCT", 40),
+		GeminiQuotaNormalPct:       envInt("GEMINI_QUOTA_NORMAL_PCT", 25),
+		GeminiQuotaLowPct:          envInt("GEMINI_QUOTA_LOW_PCT", 15),
+		WarmLeadQueueSize:          envInt("WARM_LEAD_QUEUE_SIZE", 256),
+		ParserICPClassify:          envBool("PARSER_ICP_CLASSIFY", false),
+		ParserICPClassifyTgWeb:     envBool("PARSER_ICP_CLASSIFY_TGWEB", true),
+		ParserTgWebPrescanMode:     env("PARSER_TGWEB_PRESCAN_MODE", "aggressive"),
+		ParserGeoClassify:          envBool("PARSER_GEO_CLASSIFY", false),
+		ParserTimeDecay:            envBool("PARSER_TIME_DECAY", true),
+		EnrichRDAP:                 envBool("PARSER_ENRICH_RDAP", true),
+		EnrichDNS:                  envBool("PARSER_ENRICH_DNS", true),
+		EnrichEmail:                envBool("PARSER_ENRICH_EMAIL", true),
+		EnrichSMTPVerify:           envBool("PARSER_ENRICH_SMTP_VERIFY", false),
+		DiscordBotToken:            env("DISCORD_BOT_TOKEN", ""),
+		DiscordChannelIDs:          parseCSV(env("DISCORD_CHANNEL_IDS", "")),
+		DiscordMaxMessages:         envInt("DISCORD_MAX_MESSAGES", 50),
+		SourceStatsCollection:      env("SOURCE_STATS_COLLECTION", "source_stats"),
+		CrmBoostCollection:         env("CRM_BOOST_COLLECTION", "crm_boosts"),
+		EmbeddingCollection:        env("EMBEDDING_COLLECTION", "snippet_embeddings"),
+		BlacklistDomainsPath:       env("BLACKLIST_DOMAINS_PATH", "data/blacklist_domains.txt"),
+		BlacklistEmailsPath:        env("BLACKLIST_EMAILS_PATH", "data/blacklist_emails.txt"),
+		ParserPilotTag:             envBool("PARSER_PILOT_TAG", true),
+		ParserGeminiEngage:         envBool("PARSER_GEMINI_ENGAGE", false),
+		ParserEmbedPrescan:         envBool("PARSER_EMBED_PRESCAN", false),
+		ParserEmbedCluster:         envBool("PARSER_EMBED_CLUSTER", false),
+		ParserGeminiEnrichSynth:    envBool("PARSER_GEMINI_ENRICH_SYNTH", false),
+		ParserGeminiDefer:          envBool("PARSER_GEMINI_DEFER", true),
+		ParserGeminiSyncGeo:        envBool("PARSER_GEMINI_SYNC_GEO", false),
+		ParserLeadStatusEnabled:    envBool("PARSER_LEAD_STATUS_ENABLED", false),
+		KeywordsLocalePath:         env("KEYWORDS_LOCALE_PATH", ""),
+		KeywordsLocale:             env("KEYWORDS_LOCALE", ""),
+		CTQueries:                  parseCSV(env("CT_QUERIES", "track,click,go")),
+		CTMaxResults:               envInt("CT_MAX_RESULTS", 100),
+		GitHubToken:                env("GITHUB_TOKEN", ""),
+		GitHubSearchQueries:        parseSemicolonCSV(env("GITHUB_SEARCH_QUERIES", "voluum alternative;self-hosted tracker;keitaro docker")),
+		MetricsAddr:                env("PARSER_METRICS_ADDR", ""),
+		CRMWebhookURL:              env("PARSER_CRM_WEBHOOK_URL", ""),
+		CRMWebhookSecret:           env("PARSER_CRM_WEBHOOK_SECRET", ""),
+		CRMWebhookEnabled:          envBool("PARSER_CRM_WEBHOOK", false),
+		TelegramProxyURL:           env("TELEGRAM_PROXY_URL", ""),
+		BGWorkerEnabled:            envBool("PARSER_BG_WORKER", true),
+		BGTelegramEnabled:          envBool("PARSER_BG_TELEGRAM", true),
+		BGSerpTelegramInterval:     time.Duration(envInt("PARSER_BG_SERP_TELEGRAM_MIN", 60)) * time.Minute,
+		BGTelegramDiscoverInterval: time.Duration(envInt("PARSER_BG_TELEGRAM_DISCOVER_MIN", 360)) * time.Minute,
+		BGTelegramScrapeInterval:   time.Duration(envInt("PARSER_BG_TELEGRAM_SCRAPE_MIN", 30)) * time.Minute,
+		BGTelegramWebInterval:      time.Duration(envInt("PARSER_BG_TELEGRAM_WEB_MIN", 120)) * time.Minute,
+		TelegramDomainsPath:        env("TELEGRAM_DOMAINS_PATH", "data/runtime/discovered_telegram_domains.json"),
+		TelegramWebMaxDomains:      envInt("TELEGRAM_WEB_MAX_DOMAINS", 25),
+		TelegramWebRescanDays:      envInt("TELEGRAM_WEB_RESCAN_DAYS", 30),
+		TelegramWebDomains:         parseCSV(env("TELEGRAM_WEB_DOMAINS", "")),
+		ProcessorTaskTimeout:       envDuration("PARSER_TASK_TIMEOUT", 90*time.Second),
+		WarriorSeedPath:            env("WARRIOR_SEED_PATH", "data/seeds/warrior_threads.csv"),
+		WarriorHostRPS:             envFloat("WARRIOR_HOST_RPS", 1),
+		KeywordStatsCollection:     env("KEYWORD_STATS_COLLECTION", "keyword_stats"),
+		ParserEntitySightings:      envBool("PARSER_ENTITY_SIGHTINGS", true),
+		EntityCollection:           env("ENTITY_COLLECTION", "entities"),
+		ParserCrossSourceHot:       envBool("PARSER_CROSS_SOURCE_HOT", true),
+		CrossSourceHotWindow:       envDuration("PARSER_CROSS_SOURCE_HOT_WINDOW", 7*24*time.Hour),
+		CrossSourceHotBoost:        envInt("PARSER_CROSS_SOURCE_HOT_BOOST", 20),
 	}
 
 	apiID, err := envIntOptional("TELEGRAM_API_ID")
@@ -210,6 +297,7 @@ func envInt(key string, fallback int) int {
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil {
+		// Invalid env value: keep default rather than fail startup (typo-tolerant ops).
 		return fallback
 	}
 	return n
@@ -259,7 +347,7 @@ func envFloat(key string, fallback float64) float64 {
 	}
 	n, err := strconv.ParseFloat(v, 64)
 	if err != nil {
-		return fallback
+		return fallback // same typo-tolerant policy as envInt
 	}
 	return n
 }

@@ -2,10 +2,6 @@ package gemini
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/bidshard/parser/internal/sink"
@@ -17,26 +13,7 @@ func TestAnalyzeJunkBatch(t *testing.T) {
 
 	id := primitive.NewObjectID()
 	mockID := id.Hex()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.URL.Path, ":generateContent") {
-			t.Fatalf("unexpected path %s", r.URL.Path)
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"candidates": []map[string]any{
-				{"content": map[string]any{
-					"parts": []map[string]string{
-						{"text": `{"items":[{"id":"` + mockID + `","category":"false_negative","why":"mentions voluum billing pain","suggestions":["lower score threshold"]}]}`},
-					},
-				}},
-			},
-		})
-	}))
-	defer srv.Close()
-
-	cl, err := NewClient("test-key", "gemini-2.0-flash", WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
-	if err != nil {
-		t.Fatal(err)
-	}
+	cl := newTestClient(t, `{"items":[{"id":"`+mockID+`","category":"false_negative","why":"mentions voluum billing pain","suggestions":["lower score threshold"]}]}`)
 
 	results, err := cl.AnalyzeJunkBatch(context.Background(), []sink.JunkDoc{{
 		ID:      id,
@@ -61,28 +38,12 @@ func TestAnalyzeJunkBatch(t *testing.T) {
 func TestBuildJunkReport(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"candidates": []map[string]any{
-				{"content": map[string]any{
-					"parts": []map[string]string{
-						{"text": `{"summary":"Most drops are prescan misses.","top_reasons":[{"reason":"keyword_prescan","count":12,"why":"missing synonyms"}],"false_negative_candidates":3,"recommendations":["add voluum synonyms"]}`},
-					},
-				}},
-			},
-		})
-	}))
-	defer srv.Close()
-
-	cl, err := NewClient("test-key", "gemini-2.0-flash", WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
-	if err != nil {
-		t.Fatal(err)
-	}
+	cl := newTestClient(t, `{"summary":"Most drops are prescan misses.","top_reasons":[{"reason":"keyword_prescan","count":12,"why":"missing synonyms"}],"false_negative_candidates":3,"recommendations":["add voluum synonyms"]}`)
 
 	result, err := cl.BuildJunkReport(context.Background(), ReportInput{
-		PeriodFrom: "2026-01-01T00:00:00Z",
-		PeriodTo:   "2026-01-02T00:00:00Z",
-		TotalJunk:  20,
+		PeriodFrom:  "2026-01-01T00:00:00Z",
+		PeriodTo:    "2026-01-02T00:00:00Z",
+		TotalJunk:   20,
 		ReasonStats: []sink.ReasonCount{{Reason: "keyword_prescan", Count: 12}},
 	})
 	if err != nil {

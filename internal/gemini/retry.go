@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bidshard/parser/internal/pretty"
 )
 
 func retryableStatus(code int) bool {
@@ -103,5 +105,5 @@ func parseAPIError(statusCode int, body []byte, retryAfter time.Duration) *APIEr
 			RetryAfter: retryAfter,
 		}
 	}
-	return &APIError{Code: statusCode, Message: truncate(string(body), 300), RetryAfter: retryAfter}
+	return &APIError{Code: statusCode, Message: pretty.Truncate(string(body), 300), RetryAfter: retryAfter}
 }

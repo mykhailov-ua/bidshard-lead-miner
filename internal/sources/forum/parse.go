@@ -9,13 +9,15 @@ import (
 )
 
 var (
-	postBodyRe   = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*postbody[^"]*"[^>]*>(.*?)</div>`)
-	usernameRe   = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*username[^"]*"[^>]*>(.*?)</div>`)
-	datetimeAttr = regexp.MustCompile(`(?i)datetime="([^"]+)"`)
-	dateTextRe   = regexp.MustCompile(`(?i)\b(\d{4}-\d{2}-\d{2}|\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\b`)
-	threadLinkRe = regexp.MustCompile(`(?i)href="([^"]*(?:/threads/|/t/|thread-|\?t=)[^"]*)"`)
-	paginationRe = regexp.MustCompile(`(?i)href="([^"]*(?:/page-\d+|[?&]page=\d+|[?&]start=\d+)[^"]*)"`)
-	stripTagRe   = regexp.MustCompile(`(?is)<[^>]+>`)
+	postBodyRe    = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*postbody[^"]*"[^>]*>(.*?)</div>`)
+	xenforoBodyRe = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*bbWrapper[^"]*"[^>]*>(.*?)</div>`)
+	usernameRe    = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*username[^"]*"[^>]*>(.*?)</div>`)
+	xenforoUserRe = regexp.MustCompile(`(?is)<a[^>]*class="[^"]*username[^"]*"[^>]*>(.*?)</a>`)
+	datetimeAttr  = regexp.MustCompile(`(?i)datetime="([^"]+)"`)
+	dateTextRe    = regexp.MustCompile(`(?i)\b(\d{4}-\d{2}-\d{2}|\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\b`)
+	threadLinkRe  = regexp.MustCompile(`(?i)href="([^"]*(?:/threads/|/t/|thread-|\?t=)[^"]*)"`)
+	paginationRe  = regexp.MustCompile(`(?i)href="([^"]*(?:/page-\d+|[?&]page=\d+|[?&]start=\d+)[^"]*)"`)
+	stripTagRe    = regexp.MustCompile(`(?is)<[^>]+>`)
 )
 
 type Post struct {
@@ -80,9 +82,15 @@ func ParsePaginationLinks(html string) []string {
 func parseWithRegex(raw string) []Post {
 	bodies := postBodyRe.FindAllStringSubmatch(raw, -1)
 	if len(bodies) == 0 {
+		bodies = xenforoBodyRe.FindAllStringSubmatch(raw, -1)
+	}
+	if len(bodies) == 0 {
 		return nil
 	}
 	users := usernameRe.FindAllStringSubmatch(raw, -1)
+	if len(users) == 0 {
+		users = xenforoUserRe.FindAllStringSubmatch(raw, -1)
+	}
 	postDate := parseDateFromRaw(raw)
 
 	var posts []Post
@@ -183,4 +191,3 @@ func collectText(n *html.Node) string {
 	}
 	return strings.Join(parts, " ")
 }
-

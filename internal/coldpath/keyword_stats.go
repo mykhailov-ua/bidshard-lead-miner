@@ -18,7 +18,7 @@ func enrichKeywordDiffWithStats(ctx context.Context, store *sink.KeywordStatsSto
 		}
 		currentWeight := kw.Weight
 		if currentWeight <= 0 {
-			currentWeight = 20
+			currentWeight = 20 // default weight when diff omits it; drives Recommendation enabled flag
 		}
 		suggested, enabled := doc.Recommendation(currentWeight)
 		diff.AddKeywords[i].EvidenceCount = doc.TotalSamples()

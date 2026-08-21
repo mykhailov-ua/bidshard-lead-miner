@@ -21,10 +21,7 @@ import (
 func Build(cfg config.Config) []Source {
 	names := parseSourceList(cfg.Source)
 	if len(names) == 0 {
-		return DefaultStubs()
-	}
-	if len(names) == 1 && names[0] == "stub" {
-		return DefaultStubs()
+		return nil
 	}
 
 	var out []Source
@@ -32,9 +29,6 @@ func Build(cfg config.Config) []Source {
 		if src, ok := buildOne(cfg, name); ok {
 			out = append(out, src)
 		}
-	}
-	if len(out) == 0 {
-		return DefaultStubs()
 	}
 	return out
 }
@@ -46,8 +40,8 @@ func ParseSourceNames(raw string) []string {
 
 func parseSourceList(raw string) []string {
 	raw = strings.TrimSpace(strings.ToLower(raw))
-	if raw == "" || raw == "stub" {
-		return []string{"stub"}
+	if raw == "" {
+		return nil
 	}
 	if raw == "all" {
 		return []string{"forum", "supply", "lander", "reddit", "discord", "warrior", "serp"}

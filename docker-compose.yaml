@@ -1,19 +1,60 @@
+# 24/7 parser stack: Mongo (bridge) + parser poll loop (host network).
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose build
+#   docker compose up -d
+#   docker compose run --rm parser config check
+#   docker compose run --rm parser scan --source=forum,reddit
+#
+# Requires: .env with MONGO_URI=mongodb://127.0.0.1:27017 (host network reaches mongo port 27017).
+# Rebuild after Go changes: docker compose build parser
+# Docs: README.md#deployment-docker
+
 services:
+  mongo:
+    image: mongo:7
+    container_name: bidshard-parser-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   parser:
     build:
       context: .
       dockerfile: Dockerfile
     image: bidshard-parser:local
     container_name: parser
-    # Host network: Mongo/Redis on localhost, no port mapping needed.
+    # Host network: parser reaches Mongo on host localhost:27017 (no bridge port mapping).
     network_mode: host
     env_file:
       - path: .env
         required: false
     volumes:
-      # Sessions, crawler.db, JSON export, optional seed overrides
+      # Seeds, keywords, JSON export (read-mostly from host)
       - ./data:/app/data
+      # Named volume keeps Telethon session + tgweb registry across image rebuilds (host ./data is still mounted).
+      - parser_runtime:/app/data/runtime
       # Telegram source list (edit without rebuild)
       - ./config:/app/config:ro
     command: ["run"]
     restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "parser", "config", "check"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 45s
+
+volumes:
+  mongo_data:
+  parser_runtime:

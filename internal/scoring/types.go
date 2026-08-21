@@ -25,11 +25,11 @@ const (
 )
 
 type keywordsFile struct {
-	Priority    priorityConfig `json:"priority"`
-	Keywords    []keywordEntry `json:"keywords"`
-	Titles      []keywordEntry `json:"titles"`
-	Negative    []keywordEntry `json:"negative"`
-	HardReject  []keywordEntry `json:"hard_reject"`
+	Priority   priorityConfig `json:"priority"`
+	Keywords   []keywordEntry `json:"keywords"`
+	Titles     []keywordEntry `json:"titles"`
+	Negative   []keywordEntry `json:"negative"`
+	HardReject []keywordEntry `json:"hard_reject"`
 }
 
 func entryToRule(e keywordEntry) keywordRule {

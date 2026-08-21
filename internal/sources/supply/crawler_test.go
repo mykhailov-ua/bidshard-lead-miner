@@ -27,11 +27,11 @@ func TestCrawlerEmitsSellerContact(t *testing.T) {
 
 	seedFile := writeTempSeed(t, "crawler-test.example")
 	cfg := config.Config{
-		SupplySeedPath:  seedFile,
+		SupplySeedPath:   seedFile,
 		SupplyMaxDomains: 1,
-		SupplyHostRPS:   10,
-		HTTPTimeout:     5 * time.Second,
-		SupplyBaseURL:   server.URL,
+		SupplyHostRPS:    10,
+		HTTPTimeout:      5 * time.Second,
+		SupplyBaseURL:    server.URL,
 	}
 
 	fetcher := NewFetcher(cfg.HTTPTimeout, cfg.SupplyHostRPS, server.URL)

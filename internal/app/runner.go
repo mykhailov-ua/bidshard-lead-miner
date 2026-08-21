@@ -46,12 +46,18 @@ func runScheduler(ctx context.Context, wg *sync.WaitGroup, pollInterval time.Dur
 }
 
 func Run(ctx context.Context, cfg config.Config) error {
+	if err := ValidateTelethonForRun(cfg); err != nil {
+		return err
+	}
+
 	deps, err := buildDeps(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	defer deps.flushStore(ctx)
 	defer deps.closeMongo(ctx)
+
+	// coldPath/warmPath goroutines exit on ctx; pending warm batches may be lost if shutdown is abrupt.
 
 	if cfg.IngestStdin && cfg.IngestReader != nil {
 		return runIngestOnce(ctx, cfg, deps, cfg.IngestReader)
@@ -74,8 +80,13 @@ func Run(ctx context.Context, cfg config.Config) error {
 	if deps.coldPath != nil {
 		deps.coldPath.Run(ctx, &wg)
 	}
+	if deps.warmPath != nil {
+		deps.warmPath.Run(ctx, &wg)
+	}
 
-	pool := pipeline.NewPool(cfg.WorkerCount, deps.processor)
+	startBackgroundWorkers(ctx, cfg, deps, &wg)
+
+	pool := pipeline.NewPool(cfg.WorkerCount, deps.processor, cfg.ProcessorTaskTimeout)
 	pool.Run(ctx, &wg, taskCh)
 
 	reporter := output.NewReporter(cfg.Output, nil)

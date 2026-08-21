@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
-# Restore parser MongoDB from archive created by backup-mongo.sh.
-# Usage: ./scripts/ops/restore-mongo.sh backups/mongo-YYYYMMDD-HHMMSS/dump.gz
+#
+# Restore parser MongoDB from backup-mongo.sh archive (--drop replaces collections).
+#
+# Usage:
+#   make restore DUMP=backups/mongo-YYYYMMDD-HHMMSS/dump.gz
+#
+# Requires: mongorestore in PATH, or MONGO_CONTAINER for docker exec.
+#
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then

@@ -3,12 +3,16 @@ package gemini
 import (
 	"context"
 	"strings"
+
+	"github.com/bidshard/parser/internal/pretty"
 )
 
 const icpSystemPrompt = `Classify affiliate/iGaming lead candidates for BidShard tracker sales.
-ICP starter: media buyers $15k+/mo spend, tracker pain, Voluum/Keitaro/RedTrack refugees.
+Target decision makers (founders, C-level, VP/Head/Director of acquisition, media, affiliate, programmatic) - not rank-and-file sales/support/account managers.
+ICP starter: media buying teams $15k+/mo spend, tracker pain, Voluum/Keitaro/RedTrack refugees.
 ICP pro: OpenRTB/programmatic, platform engineers, small ad networks.
-Return conservative labels; hot=true only for clear buyer pain with spend or competitor stack.`
+Ignore CPA/accounting/tax contexts (certified public accountant, tax CPA) - affiliate CPA offers are in scope only with clear media-buying pain.
+Return conservative labels; hot=true only for clear buyer pain with spend or competitor stack from a decision maker.`
 
 var icpSchema = map[string]any{
 	"type": "object",
@@ -17,7 +21,7 @@ var icpSchema = map[string]any{
 			"type": "string",
 			"enum": []any{"starter", "pro", "none"},
 		},
-		"hot":        map[string]any{"type": "boolean"},
+		"hot": map[string]any{"type": "boolean"},
 		"spend_tier": map[string]any{
 			"type": "string",
 			"enum": []any{"15k-150k", "unknown"},
@@ -46,12 +50,9 @@ func (c *Client) ClassifyICP(ctx context.Context, text string) (ICPResult, error
 	if text == "" {
 		return ICPResult{ICP: "none", SpendTier: "unknown"}, nil
 	}
-	raw, err := c.generateJSON(ctx, icpSystemPrompt, "Classify this lead snippet:\n\n"+truncate(text, 2000), icpSchema)
+	prompt := "Classify this lead snippet:\n\n" + pretty.Truncate(text, 2000)
+	parsed, err := classifyJSON[icpResponse](c, ctx, PriorityHigh, icpSystemPrompt, prompt, icpSchema)
 	if err != nil {
-		return ICPResult{}, err
-	}
-	var parsed icpResponse
-	if err := decodeModelJSON(raw, &parsed); err != nil {
 		return ICPResult{}, err
 	}
 	return ICPResult{
@@ -82,7 +83,7 @@ func ApplyICPToScore(score int, icp ICPResult, highMin int) (int, string) {
 	priority := ""
 	switch {
 	case icp.Hot && icp.ICP != "none":
-		score += 12
+		score += 12 // fixed hot boost; warm path recomputes priority via PriorityFromScore
 	case icp.ICP == "none" && !icp.Hot:
 		if score > 0 {
 			score -= 8

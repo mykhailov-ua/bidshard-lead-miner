@@ -1,0 +1,96 @@
+# One-shot tgweb stack (profile tgweb). Includes docker-compose.yaml (mongo + parser image).
+#
+# Services:
+#   tgweb-crawl    - crawl affiliate sites from discovered_telegram_domains.json
+#   tgweb-discover - Telethon channel/domain discovery into data/runtime/
+#   tgweb-prune    - drop dead hosts from domain registry
+#
+# Usage:
+#   make preflight-tgweb
+#   make docker-tgweb-crawl
+#   make docker-tgweb-crawl DOMAINS=blask.com,vietnam.vn
+#   make tgweb-discover && make tgweb-prune
+#
+# Requires: .env with GEMINI_API_KEY (and PARSER_PROXY_LIST if parser egress is datacenter).
+# Rebuild after code changes: docker compose -f docker-compose.tgweb.yaml build tgweb-crawl
+
+include:
+  - docker-compose.yaml
+
+services:
+  tgweb-crawl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bidshard-parser:local
+    container_name: tgweb-crawl
+    # Use host network so Mongo on localhost:27017 works and proxy egress matches bare-metal parser.
+    network_mode: host
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Force tgweb-friendly defaults when .env omits them; override via .env or shell export.
+      PARSER_TGWEB_PRESCAN_MODE: ${PARSER_TGWEB_PRESCAN_MODE:-aggressive}
+      PARSER_ICP_CLASSIFY_TGWEB: ${PARSER_ICP_CLASSIFY_TGWEB:-true}
+      PARSER_GEMINI_DEFER: ${PARSER_GEMINI_DEFER:-true}
+      MONGO_URI: ${MONGO_URI:-mongodb://localhost:27017}
+    volumes:
+      - ./data:/app/data
+      # Named volume wins over ./data/runtime for Telethon session + domain registry writes.
+      - parser_runtime:/app/data/runtime
+      - ./config:/app/config:ro
+    command: ["telegram", "web"]
+    profiles:
+      - tgweb
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+
+  tgweb-discover:
+    # Telethon channel/domain discovery; writes data/runtime/discovered_*.json (named volume).
+    # Usage: make tgweb-discover  (needs TELEGRAM_API_* + telethon.session from parser telegram login --qr)
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bidshard-parser:local
+    container_name: tgweb-discover
+    network_mode: host
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data
+      # Named volume wins over ./data/runtime for Telethon session + domain registry writes.
+      - parser_runtime:/app/data/runtime
+      - ./config:/app/config:ro
+    command: ["telegram", "discover"]
+    profiles:
+      - tgweb
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+
+  tgweb-prune:
+    # Drop invalid hosts from discovered_telegram_domains.json before crawl.
+    # Usage: make tgweb-prune
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bidshard-parser:local
+    container_name: tgweb-prune
+    network_mode: host
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data
+      # Named volume wins over ./data/runtime for Telethon session + domain registry writes.
+      - parser_runtime:/app/data/runtime
+      - ./config:/app/config:ro
+    command: ["telegram", "domains", "prune"]
+    profiles:
+      - tgweb
+    restart: "no"

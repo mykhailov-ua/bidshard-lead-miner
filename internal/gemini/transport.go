@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/bidshard/parser/internal/httpclient"
 )
 
 type callKind int
@@ -17,7 +18,7 @@ const (
 	callEmbed
 )
 
-func (c *Client) postWithQuota(ctx context.Context, kind callKind, url string, body []byte, estTokens int) ([]byte, error) {
+func (c *Client) postWithQuota(ctx context.Context, kind callKind, priority Priority, url string, body []byte, estTokens int) ([]byte, error) {
 	if c == nil {
 		return nil, fmt.Errorf("gemini client nil")
 	}
@@ -28,7 +29,7 @@ func (c *Client) postWithQuota(ctx context.Context, kind callKind, url string, b
 
 	var lastErr error
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		if err := c.waitQuota(ctx, kind, estTokens); err != nil {
+		if err := c.waitQuota(ctx, kind, priority, estTokens); err != nil {
 			return nil, err
 		}
 
@@ -67,7 +68,7 @@ func retryableError(err error) bool {
 	return strings.Contains(msg, "429") || strings.Contains(msg, "RESOURCE_EXHAUSTED") || strings.Contains(msg, "503")
 }
 
-func (c *Client) waitQuota(ctx context.Context, kind callKind, estTokens int) error {
+func (c *Client) waitQuota(ctx context.Context, kind callKind, priority Priority, estTokens int) error {
 	if c.limiter == nil {
 		return nil
 	}
@@ -75,7 +76,10 @@ func (c *Client) waitQuota(ctx context.Context, kind callKind, estTokens int) er
 	case callEmbed:
 		return c.limiter.WaitEmbed(ctx, estTokens)
 	default:
-		return c.limiter.WaitGenerate(ctx, estTokens)
+		if priority < PriorityCritical || priority > PriorityLow {
+			priority = PriorityNormal
+		}
+		return c.limiter.WaitGenerate(ctx, priority, estTokens)
 	}
 }
 
@@ -90,9 +94,8 @@ func (c *Client) postOnce(ctx context.Context, url string, body []byte) ([]byte,
 	if err != nil {
 		return nil, 0, 0, err
 	}
-	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	respBody, err := httpclient.ReadResponseBody(resp, 2<<20)
 	if err != nil {
 		return nil, resp.StatusCode, 0, err
 	}

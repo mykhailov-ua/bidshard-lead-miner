@@ -7,20 +7,20 @@ import (
 )
 
 type AdsTxtLine struct {
-	Domain    string
-	PubID     string
-	Relation  string
-	CertID    string
-	Comment   string
+	Domain   string
+	PubID    string
+	Relation string
+	CertID   string
+	Comment  string
 }
 
 func ParseAdsTxtLine(line string) (AdsTxtLine, bool) {
 	line = strings.TrimSpace(line)
-	if line == "" || strings.HasPrefix(line, "#") {
-		if strings.HasPrefix(line, "#") {
-			return AdsTxtLine{Comment: strings.TrimSpace(strings.TrimPrefix(line, "#"))}, false
-		}
+	if line == "" {
 		return AdsTxtLine{}, false
+	}
+	if rest, ok := strings.CutPrefix(line, "#"); ok {
+		return AdsTxtLine{Comment: strings.TrimSpace(rest)}, false
 	}
 
 	comment := ""

@@ -5,36 +5,6 @@ import (
 	"strings"
 )
 
-var disposableDomains = map[string]struct{}{
-	"mailinator.com":      {},
-	"guerrillamail.com":   {},
-	"tempmail.com":        {},
-	"10minutemail.com":    {},
-	"throwaway.email":     {},
-	"example.com":         {},
-	"test.com":            {},
-	"yopmail.com":         {},
-	"sharklasers.com":     {},
-	"trashmail.com":       {},
-	"getnada.com":         {},
-	"temp-mail.org":       {},
-	"dispostable.com":     {},
-	"maildrop.cc":         {},
-	"fakeinbox.com":       {},
-	"spamgourmet.com":     {},
-	"mailnesia.com":       {},
-	"tempail.com":         {},
-	"moakt.com":           {},
-	"emailondeck.com":     {},
-	"mohmal.com":          {},
-	"burnermail.io":       {},
-	"mailcatch.com":       {},
-	"mytemp.email":        {},
-	"tmpmail.net":         {},
-	"tmpmail.org":         {},
-	"mail-temp.com":       {},
-}
-
 var plusTagBlockDomains = map[string]struct{}{
 	"gmail.com":      {},
 	"googlemail.com": {},
@@ -45,17 +15,57 @@ var plusTagBlockDomains = map[string]struct{}{
 	"icloud.com":     {},
 }
 
+// executiveLocalParts are role mailboxes that still indicate a decision maker.
+var executiveLocalParts = map[string]struct{}{
+	"ceo":     {},
+	"cto":     {},
+	"cio":     {},
+	"cfo":     {},
+	"cmo":     {},
+	"coo":     {},
+	"founder": {},
+	"owner":   {},
+}
+
 var roleLocalParts = map[string]struct{}{
-	"ads":        {},
-	"support":    {},
-	"info":       {},
-	"contact":    {},
-	"hello":      {},
-	"admin":      {},
-	"sales":      {},
-	"noreply":    {},
-	"no-reply":   {},
-	"donotreply": {},
+	"ads":              {},
+	"support":          {},
+	"info":             {},
+	"contact":          {},
+	"hello":            {},
+	"admin":            {},
+	"sales":            {},
+	"noreply":          {},
+	"no-reply":         {},
+	"donotreply":       {},
+	"marketing":        {},
+	"help":             {},
+	"hr":               {},
+	"careers":          {},
+	"jobs":             {},
+	"billing":          {},
+	"service":          {},
+	"customerservice":  {},
+	"customer-service": {},
+	"team":             {},
+	"office":           {},
+	"press":            {},
+	"accounts":         {},
+	"accounting":       {},
+	"finance":          {},
+	"feedback":         {},
+	"enquiries":        {},
+	"inquiry":          {},
+	"recruitment":      {},
+	"recruiting":       {},
+	"legal":            {},
+	"compliance":       {},
+	"newsletter":       {},
+	"notifications":    {},
+	"notify":           {},
+	"postmaster":       {},
+	"webmaster":        {},
+	"mail":             {},
 }
 
 func AcceptEmail(email string) bool {
@@ -78,10 +88,19 @@ func AcceptEmail(email string) bool {
 	if strings.HasSuffix(parts[1], "users.noreply.github.com") {
 		return false
 	}
-	if _, ok := disposableDomains[parts[1]]; ok {
+	if IsDisposableDomain(parts[1]) {
+		return false
+	}
+	if IsBlacklistedDomain(parts[1]) {
+		return false
+	}
+	if strings.Contains(parts[1], "ingest.") && strings.Contains(parts[1], "sentry") {
 		return false
 	}
 	if hasBlockedPlusTag(parts[0], parts[1]) {
+		return false
+	}
+	if IsRoleEmail(email) {
 		return false
 	}
 	return true
@@ -105,7 +124,16 @@ func IsRoleEmail(email string) bool {
 	if idx := strings.Index(local, "+"); idx >= 0 {
 		local = local[:idx]
 	}
+	if _, ok := executiveLocalParts[local]; ok {
+		return false
+	}
 	if _, ok := roleLocalParts[local]; ok {
+		return true
+	}
+	if strings.HasPrefix(local, "support") ||
+		strings.HasPrefix(local, "sales") ||
+		strings.HasPrefix(local, "help") ||
+		strings.HasPrefix(local, "marketing") {
 		return true
 	}
 	return strings.Contains(local, "noreply")

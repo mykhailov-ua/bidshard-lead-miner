@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1
+#
+# Parser image with Playwright Chromium for PARSER_LANDER_HEADLESS (BOX-12).
+# Build: docker compose -f docker-compose.headless.yaml build parser-headless
+#
+FROM golang:1.25-alpine AS go-builder
+RUN apk add --no-cache git ca-certificates
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -trimpath -o /parser ./cmd/parser
+
+FROM python:3.12-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates su-exec && \
+    rm -rf /var/lib/apt/lists/* && \
+    adduser --disabled-password --uid 10001 --home /app parser
+
+WORKDIR /app
+COPY requirements.txt requirements-headless.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-headless.txt && \
+    playwright install --with-deps chromium
+
+COPY --from=go-builder /parser /usr/local/bin/parser
+COPY data/ /app/data/
+COPY config/ /app/config/
+COPY sources/ /app/sources/
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+
+ENV KEYWORDS_JSON_PATH=/app/data/keywords.json \
+    PYTHONPATH=/app \
+    PARSER_LANDER_HEADLESS=true
+
+RUN mkdir -p /app/data/export /app/data/runtime && \
+    chown -R parser:parser /app/data && \
+    chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["run"]

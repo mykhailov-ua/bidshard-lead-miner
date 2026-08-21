@@ -3,7 +3,6 @@ package supply
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -54,13 +53,12 @@ func (f *Fetcher) Get(ctx context.Context, domain, path string) ([]byte, int, er
 		}
 		return nil, 0, err
 	}
-	defer resp.Body.Close()
 
 	if f.Breaker != nil {
 		f.Breaker.RecordResponse(f.Source, resp)
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	body, err := httpclient.ReadResponseBody(resp, 2<<20)
 	if err != nil {
 		return nil, resp.StatusCode, err
 	}

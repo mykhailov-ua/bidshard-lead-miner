@@ -46,30 +46,23 @@ func ConnectMongo(ctx context.Context, uri, dbName, collection string, writeSlot
 	if uri == "" {
 		return nil, errors.New("mongo uri required")
 	}
-	if dbName == "" {
-		dbName = "parser"
-	}
-	if collection == "" {
-		collection = "leads"
-	}
-	if writeSlots <= 0 {
-		writeSlots = 8
-	}
-
 	client, err := ConnectMongoClient(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-
-	store := &MongoStore{
-		coll:       client.Database(dbName).Collection(collection),
-		writeSlots: semaphore.NewWeighted(int64(writeSlots)),
-	}
-	if err := store.ensureIndexes(ctx); err != nil {
+	store, err := connectMongoStore(ctx, client, dbName, collection, writeSlots, true)
+	if err != nil {
 		_ = client.Disconnect(ctx)
 		return nil, err
 	}
 	return store, nil
+}
+
+func newWriteSlots(n int) *semaphore.Weighted {
+	if n <= 0 {
+		n = 8
+	}
+	return semaphore.NewWeighted(int64(n))
 }
 
 func (s *MongoStore) ensureIndexes(ctx context.Context) error {
@@ -125,9 +118,13 @@ func (s *MongoStore) BulkUpsert(ctx context.Context, leads []model.Lead) error {
 	models := make([]mongo.WriteModel, 0, len(leads))
 	for _, lead := range leads {
 		doc := ToLeadDoc(lead)
+		update, err := leadDocUpsertUpdate(doc)
+		if err != nil {
+			return err
+		}
 		models = append(models, mongo.NewUpdateOneModel().
 			SetFilter(bson.M{"hash_id": doc.HashID}).
-			SetUpdate(bson.M{"$setOnInsert": doc}).
+			SetUpdate(update).
 			SetUpsert(true))
 	}
 	_, err := s.coll.BulkWrite(ctx, models, options.BulkWrite().SetOrdered(false))
@@ -143,9 +140,13 @@ func (s *MongoStore) upsertDoc(ctx context.Context, doc LeadDoc) error {
 	}
 	defer s.writeSlots.Release(1)
 
-	_, err := s.coll.UpdateOne(ctx,
+	update, err := leadDocUpsertUpdate(doc)
+	if err != nil {
+		return err
+	}
+	_, err = s.coll.UpdateOne(ctx,
 		bson.M{"hash_id": doc.HashID},
-		bson.M{"$setOnInsert": doc},
+		update,
 		options.Update().SetUpsert(true),
 	)
 	if err != nil && IsDuplicateKey(err) {
@@ -154,7 +155,7 @@ func (s *MongoStore) upsertDoc(ctx context.Context, doc LeadDoc) error {
 	return err
 }
 
-func OpenStore(ctx context.Context, uri, dbName, collection string, writeSlots int, exportPath string) Store {
+func OpenStore(ctx context.Context, uri, dbName, collection string, writeSlots int, exportPath, exportFormat string) Store {
 	var stores []Store
 
 	if uri != "" {
@@ -167,19 +168,19 @@ func OpenStore(ctx context.Context, uri, dbName, collection string, writeSlots i
 	}
 
 	if exportPath != "" {
-		fileSink, err := NewJSONFileSink(exportPath)
+		fileSink, err := NewJSONFileSink(exportPath, exportFormat)
 		if err != nil {
 			slog.Warn("json export open failed", "path", exportPath, "error", err)
 		} else {
-			slog.Info("json export enabled", "path", exportPath)
+			slog.Info("json export enabled", "path", exportPath, "format", fileSink.format)
 			stores = append(stores, fileSink)
 		}
 	}
 
 	switch len(stores) {
 	case 0:
-		slog.Debug("no sink configured, using stub store")
-		return NewStubStore()
+		slog.Warn("no lead store configured; set MONGO_URI or PARSER_EXPORT_JSON")
+		return nil
 	case 1:
 		return stores[0]
 	default:

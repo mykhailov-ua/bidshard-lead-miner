@@ -23,6 +23,8 @@ const (
 	ReasonLangReject      = "lang_reject"
 	ReasonICPReject       = "icp_reject"
 	ReasonBlacklist       = "blacklist"
+	ReasonEmbedSpam       = "embed_spam"
+	ReasonSemanticDedup   = "semantic_dedup"
 )
 
 // Event is a rejected raw item captured on the cold path (non-blocking).

@@ -32,7 +32,7 @@ func WithBaseURL(url string) Option {
 
 func WithLimitConfig(cfg LimitConfig) Option {
 	return func(cl *Client) {
-		cl.limits = cfg.ModelLimits.withOverrides(0, 0, 0, 0)
+		cl.limits = cfg.withOverrides(0, 0, 0, 0)
 		cl.limiter = NewQuotaLimiter(cfg)
 	}
 }
@@ -43,7 +43,7 @@ func NewClient(apiKey, model string, opts ...Option) (*Client, error) {
 		return nil, fmt.Errorf("gemini api key required")
 	}
 	if model == "" {
-		model = "gemini-2.0-flash"
+		model = "gemini-2.5-flash"
 	}
 	lc := DefaultLimitConfig(model)
 	cl := &Client{
@@ -117,7 +117,7 @@ type apiError struct {
 	Status  string `json:"status"`
 }
 
-func (c *Client) generateJSON(ctx context.Context, systemPrompt, userPrompt string, schema map[string]any) ([]byte, error) {
+func (c *Client) generateJSON(ctx context.Context, priority Priority, systemPrompt, userPrompt string, schema map[string]any) ([]byte, error) {
 	body := generateRequest{
 		Contents: []content{{Parts: []part{{Text: userPrompt}}}},
 		GenerationConfig: generationConfig{
@@ -136,7 +136,7 @@ func (c *Client) generateJSON(ctx context.Context, systemPrompt, userPrompt stri
 
 	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", c.baseURL, c.model, c.apiKey)
 	estTokens := EstimateTokens(systemPrompt, userPrompt)
-	respBody, err := c.postWithQuota(ctx, callGenerate, url, raw, estTokens)
+	respBody, err := c.postWithQuota(ctx, callGenerate, priority, url, raw, estTokens)
 	if err != nil {
 		return nil, err
 	}
@@ -156,14 +156,4 @@ func (c *Client) generateJSON(ctx context.Context, systemPrompt, userPrompt stri
 		return nil, fmt.Errorf("gemini: empty text")
 	}
 	return []byte(text), nil
-}
-
-func truncate(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	if max <= 3 {
-		return s[:max]
-	}
-	return s[:max-3] + "..."
 }

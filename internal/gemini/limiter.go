@@ -15,21 +15,19 @@ type quotaEntry struct {
 	tokens int
 }
 
-// QuotaLimiter enforces RPM (token bucket), TPM (rolling 60s), and RPD (rolling 24h).
+// QuotaLimiter enforces per-priority RPM (token bucket), shared TPM (rolling 60s), and RPD (rolling 24h).
 type QuotaLimiter struct {
 	mu sync.Mutex
 
-	generate *rate.Limiter
-	embed    *rate.Limiter
+	buckets map[Priority]*rate.Limiter
+	embed   *rate.Limiter
 
-	tpmMax     int
-	tpmWindow  []quotaEntry
-	tpmTotal   int
-
+	tpmMax    int
+	tpmWindow []quotaEntry
+	tpmTotal  int
 	rpdMax    int
 	rpdWindow []time.Time
-
-	stats QuotaStats
+	stats     QuotaStats
 }
 
 type QuotaStats struct {
@@ -59,14 +57,27 @@ func NewQuotaLimiter(cfg LimitConfig) *QuotaLimiter {
 		rpd = 1500
 	}
 
+	split := cfg.QuotaSplit.Normalize()
+	buckets := map[Priority]*rate.Limiter{
+		PriorityCritical: newPriorityLimiter(genRPM, split, PriorityCritical),
+		PriorityHigh:     newPriorityLimiter(genRPM, split, PriorityHigh),
+		PriorityNormal:   newPriorityLimiter(genRPM, split, PriorityNormal),
+		PriorityLow:      newPriorityLimiter(genRPM, split, PriorityLow),
+	}
+
 	return &QuotaLimiter{
-		generate:  rate.NewLimiter(rate.Limit(float64(genRPM)/60.0), 1),
+		buckets:   buckets,
 		embed:     rate.NewLimiter(rate.Limit(float64(embedRPM)/60.0), 1),
 		tpmMax:    tpm,
 		rpdMax:    rpd,
 		tpmWindow: make([]quotaEntry, 0, 32),
 		rpdWindow: make([]time.Time, 0, 64),
 	}
+}
+
+func newPriorityLimiter(totalRPM int, split QuotaSplit, p Priority) *rate.Limiter {
+	rpm := split.RPM(totalRPM, p)
+	return rate.NewLimiter(rate.Limit(float64(rpm)/60.0), 1)
 }
 
 func (q *QuotaLimiter) Stats() QuotaStats {
@@ -80,18 +91,26 @@ func (q *QuotaLimiter) Stats() QuotaStats {
 	return s
 }
 
-func (q *QuotaLimiter) WaitGenerate(ctx context.Context, estTokens int) error {
-	return q.wait(ctx, q.generate, estTokens, true)
+func (q *QuotaLimiter) WaitGenerate(ctx context.Context, priority Priority, estTokens int) error {
+	if q == nil {
+		return nil
+	}
+	lim := q.buckets[priority]
+	if lim == nil {
+		lim = q.buckets[PriorityNormal]
+	}
+	return q.wait(ctx, lim, estTokens, true)
 }
 
 func (q *QuotaLimiter) WaitEmbed(ctx context.Context, estTokens int) error {
+	if q == nil {
+		return nil
+	}
 	return q.wait(ctx, q.embed, estTokens, false)
 }
 
 func (q *QuotaLimiter) wait(ctx context.Context, lim *rate.Limiter, estTokens int, generate bool) error {
-	if q == nil {
-		return nil
-	}
+	// Fail fast on RPD/TPM before blocking on RPM token bucket; record usage only after wait succeeds.
 	if err := q.checkRPD(); err != nil {
 		q.mu.Lock()
 		q.stats.RPDThrottles++

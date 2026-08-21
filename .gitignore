@@ -1,4 +1,6 @@
 .env
+.env.local
+.env.*.local
 
 # Backups
 backups/
@@ -8,7 +10,21 @@ bin/
 data/*.session
 data/crawler.db
 data/telethon.session
-data/export/*.jsonl
+data/runtime/*
+!data/runtime/.gitkeep
+!data/runtime/discovered_telegram_domains.json.example
+data/export/*
+!data/export/.gitkeep
+data/suggestions/
+internal/sources/serp/data/
+
+# Local env overlays (tracked: config/env/.env.*.example)
+config/env/.env.*
+!config/env/.env.*.example
+scripts/proxy/.env.local
+scripts/vps-proxy/.env.local
+scripts/vps-proxy/.credentials
+scripts/vps-proxy/passwd
 
 # Temporary files
 *.tmp
@@ -35,11 +51,20 @@ __pycache__/
 *.test
 *.out
 vendor/
+coverage.out
+coverage.html
+*.coverprofile
 
-# OS / editor
+# eBPF dev probe
+var/
+deploy/dev/bpf/*.o
+deploy/dev/bpf/*.disasm.txt
+
+# IDE / Cursor (local IDE state and agent rules; not versioned)
+.cursor/
+.vscode/
+
+# OS
 .DS_Store
 Thumbs.db
 .idea/
-.vscode/**
-!.vscode/settings.json
-!.vscode/extensions.json

@@ -27,6 +27,49 @@ func (stubICP) ClassifyICP(_ context.Context, _ string) (gemini.ICPResult, error
 	return gemini.ICPResult{ICP: "starter", SpendTier: "unknown"}, nil
 }
 
+type stubICPNone struct{}
+
+func (stubICPNone) ClassifyICP(_ context.Context, _ string) (gemini.ICPResult, error) {
+	return gemini.ICPResult{ICP: "none", Why: "not a media buyer"}, nil
+}
+
+type stubEngage struct {
+	result gemini.EngagementResult
+	err    error
+}
+
+func (s stubEngage) ClassifyEngagement(_ context.Context, _ gemini.EngagementInput) (gemini.EngagementResult, error) {
+	return s.result, s.err
+}
+
+func TestProcessorSkipsFixtureSources(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	_ = reg.Load(context.Background())
+
+	store := sink.NewStubStore()
+	proc := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(10, 0),
+		Store:    store,
+		MX:       validate.StubMX{OK: true},
+	}
+
+	item := model.RawItem{
+		Source:  "fixture:telegram:@affiliate_latam_en",
+		Raw:     "voluum alternative with postback failing",
+		Contact: "telegram:@media_buyer_0",
+	}
+	out := proc.Process(context.Background(), Task{RoundID: "r1", Item: item})
+	if out.Accepted {
+		t.Fatal("expected fixture source to be skipped")
+	}
+	if store.ExistsCalls != 0 {
+		t.Fatalf("store exists calls=%d want 0", store.ExistsCalls)
+	}
+}
+
 func TestProcessorSeenCacheSkipsMongoExists(t *testing.T) {
 	t.Parallel()
 
@@ -144,6 +187,159 @@ func TestProcessorRejectsEmailWithoutPainContext(t *testing.T) {
 	})
 	if out.Accepted {
 		t.Fatal("expected email-only reject")
+	}
+}
+
+func TestProcessorTgWebPassesAffiliatePrescan(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	proc := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(10, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "tgweb:@aff_net:buylink.pro",
+			Title:   "site buylink.pro via telegram @aff_net",
+			Raw:     "Voluum alternative for igaming affiliate program and media buying. Partner program with postback integration. Contact partnerships@buylink.pro",
+			Contact: "partnerships@buylink.pro",
+		},
+	})
+	if !out.Accepted {
+		t.Fatal("expected tgweb affiliate context to pass prescan and accept")
+	}
+}
+
+func TestProcessorTgWebAggressiveThinPageSkype(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	proc := &Processor{
+		Registry:         reg,
+		Seen:             dedup.NewSeenCache(10, 0),
+		Store:            sink.NewStubStore(),
+		MX:               validate.StubMX{OK: true},
+		TgWebPrescanMode: scoring.TgWebPrescanAggressive,
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "tgweb:@buylinkpro:buylink.pro",
+			Title:   "site buylink.pro via telegram @buylinkpro",
+			Raw:     "__next static chunk noise without affiliate keywords",
+			Contact: "skype:aff.manager",
+		},
+	})
+	if !out.Accepted {
+		t.Fatal("expected aggressive tgweb skype lpr to accept thin page")
+	}
+}
+
+func TestProcessorTgWebHardRejectBypassForSiteLPR(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	proc := &Processor{
+		Registry:         reg,
+		Seen:             dedup.NewSeenCache(10, 0),
+		Store:            sink.NewStubStore(),
+		MX:               validate.StubMX{OK: true},
+		TgWebPrescanMode: scoring.TgWebPrescanAggressive,
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "tgweb:@blask:blask.com",
+			Title:   "site blask.com via telegram @blask",
+			Raw:     "Blask analytics for beginners in igaming affiliate marketing. Partner program with postback.",
+			Contact: "partnerships@blask.com",
+		},
+	})
+	if out.HardRejected {
+		t.Fatal("expected hard reject bypass for tgweb site email lpr")
+	}
+	if !out.Accepted {
+		t.Fatal("expected tgweb marketing page with site email to accept")
+	}
+}
+
+func TestProcessorTgWebStrictRejectsThinPage(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	proc := &Processor{
+		Registry:         reg,
+		Seen:             dedup.NewSeenCache(10, 0),
+		Store:            sink.NewStubStore(),
+		MX:               validate.StubMX{OK: true},
+		TgWebPrescanMode: scoring.TgWebPrescanStrict,
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "tgweb:@buylinkpro:buylink.pro",
+			Title:   "site buylink.pro via telegram @buylinkpro",
+			Raw:     "__next static chunk noise without affiliate keywords",
+			Contact: "skype:aff.manager",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected strict mode to reject thin page without affiliate context")
+	}
+}
+
+func TestProcessorTgWebRejectsICPNone(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	proc := &Processor{
+		Registry:        reg,
+		Seen:            dedup.NewSeenCache(10, 0),
+		Store:           sink.NewStubStore(),
+		MX:              validate.StubMX{OK: true},
+		ICP:             stubICPNone{},
+		ICPTgWebEnabled: true,
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "tgweb:@aff_net:buylink.pro",
+			Title:   "site buylink.pro via telegram @aff_net",
+			Raw:     "Voluum alternative for igaming affiliate program and media buying. Partner program with postback integration. Contact partnerships@buylink.pro",
+			Contact: "partnerships@buylink.pro",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected tgweb lead with icp=none to be rejected")
 	}
 }
 
@@ -271,5 +467,141 @@ func TestProcessorAcceptsDomainContact(t *testing.T) {
 	}
 	if out.Lead.HashID == "" {
 		t.Fatal("expected hash_id")
+	}
+}
+
+func TestProcessorStoresEngagementOnAccept(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	_ = reg.Load(context.Background())
+
+	store := sink.NewStubStore()
+	proc := &Processor{
+		Registry:        reg,
+		Store:           store,
+		MX:              validate.StubMX{OK: true},
+		PilotTagEnabled: true,
+		EngageEnabled:   true,
+		Engage: stubEngage{result: gemini.EngagementResult{
+			PilotSignals:    []string{"migration_intent", "competitor_stack", "tracker_pain"},
+			PilotQualified:  true,
+			PilotWhy:        "voluum migration pain",
+			OutreachChannel: "email",
+			OutreachAngle:   "Postback reliability",
+			OutreachDraft:   "Hi - noticed postback issues while switching trackers.",
+		}},
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "stub:test",
+			Raw:     "voluum alternative with postback failing",
+			Contact: "ops@igaming-team.com",
+		},
+	})
+	if !out.Accepted {
+		t.Fatalf("expected accepted, outcome=%+v", out)
+	}
+	if !out.Lead.PilotQualified {
+		t.Fatal("expected pilot qualified")
+	}
+	if out.Lead.OutreachChannel != "email" {
+		t.Fatalf("outreach_channel=%q", out.Lead.OutreachChannel)
+	}
+	if out.Lead.OutreachDraft == "" {
+		t.Fatal("expected outreach draft")
+	}
+}
+
+func TestProcessorEmbedPrescanPass(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	_ = reg.Load(context.Background())
+
+	prescan := &recordingPrescan{painMatch: true, painScore: 0.95}
+	proc := &Processor{
+		Registry:       reg,
+		Store:          sink.NewStubStore(),
+		MX:             validate.StubMX{OK: true},
+		PrescanEnabled: true,
+		Prescan:        prescan,
+	}
+
+	_ = proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "stub:test",
+			Raw:     "plain unrelated text without registry keywords",
+			Contact: "telegram:@buyer_mx",
+		},
+	})
+	if !prescan.painCalled {
+		t.Fatal("expected embed prescan pain evaluation")
+	}
+}
+
+type recordingPrescan struct {
+	painCalled bool
+	spamCalled bool
+	painMatch  bool
+	painScore  float64
+}
+
+func (r *recordingPrescan) EvaluatePain(_ context.Context, _ string) (gemini.PrescanVerdict, error) {
+	r.painCalled = true
+	return gemini.PrescanVerdict{PainMatch: r.painMatch, PainScore: r.painScore}, nil
+}
+
+func (r *recordingPrescan) EvaluateSpam(_ context.Context, _ string) (gemini.PrescanVerdict, error) {
+	r.spamCalled = true
+	return gemini.PrescanVerdict{}, nil
+}
+
+type stubLeadCluster struct {
+	dup       bool
+	clusterOf string
+}
+
+func (s stubLeadCluster) CheckDuplicate(_ context.Context, _, _ string) (bool, string, error) {
+	return s.dup, s.clusterOf, nil
+}
+
+func (s stubLeadCluster) Record(_ context.Context, _, _ string) error {
+	return nil
+}
+
+func TestProcessorSemanticLeadDedup(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	_ = reg.Load(context.Background())
+
+	proc := &Processor{
+		Registry:           reg,
+		Store:              sink.NewStubStore(),
+		MX:                 validate.StubMX{OK: true},
+		LeadClusterEnabled: true,
+		LeadCluster: stubLeadCluster{
+			dup:       true,
+			clusterOf: "existing-hash",
+		},
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "stub:test",
+			Raw:     "voluum alternative with postback failing",
+			Contact: "ops@igaming-team.com",
+		},
+	})
+	if !out.Dedup {
+		t.Fatal("expected semantic dedup")
+	}
+	if out.Accepted {
+		t.Fatal("expected not accepted")
 	}
 }

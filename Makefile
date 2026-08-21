@@ -1,20 +1,38 @@
-.PHONY: build test lint run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore
+# BidShard lead-intent-processor - common dev and ops targets.
+#
+# Quick start:
+#   cp .env.example .env && docker compose up -d mongo
+#   make build && make test
+#
+# tgweb:
+#   make tgweb-seed && make preflight-tgweb && make tgweb-crawl
+#   make docker-tgweb-crawl DOMAINS=buylink.pro,topxpartners.com
+#
+# BPF dev (Linux, root):
+#   make bpf-dev && sudo make bpf-session-start
+#
+# Docs: README.md, docs/OPS.md, docs/CREDENTIALS.md
+
+.PHONY: build test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke docker-headless-build bpf-release-gate bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop
 
 VENV := .venv
 VENV_PY := $(VENV)/bin/python
 
 build:
-	go build -ldflags "-X github.com/bidshard/parser/cmd/parser/cmd.Version=dev" -o bin/parser ./cmd/parser
+	go build -ldflags "-X github.com/bidshard/parser/cmd/parser.Version=dev" -o bin/parser ./cmd/parser
 
 setup: venv
 	go mod download
 
 venv:
 	@test -x $(VENV_PY) || python3 -m venv $(VENV) --without-pip || python3 -m venv $(VENV)
-	pip3 install --target "$$($(VENV_PY) -c 'import site; print(site.getsitepackages()[0])')" -r requirements.txt
+	pip3 install --target "$$($(VENV_PY) -c 'import site; print(site.getsitepackages()[0])')" -r requirements.txt -r requirements-headless.txt
 
 test:
 	go test ./...
+
+test-integration:
+	go test -tags=integration ./internal/sink/...
 
 test-py:
 	PYTHONPATH=. $(if $(wildcard $(VENV_PY)),$(VENV_PY),python3) -m unittest discover -s sources/telegram -p 'test_*.py'
@@ -25,8 +43,13 @@ test-telegram: test-py
 lint:
 	go vet ./...
 
+fmt:
+	gofmt -w $$(git ls-files '*.go')
+	goimports -w $$(git ls-files '*.go')
+	@if command -v ruff >/dev/null 2>&1; then ruff format $$(git ls-files '*.py'); fi
+
 run:
-	go run ./cmd/parser
+	go run ./cmd/parser run
 
 docker-build:
 	docker compose build
@@ -43,3 +66,78 @@ backup:
 restore:
 	@test -n "$(DUMP)" || (echo "usage: make restore DUMP=backups/mongo-.../dump.gz" && exit 1)
 	./scripts/ops/restore-mongo.sh "$(DUMP)"
+
+proxy-check:
+	./scripts/proxy/check-proxy.sh
+
+preflight-tgweb:
+	bash ./scripts/proxy/preflight-tgweb.sh
+
+vps-preflight: build
+	bash ./scripts/proxy/vps-preflight.sh
+
+forum-live-check: build
+	bash ./scripts/sources/forum-live-check.sh
+
+prod-source-smoke: build
+	bash ./scripts/sources/prod-source-smoke.sh
+
+docker-headless-build:
+	docker compose -f docker-compose.headless.yaml build
+
+bpf-release-gate:
+	@test -n "$(SESSION)" || (echo "usage: make bpf-release-gate SESSION=var/bpf-session/<ts>" && exit 1)
+	bash ./scripts/lib/bpf_gate.sh "$(SESSION)"
+
+bpf-leak-gate:
+	@test -n "$(SESSION)" || (echo "usage: make bpf-leak-gate SESSION=var/bpf-session/<ts>" && exit 1)
+	bash ./scripts/lib/bpf_leak_gate.sh "$(SESSION)"
+
+tgweb-green-accept: build
+	bash ./scripts/tgweb/green-accept.sh
+
+tgweb-discover-loop:
+	bash ./scripts/tgweb/discover-loop.sh
+
+tgweb-seed:
+	bash ./scripts/tgweb/seed-registry.sh
+
+tgweb-discover:
+	docker compose -f docker-compose.tgweb.yaml --profile tgweb run --rm tgweb-discover
+
+tgweb-prune:
+	docker compose -f docker-compose.tgweb.yaml --profile tgweb run --rm tgweb-prune
+
+tgweb-crawl:
+	bash ./scripts/tgweb/crawl.sh
+
+tgweb-crawl-bpf:
+	PARSER_BPF_BASELINE=1 bash ./scripts/tgweb/crawl.sh
+
+tgweb-crawl-residential:
+	@bash -c 'set -a; [ -f .env ] && . ./.env; set +a; \
+		if [ -z "$${PARSER_PROXY_LIST//[[:space:]]/}" ]; then \
+			echo "tgweb-crawl-residential: set PARSER_PROXY_LIST in .env (see config/env/.env.residential.example)"; \
+			exit 1; \
+		fi'
+	bash ./scripts/tgweb/crawl.sh
+
+docker-tgweb-crawl:
+	docker compose -f docker-compose.tgweb.yaml --profile tgweb run --rm tgweb-crawl $(if $(DOMAINS),--domains $(DOMAINS),)
+
+vps-proxy-check: proxy-check
+
+vps-proxy-docker:
+	./scripts/vps-proxy/setup-docker-proxy.sh
+
+vps-proxy-down:
+	docker compose -f scripts/vps-proxy/docker-compose.proxy.yaml down
+
+bpf-dev:
+	bash scripts/dev/bpf_setup.sh
+
+bpf-session-start: bpf-dev
+	sudo bash scripts/dev/bpf_session.sh start
+
+bpf-session-stop:
+	sudo bash scripts/dev/bpf_session.sh stop

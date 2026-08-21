@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/bidshard/parser/internal/geo"
+	"github.com/bidshard/parser/internal/httpclient"
 )
 
 var rdapCountryRe = regexp.MustCompile(`"country"\s*,\s*"text"\s*,\s*"([A-Z]{2})"`)
@@ -51,9 +51,8 @@ func (r *RDAPLookup) Lookup(ctx context.Context, domain string) (RDAPInfo, error
 	if err != nil {
 		return RDAPInfo{}, err
 	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	body, err := httpclient.ReadResponseBody(resp, 1<<20)
 	if err != nil {
 		return RDAPInfo{}, err
 	}

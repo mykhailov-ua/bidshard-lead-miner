@@ -153,4 +153,3 @@ func sourceName(threadURL string) string {
 	}
 	return "forum:" + host
 }
-

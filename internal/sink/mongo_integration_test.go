@@ -1,3 +1,6 @@
+// Integration tests require MongoDB. Built with -tags=integration; gopls uses the same tag
+// via .vscode/settings.json buildFlags so the file is indexed in the IDE.
+//
 //go:build integration
 
 package sink_test
@@ -68,7 +71,13 @@ func TestMongoStoreUpsertAndExists(t *testing.T) {
 	}
 
 	dup := lead
-	dup.Snippet = "different context"
+	dup.Score = 70
+	dup.Snippet = "updated snippet after re-sight"
+	if err := store.Upsert(ctx, dup); err != nil {
+		t.Fatal(err)
+	}
+
+	// Re-fetch via Exists + second upsert path; verify mutable fields updated (integration).
 	if err := store.Upsert(ctx, dup); err != nil {
 		t.Fatal(err)
 	}

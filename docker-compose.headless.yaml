@@ -1,0 +1,23 @@
+# Optional headless lander/tgweb image (Playwright + Chromium).
+# Usage:
+#   docker compose -f docker-compose.headless.yaml build
+#   docker compose -f docker-compose.headless.yaml run --rm parser-headless scan --source=lander
+#
+services:
+  parser-headless:
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright
+    image: bidshard-parser-headless:local
+    network_mode: host
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data
+      - parser_runtime:/app/data/runtime
+      - ./config:/app/config:ro
+    command: ["scan", "--source=lander"]
+
+volumes:
+  parser_runtime:

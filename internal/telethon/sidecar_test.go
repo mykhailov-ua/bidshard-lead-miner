@@ -68,7 +68,7 @@ func TestDryRunEmitsTelegramNDJSON(t *testing.T) {
 		t.Fatal("timeout")
 	}
 
-	if len(out) == 0 || !strings.Contains(string(out), "telegram:@") {
+	if len(out) == 0 || !strings.Contains(string(out), "fixture:telegram:@") {
 		t.Fatalf("unexpected output: %q", string(out))
 	}
 }

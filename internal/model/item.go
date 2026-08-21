@@ -33,7 +33,12 @@ func (r RawItem) Text() string {
 
 func (r RawItem) ContactTelegram() string {
 	if r.Contact != "" {
-		return normalizeTelegramContact(r.Contact)
+		contact := strings.TrimSpace(r.Contact)
+		if strings.Contains(contact, "@") && !strings.HasPrefix(contact, "@") &&
+			!strings.HasPrefix(strings.ToLower(contact), "telegram:") {
+			return ""
+		}
+		return normalizeTelegramContact(contact)
 	}
 	if r.Username != "" {
 		return normalizeTelegramContact(r.Username)
@@ -70,36 +75,47 @@ func (r RawItem) MaskedContact() string {
 }
 
 type Lead struct {
-	TS             time.Time
-	RoundID        string
-	HashID         string
-	Priority       string
-	Score          int
-	Source         string
-	Title          string
-	Contacts       []string
-	Matched        []string
-	Snippet        string
-	ICP            string
-	Hot            bool
-	SpendTier      string
-	ICPWhy         string
-	GeoCountry     string
-	CompanyCountry string
-	CompanyName    string
-	GeoSignals     []string
-	GeoWhy         string
-	WhoisCountry   string
-	DomainAgeDays  int
-	DisplayName    string
-	GravatarName   string
-	EmailVerified  bool
-	PostedAt        time.Time
-	Stack           []string
-	Tags            []string
-	Lang            string
-	Status          string
-	StatusAt        time.Time
-	OutreachChannel string
-	PilotQualified  bool
+	TS                  time.Time
+	RoundID             string
+	HashID              string
+	Priority            string
+	Score               int
+	Source              string
+	Title               string
+	Contacts            []string
+	Matched             []string
+	Snippet             string
+	ICP                 string
+	Hot                 bool
+	SpendTier           string
+	ICPWhy              string
+	GeoCountry          string
+	CompanyCountry      string
+	CompanyName         string
+	GeoSignals          []string
+	GeoWhy              string
+	WhoisCountry        string
+	DomainAgeDays       int
+	DisplayName         string
+	GravatarName        string
+	EmailVerified       bool
+	PostedAt            time.Time
+	Stack               []string
+	Tags                []string
+	Lang                string
+	Status              string
+	StatusAt            time.Time
+	OutreachChannel     string
+	OutreachAngle       string
+	OutreachDraft       string
+	PilotQualified      bool
+	PilotWhy            string
+	CompanyType         string
+	EnrichSummary       string
+	GeoConfidence       string
+	AnalysisStatus      string
+	AnalysisAt          time.Time
+	EntityID            string
+	EntitySightingCount int
+	EntitySourceCount   int
 }

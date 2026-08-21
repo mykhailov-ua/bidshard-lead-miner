@@ -3,10 +3,11 @@ package sink
 import (
 	"context"
 
+	"time"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"time"
 )
 
 type KeywordStatDoc struct {
@@ -65,22 +66,14 @@ type KeywordStatsStore struct {
 }
 
 func ConnectKeywordStats(ctx context.Context, client *mongo.Client, dbName, collection string) (*KeywordStatsStore, error) {
-	if dbName == "" {
-		dbName = "parser"
-	}
-	if collection == "" {
-		collection = "keyword_stats"
-	}
-	coll := client.Database(dbName).Collection(collection)
-	store := &KeywordStatsStore{coll: coll}
-	_, err := coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+	coll, err := connectIndexedCollectionOne(ctx, client, dbName, collection, "keyword_stats", mongo.IndexModel{
 		Keys:    bson.D{{Key: "keyword_id", Value: 1}},
 		Options: options.Index().SetUnique(true),
 	})
 	if err != nil {
 		return nil, err
 	}
-	return store, nil
+	return &KeywordStatsStore{coll: coll}, nil
 }
 
 func (s *KeywordStatsStore) RecordOutcome(ctx context.Context, keywordID string, isJunk bool) error {

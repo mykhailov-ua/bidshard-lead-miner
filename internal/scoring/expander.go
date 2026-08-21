@@ -2,7 +2,6 @@ package scoring
 
 import (
 	"strings"
-	"sync"
 )
 
 var (
@@ -21,13 +20,6 @@ var (
 		"en", "es", "pt", "de", "fr", "pl",
 	}
 )
-
-var stringBufPool = sync.Pool{
-	New: func() any {
-		s := make([]string, 0, 256)
-		return &s
-	},
-}
 
 // KeywordExpander generates lock-free permutations of competitor pain keywords.
 // Struct fields aligned by size descending.

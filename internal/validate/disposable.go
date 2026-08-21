@@ -5,10 +5,46 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+)
+
+var (
+	disposableMu sync.RWMutex
+	// disposableDomains is merged from built-ins and DISPOSABLE_DOMAINS_PATH at startup.
+	// RWMutex allows safe reload if hot-reload is added later; AcceptEmail reads via IsDisposableDomain.
+	disposableDomains = map[string]struct{}{
+		"mailinator.com":    {},
+		"guerrillamail.com": {},
+		"tempmail.com":      {},
+		"10minutemail.com":  {},
+		"throwaway.email":   {},
+		"example.com":       {},
+		"test.com":          {},
+		"yopmail.com":       {},
+		"sharklasers.com":   {},
+		"trashmail.com":     {},
+		"getnada.com":       {},
+		"temp-mail.org":     {},
+		"dispostable.com":   {},
+		"maildrop.cc":       {},
+		"fakeinbox.com":     {},
+		"spamgourmet.com":   {},
+		"mailnesia.com":     {},
+		"tempail.com":       {},
+		"moakt.com":         {},
+		"emailondeck.com":   {},
+		"mohmal.com":        {},
+		"burnermail.io":     {},
+		"mailcatch.com":     {},
+		"mytemp.email":      {},
+		"tmpmail.net":       {},
+		"tmpmail.org":       {},
+		"mail-temp.com":     {},
+	}
 )
 
 // LoadDisposableDomains merges domains from a line-based file (one domain per line, # comments).
-// Safe to call once at startup; missing file is not an error.
+// Missing file is not an error. Safe to call at startup or reload under disposableMu.
 func LoadDisposableDomains(path string) error {
 	if strings.TrimSpace(path) == "" {
 		return nil
@@ -20,9 +56,11 @@ func LoadDisposableDomains(path string) error {
 		}
 		return fmt.Errorf("open disposable domains: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
-	added := 0
+	disposableMu.Lock()
+	defer disposableMu.Unlock()
+
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		domain := normalizeDisposableDomain(sc.Text())
@@ -30,7 +68,6 @@ func LoadDisposableDomains(path string) error {
 			continue
 		}
 		disposableDomains[domain] = struct{}{}
-		added++
 	}
 	if err := sc.Err(); err != nil {
 		return fmt.Errorf("read disposable domains: %w", err)
@@ -51,10 +88,15 @@ func normalizeDisposableDomain(line string) string {
 }
 
 func DisposableDomainCount() int {
+	disposableMu.RLock()
+	defer disposableMu.RUnlock()
 	return len(disposableDomains)
 }
 
 func IsDisposableDomain(domain string) bool {
-	_, ok := disposableDomains[strings.ToLower(strings.TrimSpace(domain))]
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	disposableMu.RLock()
+	defer disposableMu.RUnlock()
+	_, ok := disposableDomains[domain]
 	return ok
 }

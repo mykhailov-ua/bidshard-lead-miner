@@ -2,7 +2,6 @@ package warrior
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -30,11 +29,7 @@ type Crawler struct {
 
 func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 	if client == nil {
-		var err error
-		client, err = httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
-		if err != nil {
-			client = httpclient.Shared(cfg.HTTPTimeout)
-		}
+		client = httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLs)
 	}
 	seedPath := cfg.WarriorSeedPath
 	if seedPath == "" {
@@ -87,19 +82,13 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 				return err
 			}
 
-			resp, err := c.client.Do(req)
+			body, status, err := httpclient.DoBytes(c.client, req, 2<<20)
 			if err != nil {
 				slog.Warn("warrior fetch failed", "url", fetchURL, "error", err)
 				return nil
 			}
-
-			body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
-			resp.Body.Close()
-			if err != nil {
-				return err
-			}
-			if resp.StatusCode != http.StatusOK {
-				slog.Warn("warrior http status", "url", fetchURL, "status", resp.StatusCode)
+			if status != http.StatusOK {
+				slog.Warn("warrior http status", "url", fetchURL, "status", status)
 				return nil
 			}
 
@@ -202,8 +191,3 @@ func sourceName(threadURL string) string {
 	}
 	return "warrior:" + strings.ReplaceAll(strings.Trim(u.Path, "/"), "/", "-")
 }
-
-func stripTags(s string) string {
-	return defaultStripper.StripTagsString(s)
-}
-

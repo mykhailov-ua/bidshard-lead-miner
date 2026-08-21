@@ -55,26 +55,25 @@ type KeywordEntry struct {
 }
 
 type KeywordDiff struct {
-	AddKeywords    []KeywordEntry `json:"add_keywords"`
-	AddHardReject  []KeywordEntry `json:"add_hard_reject"`
-	Summary        string         `json:"summary"`
-	ReportID       string         `json:"report_id,omitempty"`
-	GeneratedAt    string         `json:"generated_at,omitempty"`
-	Status         string         `json:"status"` // pending
+	AddKeywords   []KeywordEntry `json:"add_keywords"`
+	AddHardReject []KeywordEntry `json:"add_hard_reject"`
+	Summary       string         `json:"summary"`
+	ReportID      string         `json:"report_id,omitempty"`
+	GeneratedAt   string         `json:"generated_at,omitempty"`
+	Status        string         `json:"status"` // pending
 }
 
 func (c *Client) BuildKeywordDiff(ctx context.Context, suggestions []string, falseNegativeSamples []string) (KeywordDiff, error) {
-	payload, _ := json.Marshal(map[string]any{
-		"keyword_suggestions":      suggestions,
+	payload, err := json.Marshal(map[string]any{
+		"keyword_suggestions":     suggestions,
 		"false_negative_snippets": falseNegativeSamples,
 	})
-	raw, err := c.generateJSON(ctx, keywordDiffSystem,
-		"Propose keyword diff for manual approve:\n\n"+string(payload), keywordDiffSchema)
 	if err != nil {
 		return KeywordDiff{}, err
 	}
-	var diff KeywordDiff
-	if err := decodeModelJSON(raw, &diff); err != nil {
+	diff, err := classifyJSON[KeywordDiff](c, ctx, PriorityLow, keywordDiffSystem,
+		"Propose keyword diff for manual approve:\n\n"+string(payload), keywordDiffSchema)
+	if err != nil {
 		return KeywordDiff{}, err
 	}
 	diff.Status = "pending"

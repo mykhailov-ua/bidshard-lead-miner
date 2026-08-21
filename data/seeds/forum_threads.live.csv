@@ -1,0 +1,13 @@
+# Live forum threads (XenForo on affiliatefix.com). Real thread IDs (not fabricated .300x placeholders).
+# Requires PARSER_PROXY_LIST on datacenter VPS (CF).
+url,notes
+https://www.affiliatefix.com/threads/marksel.181148/,trackers
+https://www.affiliatefix.com/threads/binom-tracker-secret-weapon-of-top-affiliates.102178/,voluum
+https://www.affiliatefix.com/threads/conversions-not-show-in-voluum.13131/,postback
+https://www.affiliatefix.com/threads/adsbridge-cloud-or-self-hosted-tracker-what-to-choose.178682/,self-hosted
+https://www.affiliatefix.com/threads/rollerads-x-redtrack-webinar-tracking-explained.180717/,redtrack
+https://www.affiliatefix.com/threads/binom-tracker.102075/,binom
+https://www.affiliatefix.com/threads/voluum-and-smashrevenue-conversions-not-showing-in-voluum.12768/,conversions
+https://www.affiliatefix.com/threads/how-to-setup-voluum-how-to-plug-in-the-tokens-on-the-postback-url.27515/,timeout
+https://www.affiliatefix.com/threads/keitaro-js-script-for-pro-affiliates.165975/,migration
+https://www.affiliatefix.com/threads/how-do-brands-evaluate-crypto-traffic-quality-these-days.180931/,crypto

@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -14,6 +15,45 @@ func TestSharedClientIsSingleton(t *testing.T) {
 	c2 := Shared(3 * time.Second)
 	if c1 != c2 {
 		t.Fatal("expected singleton shared client")
+	}
+	if c1.Timeout != 2*time.Second {
+		t.Fatalf("timeout=%s want 2s (first call wins)", c1.Timeout)
+	}
+}
+
+func TestSharedConcurrentFirstCallWins(t *testing.T) {
+	httpclientReset(t)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		wg.Add(1)
+		go func(d time.Duration) {
+			defer wg.Done()
+			_ = Shared(d)
+		}(time.Duration(i+1) * time.Second)
+	}
+	wg.Wait()
+	if shared == nil {
+		t.Fatal("expected shared client")
+	}
+	if shared.Timeout <= 0 {
+		t.Fatalf("timeout=%s", shared.Timeout)
+	}
+}
+
+func TestClientWithSharedTransportReusesPool(t *testing.T) {
+	httpclientReset(t)
+
+	base := Shared(2 * time.Second)
+	gemini := ClientWithSharedTransport(90 * time.Second)
+	if gemini.Transport != base.Transport {
+		t.Fatal("expected shared transport pointer")
+	}
+	if gemini.Timeout != 90*time.Second {
+		t.Fatalf("timeout=%s want 90s", gemini.Timeout)
+	}
+	if base.Timeout != 2*time.Second {
+		t.Fatalf("shared timeout=%s want 2s unchanged", base.Timeout)
 	}
 }
 
@@ -74,4 +114,3 @@ func httpclientReset(t *testing.T) {
 	t.Helper()
 	ResetForTest()
 }
-
