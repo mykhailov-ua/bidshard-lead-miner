@@ -1,6 +1,6 @@
 # Forum seed threads for grey-market tracking pain harvesting.
 # forum-fixture.test URLs load HTML from testdata/forum/ (offline dev/CI).
-# Live hosts (affiliatefix, BHW) need residential proxy - see docs/ops.md.
+# Live hosts (affiliatefix, BHW) need residential proxy - see docs/OPS.md.
 url,notes
 https://forum-fixture.test/threads/voluum-alternative-recommendations.1001/,voluum
 https://forum-fixture.test/threads/keitaro-vs-binom-for-nutra.1002/,keitaro

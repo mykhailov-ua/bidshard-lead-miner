@@ -4,7 +4,7 @@ Lead collection and scoring from public gray-market sources (forums, Reddit, Git
 
 **Geo policy:** hard-reject RU/BY (`GEO_BLOCK_COUNTRIES`). LinkedIn is not supported.
 
-**Credentials:** [docs/credentials.md](docs/credentials.md) | **VPS deploy:** [docs/deploy.md](docs/deploy.md) | **Operations (tgweb, proxy, eBPF):** [docs/ops.md](docs/ops.md)
+**Credentials:** [docs/CREDENTIALS.md](docs/CREDENTIALS.md) | **VPS deploy:** [docs/DEPLOY_VPS.md](docs/DEPLOY_VPS.md) | **Operations (tgweb, proxy, eBPF):** [docs/OPS.md](docs/OPS.md)
 
 ---
 
@@ -78,8 +78,8 @@ CLI:
 
 - **uTLS:** ClientHello mimics Chrome (TLS fingerprint).
 - **Headers:** browser-like defaults on outbound HTTP.
-- **Proxy rotation + CF cooldown:** on 403/503 via proxy - ~10m cooldown, failover to next URL in `PARSER_PROXY_LIST`. Profiles: `config/env/`, preflight `make preflight-tgweb`, crawl `make tgweb-crawl`. See [docs/ops.md](docs/ops.md#proxy).
-- **eBPF dev probe (Linux):** syscall/sched/net probe for tgweb crawl analysis - [docs/ops.md](docs/ops.md#ebpf-dev-probe-linux), `make bpf-dev`, `sudo make bpf-session-start`.
+- **Proxy rotation + CF cooldown:** on 403/503 via proxy - ~10m cooldown, failover to next URL in `PARSER_PROXY_LIST`. Profiles: `config/env/`, preflight `make preflight-tgweb`, crawl `make tgweb-crawl`. See [docs/OPS.md](docs/OPS.md#proxy).
+- **eBPF dev probe (Linux):** syscall/sched/net probe for tgweb crawl analysis - [docs/OPS.md](docs/OPS.md#ebpf-dev-probe-linux), `make bpf-dev`, `sudo make bpf-session-start`.
 
 ---
 

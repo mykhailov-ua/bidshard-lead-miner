@@ -35,7 +35,7 @@ type HeatConfig struct {
 	WarmBoost        int
 }
 
-// DefaultHeatConfig returns backlog default thresholds and decay table.
+// DefaultHeatConfig returns default heat thresholds and decay table.
 func DefaultHeatConfig() HeatConfig {
 	return HeatConfig{
 		Enabled:          true,

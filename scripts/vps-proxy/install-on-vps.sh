@@ -7,7 +7,7 @@
 #   ssh user@VPS 'cd /tmp/bidshard-proxy && cp env.example .env.local && sudo ENV_FILE=.env.local ./install-on-vps.sh'
 #
 # Requires: root, ufw recommended (allow 3128 from parser host IP only).
-# Not for Cloudflare igaming - see docs/ops.md#vps-squid-optional
+# Not for Cloudflare igaming - see docs/OPS.md#vps-squid-optional
 #
 set -euo pipefail
 

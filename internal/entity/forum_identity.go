@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// Known forum source label prefixes (see docs/backlog-entity-heat.md HEAT-P1-02).
-// forum:affiliatefix.com/{slug}  -> family forum, host affiliatefix.com
+// Forum graph labels (forum:host/slug, warrior:slug) - see SourceFamily() in resolver.go.
+// forum:affiliatefix.com/{slug}   -> family forum, host affiliatefix.com
 // forum:blackhatworld.com/{slug}  -> family forum
 // warrior:{thread-slug}           -> family warrior, host warriorforum
 // reddit:{subreddit}              -> family reddit (no forum_user keys)

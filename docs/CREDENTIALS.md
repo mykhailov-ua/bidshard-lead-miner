@@ -61,8 +61,6 @@ PARSER_ENRICH_RDAP=true
 
 CRM inbox: `crm-bot api list --status new` hides `analysis_status=pending` and parser reject statuses. Pass `--all` to include deferred leads.
 
-See [backlog-geo-compliance.md](backlog-geo-compliance.md) for full rollout.
-
 1. Create an API key in AI Studio.
 2. Add `GEMINI_API_KEY=<key>` to `.env`.
 3. Restrict the key to Generative Language API in GCP (recommended).
@@ -215,7 +213,7 @@ PullPush may rate-limit without registration: [pullpush.io](https://api.pullpush
 
 | Variable | Purpose |
 |----------|---------|
-| `PARSER_PROXY_LIST` | Comma-separated HTTP proxies - see [ops.md](ops.md#proxy) |
+| `PARSER_PROXY_LIST` | Comma-separated HTTP proxies - see [OPS.md](OPS.md#proxy) |
 | `PARSER_MX_CHECK` | MX validation for email leads |
 | `PARSER_LEAD_STATUS_ENABLED` | Set `true` before CRM inbox - parser writes `status: new` on accept |
 | `PARSER_ENRICH_RDAP` / `DNS` / `EMAIL` | RDAP/DNS enrichment |

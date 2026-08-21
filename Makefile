@@ -11,7 +11,7 @@
 # BPF dev (Linux, root):
 #   make bpf-dev && sudo make bpf-session-start
 #
-# Docs: README.md, docs/ops.md, docs/credentials.md
+# Docs: README.md, docs/OPS.md, docs/CREDENTIALS.md
 
 .PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke docker-headless-build bpf-release-gate bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-domains-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop
 

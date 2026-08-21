@@ -6,7 +6,7 @@
 #   sudo bash scripts/perf/bpf_probe_session.sh start var/bpf-session/<ts>
 #   sudo bash scripts/perf/bpf_probe_session.sh stop var/bpf-session/<ts> [pid]
 #
-# Requires: root, parser_probe.o, bin/bpf-collector. Env: PARSER_BPF_* (see docs/ops.md).
+# Requires: root, parser_probe.o, bin/bpf-collector. Env: PARSER_BPF_* (see docs/OPS.md).
 #
 set -euo pipefail
 

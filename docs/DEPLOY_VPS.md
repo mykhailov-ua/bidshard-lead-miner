@@ -2,7 +2,7 @@
 
 Single path: fresh Ubuntu VPS + residential proxy -> parser 24/7 with leads in Mongo/JSONL.
 
-Related: [credentials.md](credentials.md), [ops.md](ops.md).
+Related: [CREDENTIALS.md](CREDENTIALS.md), [OPS.md](OPS.md).
 
 ---
 
@@ -26,7 +26,7 @@ Account signup: **email + card**, no passport upload on standard plans. **Not RU
 | Role | Pick | Plan | Payment | Notes |
 | --- | --- | --- | --- | --- |
 | **VPS** (parser + Mongo) | [Servury](https://servury.com) or [EQVPS](https://eqvps.com) | **4 GB RAM**, 2 vCPU, 40+ GB disk | Visa/Mastercard | Email signup; Servury can use a generated credential |
-| **VPS** (mainstream alt.) | [Hetzner](https://www.hetzner.com/cloud) CPX22 | 4 GB RAM, 2 vCPU, 80 GB NVMe | Card / PayPal | Referenced in [ops.md](ops.md); stable 24/7 |
+| **VPS** (mainstream alt.) | [Hetzner](https://www.hetzner.com/cloud) CPX22 | 4 GB RAM, 2 vCPU, 80 GB NVMe | Card / PayPal | Referenced in [OPS.md](OPS.md); stable 24/7 |
 | **Residential proxy** | [DataImpulse](https://dataimpulse.com) | Pay-as-you-go (~$1/GB) | Card | Primary example in repo; traffic does not expire |
 | **Residential proxy** (alt.) | [IPRoyal](https://iproyal.com/residential-proxies/) | Pay-as-you-go | Card | Also wired in `config/env/.env.residential.example` |
 
@@ -64,7 +64,7 @@ make proxy-check
 make vps-preflight
 ```
 
-More proxy modes: [ops.md#proxy](ops.md#proxy).
+More proxy modes: [OPS.md#proxy](OPS.md#proxy).
 
 ---
 
@@ -207,7 +207,7 @@ make backup
 | All crawls `raw=0` | `make proxy-check`; verify residential creds; see Appendix A for datacenter Squid |
 | Telethon session lost | Use named volume `parser_runtime`; re-run `telegram login --qr` |
 
-Deep dives: [ops.md](ops.md) (tgweb, proxy, BPF).
+Deep dives: [OPS.md](OPS.md) (tgweb, proxy, BPF).
 
 ---
 
@@ -230,7 +230,7 @@ make vps-proxy-docker
 make vps-proxy-down                        # stop
 ```
 
-Full guide: [ops.md#vps-squid-optional](ops.md#vps-squid-optional). Scripts: [scripts/vps-proxy/README.md](../scripts/vps-proxy/README.md).
+Full guide: [OPS.md#vps-squid-optional](OPS.md#vps-squid-optional). Scripts: [scripts/vps-proxy/README.md](../scripts/vps-proxy/README.md).
 
 ---
 

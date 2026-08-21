@@ -155,9 +155,7 @@ Manual audit (gitignored runtime files):
 
 Re-run discover after editing `config/discover.icp.json`: `make tgweb-discover`.
 
-See [backlog-geo-compliance.md](backlog-geo-compliance.md).
-
-Entity graph / cross-source heat (forum identity, recency tiers, CRM inbox): [backlog-entity-heat.md](backlog-entity-heat.md).
+Cross-source entity graph uses forum_user keys, heat tiers, and CRM inbox sort. Run `make entity-heat-report` weekly; repair false merges with `crm-bot db entity-split`.
 
 ---
 
