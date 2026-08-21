@@ -19,6 +19,7 @@ type Options struct {
 	CrmBoostCollection     string
 	LeadNotesCollection    string
 	LeadCrmMetaCollection  string
+	EntityCollection       string
 	QueryTimeout           time.Duration
 	WriteTimeout           time.Duration
 	StatsTimeout           time.Duration

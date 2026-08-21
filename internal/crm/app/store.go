@@ -23,6 +23,7 @@ func OpenLeadStore(ctx context.Context, cfg config.Config) (*store.LeadStore, *m
 	leadStore := store.New(client, store.Options{
 		DBName:                 cfg.MongoDB,
 		LeadsCollection:        cfg.MongoCollection,
+		EntityCollection:       cfg.EntityCollection,
 		SourceStatsCollection:  cfg.SourceStatsCollection,
 		KeywordStatsCollection: cfg.KeywordStatsCollection,
 		CrmBoostCollection:     cfg.CrmBoostCollection,

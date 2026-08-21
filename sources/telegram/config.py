@@ -58,9 +58,9 @@ class ScraperConfig:
 
 
 def load_config(path: str | Path) -> ScraperConfig:
-    data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
     chats: list[ChatConfig] = []
-    for entry in data.get("chats", []):
+    for entry in data.get("chats") or []:
         geo = str(entry.get("geo", "global")).lower()
         if geo == "ru":
             continue

@@ -48,3 +48,16 @@ func TestValidateTelegramMissingContact(t *testing.T) {
 		t.Fatal("expected validation error")
 	}
 }
+
+func TestParseTelegramChannelAbout(t *testing.T) {
+	t.Parallel()
+
+	line := []byte(`{"source":"telegram:@affnet","text":"voluum alternative","username":"buyer","message_id":1,"channel_about":"Global affiliate team EU"}`)
+	item, err := parseNDJSONLine(line)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.ChannelAbout != "Global affiliate team EU" {
+		t.Fatalf("channel_about=%q", item.ChannelAbout)
+	}
+}

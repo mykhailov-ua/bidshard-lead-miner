@@ -107,11 +107,13 @@ func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
 				}
 
 				item := model.RawItem{
-					Source:   sourceName(rawURL),
-					Raw:      post.Body,
-					Contact:  primary,
-					Title:    post.Author,
-					PostedAt: post.PostedAt,
+					Source:      sourceName(rawURL),
+					Raw:         post.Body,
+					Contact:     primary,
+					Title:       post.Author,
+					Username:    post.Author,
+					ForumUserID: post.UserID,
+					PostedAt:    post.PostedAt,
 				}
 
 				mu.Lock()

@@ -157,6 +157,9 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 
 	checkFile("keywords", cfg.KeywordsJSONPath)
 	checkFile("keywords gray", cfg.KeywordsGrayPath)
+	for _, path := range config.KeywordOverlayPaths(cfg.KeywordsLocale, cfg.KeywordsLocalePath) {
+		checkFile("keywords locale overlay", path)
+	}
 	checkFile("disposable domains", cfg.DisposableDomainsPath)
 
 	active := sources.ParseSourceNames(cfg.Source)
@@ -198,6 +201,15 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 		} else {
 			_, _ = fmt.Fprintln(out, "ok  crm webhook URL set")
 		}
+	}
+	for _, w := range config.GeoComplianceWarnings(cfg) {
+		warnings = append(warnings, w)
+	}
+	for _, e := range config.GeoComplianceErrors(cfg, seedcheck.Profile() == seedcheck.ProfileProd) {
+		errors = append(errors, e)
+	}
+	if config.SyncGeoGateConfigured(cfg) {
+		_, _ = fmt.Fprintln(out, "ok  sync geo gate configured (inline before Mongo write)")
 	}
 	if seedcheck.Profile() == seedcheck.ProfileProd {
 		if len(cfg.ProxyURLs) == 0 && (containsSource(active, "forum") || containsSource(active, "tgweb")) {

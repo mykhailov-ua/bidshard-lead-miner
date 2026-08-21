@@ -12,19 +12,24 @@ type Result struct {
 }
 
 var (
-	ruDomainRe    = regexp.MustCompile(`(?i)@[^@\s]+\.(ru|рф)([\s.,;]|$)`)
-	byDomainRe    = regexp.MustCompile(`(?i)@[^@\s]+\.(by|бел)([\s.,;]|$)`)
-	ruPhoneRe     = regexp.MustCompile(`\+7[\d\s\-()]{8,}`)
-	byPhoneRe     = regexp.MustCompile(`\+375[\d\s\-()]{6,}`)
-	bioRejectRe   = regexp.MustCompile(`(?i)(europe/moscow|\bmoscow\b|\bminsk\b|\brussia\b|\bbelarus\b|\bроссия\b|\bбеларусь\b)`)
-	cyrillicRe    = regexp.MustCompile(`[а-яё]{8,}`)
-	latinSignalRe = regexp.MustCompile(`(?i)[a-z]{3,}`)
+	ruDomainRe     = regexp.MustCompile(`(?i)@[^@\s]+\.(ru|рф)([\s.,;]|$)`)
+	byDomainRe     = regexp.MustCompile(`(?i)@[^@\s]+\.(by|бел)([\s.,;]|$)`)
+	ruMailDomainRe = regexp.MustCompile(`(?i)@(?:[^@\s]+\.)*(?:mail\.ru|yandex\.ru|ya\.ru|bk\.ru|list\.ru|inbox\.ru|rambler\.ru|internet\.ru)([\s.,;]|$)`)
+	ruPhoneRe      = regexp.MustCompile(`\+7[\d\s\-()]{8,}`)
+	byPhoneRe      = regexp.MustCompile(`\+375[\d\s\-()]{6,}`)
+	bioRejectRe    = regexp.MustCompile(`(?i)(europe/moscow|\bmoscow\b|\bminsk\b|\brussia\b|\bbelarus\b|\bроссия\b|\bбеларусь\b)`)
+	cyrillicRe     = regexp.MustCompile(`[а-яё]{8,}`)
+	latinSignalRe  = regexp.MustCompile(`(?i)[a-z]{3,}`)
 )
 
 func Filter(text string, contacts ...string) Result {
 	body := strings.Join(append([]string{text}, contacts...), " ")
 	lower := strings.ToLower(body)
 
+	if ruMailDomainRe.MatchString(lower) {
+		// Check before .ru TLD: user@mail.ru would otherwise match ruDomainRe as *@mail.ru.
+		return Result{Reason: "ru mail domain"}
+	}
 	if ruDomainRe.MatchString(lower) {
 		return Result{Reason: "ru domain"}
 	}

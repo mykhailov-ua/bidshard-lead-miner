@@ -147,11 +147,13 @@ func TestSupplyDomainFromSource(t *testing.T) {
 
 func TestSourceFamily(t *testing.T) {
 	cases := map[string]string{
-		"telegram:@affnet":      "telegram",
-		"tgweb:site.com":        "tgweb",
-		"reddit:igaming":        "reddit",
-		"fixture:telegram:@foo": "fixture",
-		"ads_txt:example.com":   "supply",
+		"telegram:@affnet":            "telegram",
+		"tgweb:site.com":              "tgweb",
+		"reddit:igaming":              "reddit",
+		"forum:affiliatefix.com/slug": "forum",
+		"warrior:binom-thread":        "warrior",
+		"fixture:telegram:@foo":       "fixture",
+		"ads_txt:example.com":         "supply",
 	}
 	for in, want := range cases {
 		if got := SourceFamily(in); got != want {

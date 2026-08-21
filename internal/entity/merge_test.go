@@ -100,4 +100,7 @@ func TestMemoryStoreLinksBySharedDomain(t *testing.T) {
 	if len(doc.HashIDs) != 2 {
 		t.Fatalf("hash_ids=%v", doc.HashIDs)
 	}
+	if len(doc.Sightings) != 2 {
+		t.Fatalf("sightings=%d want 2", len(doc.Sightings))
+	}
 }

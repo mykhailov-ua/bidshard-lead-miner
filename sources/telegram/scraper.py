@@ -58,10 +58,16 @@ def parse_args() -> argparse.Namespace:
 
 
 from .prefilter import should_emit_message
+from .geo_heuristic import channel_geo_reject
 
 
 def emit_line(
-    out: TextIO, chat: ChatConfig, text: str, username: str, message_id: int
+    out: TextIO,
+    chat: ChatConfig,
+    text: str,
+    username: str,
+    message_id: int,
+    channel_about: str = "",
 ) -> None:
     # Drop spam/empty before NDJSON; Go pipeline never sees filtered messages.
     if not should_emit_message(text):
@@ -78,6 +84,8 @@ def emit_line(
         "username": username,
         "message_id": message_id,
     }
+    if channel_about:
+        payload["channel_about"] = channel_about
     out.write(json.dumps(payload, ensure_ascii=False) + "\n")
     out.flush()
 
@@ -135,6 +143,22 @@ async def resolve_chat_entity(client: Any, chat: ChatConfig, store: CursorStore)
     raise ValueError("chat has no username, invite_hash, or chat_id")
 
 
+async def fetch_channel_about(client: Any, entity: Any) -> str:
+    from telethon.tl.functions.channels import GetFullChannelRequest
+    from telethon.tl.types import Channel
+
+    if not isinstance(entity, Channel):
+        return ""
+    try:
+        full = await client(GetFullChannelRequest(entity))
+        about = getattr(full.full_chat, "about", None)
+        if about:
+            return str(about)
+    except Exception as exc:
+        LOG.debug("channel about fetch failed error=%s", exc)
+    return ""
+
+
 async def scrape_chat(
     client: Any,
     chat: ChatConfig,
@@ -149,6 +173,11 @@ async def scrape_chat(
         entity = await resolve_chat_entity(client, chat, store)
     except Exception as exc:
         LOG.warning("skip chat=%s: %s", chat_key, exc)
+        return 0
+
+    about_text = await fetch_channel_about(client, entity)
+    if channel_geo_reject([about_text, chat.name]):
+        LOG.info("skip chat geo heuristic chat=%s", chat_key)
         return 0
 
     last_id = store.get_last_message_id(chat_key)
@@ -167,7 +196,7 @@ async def scrape_chat(
                 body = str(message.message)
                 texts_for_domains.append(body)
                 username = sender_username(await message.get_sender())
-                emit_line(out, chat, body, username, message.id)
+                emit_line(out, chat, body, username, message.id, channel_about=about_text)
                 emitted += 1
                 if message.id > max_seen:
                     max_seen = message.id

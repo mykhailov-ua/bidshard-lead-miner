@@ -2,6 +2,9 @@ package pipeline
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/bidshard/parser/internal/dedup"
@@ -134,6 +137,40 @@ func TestProcessorRejectsGeoBeforeScoring(t *testing.T) {
 	})
 	if !out.RejectedGeo {
 		t.Fatal("expected geo reject")
+	}
+}
+
+func TestProcessorRejectsBlacklistedRUMail(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	domPath := filepath.Join(dir, "domains.txt")
+	if err := os.WriteFile(domPath, []byte("mail.ru\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := validate.LoadBlacklistDomains(domPath); err != nil {
+		t.Fatal(err)
+	}
+
+	proc := &Processor{
+		Registry: reg,
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "stub:global",
+			Raw:     "voluum alternative postback failing on FTD",
+			Contact: "ops@mail.ru",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected blacklist reject")
 	}
 }
 
@@ -341,6 +378,64 @@ func TestProcessorTgWebRejectsICPNone(t *testing.T) {
 	if out.Accepted {
 		t.Fatal("expected tgweb lead with icp=none to be rejected")
 	}
+}
+
+type recordingGeo struct {
+	lastText string
+}
+
+func (r *recordingGeo) ClassifyGeo(_ context.Context, text string, _ []string, _ []string) (gemini.GeoResult, error) {
+	r.lastText = text
+	return gemini.GeoResult{PersonCountry: "US", Confidence: "low"}, nil
+}
+
+func TestGeoClassifyTextIncludesChannelAbout(t *testing.T) {
+	t.Parallel()
+
+	got := geoClassifyText(model.RawItem{
+		ChannelAbout: "EU media buying team",
+	}, "voluum alternative")
+	if !strings.Contains(got, "Channel about: EU media buying team") {
+		t.Fatalf("missing about prefix: %q", got)
+	}
+	if !strings.Contains(got, "voluum alternative") {
+		t.Fatalf("missing body: %q", got)
+	}
+}
+
+func TestProcessorPassesChannelAboutToGeo(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	geo := &recordingGeo{}
+	proc := &Processor{
+		Registry:          reg,
+		Seen:              dedup.NewSeenCache(10, 0),
+		Store:             sink.NewStubStore(),
+		MX:                validate.StubMX{OK: true},
+		Geo:               geo,
+		GeoEnabled:        true,
+		GeoBlockCountries: []string{"RU", "BY"},
+	}
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:       "telegram:@affnet",
+			Raw:          "voluum alternative with postback failing on FTD",
+			Contact:      "telegram:@buyer_mx",
+			ChannelAbout: "Head of acquisition London",
+		},
+	})
+	if geo.lastText == "" {
+		t.Fatal("expected geo classify call")
+	}
+	if !strings.Contains(geo.lastText, "Head of acquisition London") {
+		t.Fatalf("geo text=%q", geo.lastText)
+	}
+	_ = out
 }
 
 func TestProcessorRejectsGeminiGeo(t *testing.T) {

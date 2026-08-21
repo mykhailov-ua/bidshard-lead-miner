@@ -8,12 +8,15 @@ var (
 	competitors = []string{
 		"voluum", "keitaro", "redtrack", "binom", "funnelflux",
 		"bemob", "kintura", "cpv lab", "peerclick", "prosper202",
+		"clickflare", "scaleo", "stape",
 	}
 
 	painPhrases = []string{
 		"alternative", "too expensive", "postback failing", "missing ftd",
 		"self-hosted", "postback error", "migration", "pricing",
 		"down", "slow", "tracking broken",
+		"event cap", "enterprise plan", "click id not found",
+		"ftd discrepancy", "event overage", "numbers don't match",
 	}
 
 	locales = []string{

@@ -14,6 +14,8 @@ func TestFilterRejectCases(t *testing.T) {
 		{"ru email domain", "contact buyer@team.ru please", "", "ru domain"},
 		{"rf punycode domain", "write to sales@shop.рф", "", "ru domain"},
 		{"by email domain", "ops@agency.by", "", "by domain"},
+		{"ru mail domain", "write buyer@mail.ru", "", "ru mail domain"},
+		{"yandex mail domain", "ops@team.yandex.ru", "", "ru mail domain"},
 		{"bel punycode domain", "info@shop.бел", "", "by domain"},
 		{"ru phone", "call +7 916 555 1212", "", "ru phone"},
 		{"by phone", "whatsapp +375 29 123 4567", "", "by phone"},

@@ -34,6 +34,7 @@ func NewRuntime(ctx context.Context, cfg config.Config) (*Runtime, error) {
 	leadStore := store.New(client, store.Options{
 		DBName:                 cfg.MongoDB,
 		LeadsCollection:        cfg.MongoCollection,
+		EntityCollection:       cfg.EntityCollection,
 		SourceStatsCollection:  cfg.SourceStatsCollection,
 		KeywordStatsCollection: cfg.KeywordStatsCollection,
 		CrmBoostCollection:     cfg.CrmBoostCollection,

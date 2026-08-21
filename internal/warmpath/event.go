@@ -19,5 +19,8 @@ type Event struct {
 	RDAPCountry   string
 	DomainAgeDays int
 	DisplayName   string
+	EntityID      string
+	EntityHeat    float64
+	HeatTier      string
 	TS            time.Time
 }

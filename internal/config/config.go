@@ -121,6 +121,8 @@ type Config struct {
 	CRMWebhookURL              string
 	CRMWebhookSecret           string
 	CRMWebhookEnabled          bool
+	CRMWebhookAfterAnalysis    bool // defer mode: CRM webhook from warm path on analysis_status=done only
+	CRMWebhookHeatMin          string
 	WarriorSeedPath            string
 	WarriorHostRPS             float64
 	KeywordStatsCollection     string
@@ -129,6 +131,17 @@ type Config struct {
 	ParserCrossSourceHot       bool
 	CrossSourceHotWindow       time.Duration
 	CrossSourceHotBoost        int
+	ParserEntityHeatEnabled    bool
+	EntityHeatBlazing          float64
+	EntityHeatHot              float64
+	EntityHeatWarm             float64
+	EntityHeatDecay7D          float64
+	EntityHeatDecay30D         float64
+	EntityHeatDecay90D         float64
+	ParserEntityGeminiEnabled  bool
+	EntityGeminiDebounce       time.Duration
+	EntityGeminiInterval       time.Duration
+	EntityGeminiQueueSize      int
 	HTTPWorkers                int
 	ProxyURLs                  []string // PARSER_PROXY_LIST; HTTP crawlers only (not Mongo/Gemini)
 	TelegramProxyURL           string   // TELEGRAM_PROXY_URL; MTProto sidecar only (socks5/http)
@@ -200,7 +213,7 @@ func Load() (Config, error) {
 		ColdJunkQueueSize:          envInt("COLD_JUNK_QUEUE_SIZE", 512),
 		ColdJunkCollection:         env("COLD_JUNK_COLLECTION", "junk_leads"),
 		ColdReportCollection:       env("COLD_REPORT_COLLECTION", "junk_reports"),
-		RedditSubreddits:           parseCSV(env("REDDIT_SUBREDDITS", "affiliatemarketing,media_buying,adops,PPC")),
+		RedditSubreddits:           parseCSV(env("REDDIT_SUBREDDITS", "affiliatemarketing,media_buying,adops,PPC,juststart")),
 		RedditQueries:              parseSemicolonCSV(env("REDDIT_QUERIES", "voluum alternative;tracker too expensive;postback failing;click id not found;subid not found;tracker numbers don't match;conversion tracking discrepancy;self-hosted tracker;tracker migration;switch from voluum")),
 		RedditMaxResults:           envInt("REDDIT_MAX_RESULTS", 25),
 		GeminiKeywordDiffEvery:     envInt("GEMINI_KEYWORD_DIFF_EVERY", 5),
@@ -252,6 +265,8 @@ func Load() (Config, error) {
 		CRMWebhookURL:              env("PARSER_CRM_WEBHOOK_URL", ""),
 		CRMWebhookSecret:           env("PARSER_CRM_WEBHOOK_SECRET", ""),
 		CRMWebhookEnabled:          envBool("PARSER_CRM_WEBHOOK", false),
+		CRMWebhookAfterAnalysis:    envBool("PARSER_CRM_WEBHOOK_AFTER_ANALYSIS", false),
+		CRMWebhookHeatMin:          env("PARSER_CRM_WEBHOOK_HEAT_MIN", ""),
 		TelegramProxyURL:           env("TELEGRAM_PROXY_URL", ""),
 		BGWorkerEnabled:            envBool("PARSER_BG_WORKER", true),
 		BGTelegramEnabled:          envBool("PARSER_BG_TELEGRAM", true),
@@ -272,6 +287,17 @@ func Load() (Config, error) {
 		ParserCrossSourceHot:       envBool("PARSER_CROSS_SOURCE_HOT", true),
 		CrossSourceHotWindow:       envDuration("PARSER_CROSS_SOURCE_HOT_WINDOW", 7*24*time.Hour),
 		CrossSourceHotBoost:        envInt("PARSER_CROSS_SOURCE_HOT_BOOST", 20),
+		ParserEntityHeatEnabled:    envBool("PARSER_ENTITY_HEAT_ENABLED", true),
+		EntityHeatBlazing:          envFloat("PARSER_ENTITY_HEAT_BLAZING", 80),
+		EntityHeatHot:              envFloat("PARSER_ENTITY_HEAT_HOT", 50),
+		EntityHeatWarm:             envFloat("PARSER_ENTITY_HEAT_WARM", 25),
+		EntityHeatDecay7D:          envFloat("PARSER_ENTITY_HEAT_DECAY_7D", 1.0),
+		EntityHeatDecay30D:         envFloat("PARSER_ENTITY_HEAT_DECAY_30D", 0.6),
+		EntityHeatDecay90D:         envFloat("PARSER_ENTITY_HEAT_DECAY_90D", 0.25),
+		ParserEntityGeminiEnabled:  envBool("PARSER_ENTITY_GEMINI_ENABLED", true),
+		EntityGeminiDebounce:       envDuration("PARSER_ENTITY_GEMINI_DEBOUNCE", 6*time.Hour),
+		EntityGeminiInterval:       envDuration("PARSER_ENTITY_GEMINI_INTERVAL", 5*time.Minute),
+		EntityGeminiQueueSize:      envInt("PARSER_ENTITY_GEMINI_QUEUE_SIZE", 128),
 	}
 
 	apiID, err := envIntOptional("TELEGRAM_API_ID")
@@ -279,6 +305,8 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("TELEGRAM_API_ID: %w", err)
 	}
 	cfg.TelegramAPIID = apiID
+
+	applyComplianceDefaults(&cfg)
 
 	return cfg, nil
 }

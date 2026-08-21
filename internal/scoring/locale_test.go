@@ -54,3 +54,21 @@ func TestLocaleOverlayScoring(t *testing.T) {
 		})
 	}
 }
+
+func TestMultiLocaleOverlayScoring(t *testing.T) {
+	ctx := context.Background()
+	reg := NewRegistry("../../data/keywords.json")
+	esPath := filepath.Join("../../data", "keywords-es.json")
+	ptPath := filepath.Join("../../data", "keywords-pt.json")
+	if err := reg.LoadWithOverlays(ctx, "../../data/keywords.json", esPath, ptPath); err != nil {
+		t.Fatalf("LoadWithOverlays: %v", err)
+	}
+	leadText := &LeadText{Context: "Procurando voluum alternativa postback no funciona"}
+	prio := ScoreText(reg, leadText)
+	if leadText.Score < 15 {
+		t.Fatalf("score=%d want >=15", leadText.Score)
+	}
+	if prio == PriorityLow {
+		t.Fatalf("priority=%s want >= Medium", prio)
+	}
+}

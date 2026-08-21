@@ -17,6 +17,8 @@ type ResolveInput struct {
 	DisplayName  string
 	GravatarName string
 	Source       string
+	ForumUser    string
+	ForumUID     string
 	Contacts     []extract.Contact
 }
 
@@ -63,6 +65,7 @@ func ResolveKeys(in ResolveInput) []EntityKey {
 		// Supply crawler labels items ads_txt:{host}; domain key links publisher surface to tgweb/email.
 		keys = append(keys, EntityKey{Kind: KindDomain, Value: domain})
 	}
+	keys = appendForumIdentityKeys(keys, in)
 
 	for _, c := range in.Contacts {
 		switch c.Type {
@@ -112,7 +115,38 @@ func EntityID(keys []EntityKey) string {
 	if !ok {
 		return ""
 	}
+	return entityIDFromPrimary(pk)
+}
+
+// EntityIDForSplit returns the detached graph node id after ops split.
+// When keys still map to sourceEntityID (shared-domain false merge), fork from
+// primary+hash_id so InsertOne does not collide with the parent Mongo row.
+func EntityIDForSplit(keys []EntityKey, hashID, sourceEntityID string) string {
+	base := EntityID(keys)
+	if base == "" {
+		return ""
+	}
+	if base != strings.TrimSpace(sourceEntityID) {
+		return base
+	}
+	pk, ok := PrimaryKey(keys)
+	if !ok {
+		return base
+	}
+	hashID = strings.TrimSpace(hashID)
+	if hashID == "" {
+		return base
+	}
+	return entityIDFromPrimaryWithSuffix(pk, ":split:"+hashID)
+}
+
+func entityIDFromPrimary(pk EntityKey) string {
 	sum := sha256.Sum256([]byte(pk.Canonical()))
+	return hex.EncodeToString(sum[:16])
+}
+
+func entityIDFromPrimaryWithSuffix(pk EntityKey, suffix string) string {
+	sum := sha256.Sum256([]byte(pk.Canonical() + suffix))
 	return hex.EncodeToString(sum[:16])
 }
 
@@ -130,6 +164,13 @@ func AliasTokens(keys []EntityKey) []string {
 
 // SourceFamily groups a source label into a coarse family for cross-source counting.
 // tgweb and telegram are distinct families even though both mention Telegram.
+//
+// Forum graph labels (HEAT-P1-02):
+//
+//	forum:affiliatefix.com/{thread-slug}  -> forum
+//	forum:blackhatworld.com/{thread-slug} -> forum
+//	warrior:{thread-slug}                 -> warrior
+//	reddit:{subreddit}                    -> reddit
 func SourceFamily(source string) string {
 	source = strings.ToLower(strings.TrimSpace(source))
 	switch {
@@ -154,6 +195,8 @@ func SourceFamily(source string) string {
 	case strings.HasPrefix(source, "ads_txt:"):
 		// Distinct from tgweb so cross-source-hot counts publisher vs site crawl separately.
 		return "supply"
+	case strings.HasPrefix(source, "forum:"):
+		return "forum"
 	default:
 		if idx := strings.Index(source, ":"); idx > 0 {
 			return source[:idx]

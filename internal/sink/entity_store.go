@@ -15,6 +15,17 @@ import (
 type EntityStore struct {
 	coll              *mongo.Collection
 	CrossSourceWindow time.Duration
+	HeatConfig        entity.HeatConfig
+}
+
+func (s *EntityStore) heatConfig() entity.HeatConfig {
+	if s == nil {
+		return entity.HeatConfig{Enabled: false}
+	}
+	if s.HeatConfig == (entity.HeatConfig{}) {
+		return entity.DefaultHeatConfig()
+	}
+	return s.HeatConfig
 }
 
 func ConnectEntityStore(ctx context.Context, client *mongo.Client, dbName, collection string) (*EntityStore, error) {
@@ -33,7 +44,7 @@ func (s *EntityStore) RecordSighting(ctx context.Context, in entity.SightingInpu
 	if s == nil {
 		return entity.RecordResult{}, nil
 	}
-	return entity.RecordSightingCore(ctx, in, s.CrossSourceWindow, entity.DefaultMergeMaxAttempts, s)
+	return entity.RecordSightingCore(ctx, in, s.CrossSourceWindow, entity.DefaultMergeMaxAttempts, s.heatConfig(), s)
 }
 
 func (s *EntityStore) FindExisting(ctx context.Context, aliases []string, entityID string) (*entity.EntityDoc, error) {

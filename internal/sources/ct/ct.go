@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/geo"
 	"github.com/bidshard/parser/internal/httpclient"
 	"github.com/bidshard/parser/internal/model"
 )
@@ -129,5 +130,5 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 }
 
 func isBlockedTLD(domain string) bool {
-	return strings.HasSuffix(domain, ".ru") || strings.HasSuffix(domain, ".by") || strings.HasSuffix(domain, ".su")
+	return geo.IsBlockedTLD(domain)
 }

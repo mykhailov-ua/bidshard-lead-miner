@@ -11,6 +11,17 @@ type MemoryStore struct {
 	mu                sync.Mutex
 	docs              map[string]*EntityDoc
 	CrossSourceWindow time.Duration
+	HeatConfig        HeatConfig
+}
+
+func (s *MemoryStore) heatConfig() HeatConfig {
+	if s == nil {
+		return HeatConfig{Enabled: false}
+	}
+	if s.HeatConfig == (HeatConfig{}) {
+		return DefaultHeatConfig()
+	}
+	return s.HeatConfig
 }
 
 func NewMemoryStore() *MemoryStore {
@@ -23,7 +34,7 @@ func (s *MemoryStore) RecordSighting(ctx context.Context, in SightingInput) (Rec
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return RecordSightingCore(ctx, in, s.CrossSourceWindow, DefaultMergeMaxAttempts, lockedMemoryBackend{s})
+	return RecordSightingCore(ctx, in, s.CrossSourceWindow, DefaultMergeMaxAttempts, s.heatConfig(), lockedMemoryBackend{s})
 }
 
 type lockedMemoryBackend struct {

@@ -19,6 +19,19 @@
     {"id": "kw-pt-17", "phrase": "redirecionamento lento", "weight": 15, "tag": "pain"},
     {"id": "kw-pt-18", "phrase": "rastreador para afiliados", "weight": 15, "tag": "intent"},
     {"id": "kw-pt-19", "phrase": "trocar de rastreador", "weight": 20, "tag": "intent"},
-    {"id": "kw-pt-20", "phrase": "cliques nao computados", "weight": 20, "tag": "pain"}
+    {"id": "kw-pt-20", "phrase": "cliques nao computados", "weight": 20, "tag": "pain"},
+    {"id": "kw-pt-21", "phrase": "click id nao encontrado", "weight": 24, "tag": "pain"},
+    {"id": "kw-pt-22", "phrase": "discrepancia ftd", "weight": 24, "tag": "pain"},
+    {"id": "kw-pt-23", "phrase": "capi bloqueado enterprise", "weight": 22, "tag": "pain"},
+    {"id": "kw-pt-24", "phrase": "limite de eventos voluum", "weight": 22, "tag": "pain"},
+    {"id": "kw-pt-25", "phrase": "taxa por excesso de eventos", "weight": 20, "tag": "pain"},
+    {"id": "kw-pt-26", "phrase": "taxa fixa eventos ilimitados", "weight": 22, "tag": "intent"},
+    {"id": "kw-pt-27", "phrase": "estatisticas nao batem", "weight": 20, "tag": "pain"},
+    {"id": "kw-pt-28", "phrase": "macro clickid nao substituido", "weight": 22, "tag": "pain"},
+    {"id": "kw-pt-29", "phrase": "alternativa stape", "weight": 20, "tag": "intent"},
+    {"id": "kw-pt-30", "phrase": "deduplicacao capi", "weight": 18, "tag": "bidshard"},
+    {"id": "kw-pt-31", "phrase": "migrar do voluum", "weight": 24, "tag": "intent"},
+    {"id": "kw-pt-32", "phrase": "afiliado igaming brasil", "weight": 16, "tag": "vertical"},
+    {"id": "kw-pt-33", "phrase": "postback idempotente", "weight": 18, "tag": "bidshard"}
   ]
 }

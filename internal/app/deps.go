@@ -29,21 +29,18 @@ import (
 )
 
 type runtimeDeps struct {
-	processor   *pipeline.Processor
-	bulkStore   *sink.BulkStore
-	coldPath    *coldpath.Service
-	warmPath    *warmpath.Service
-	mongoClient *mongo.Client
+	processor      *pipeline.Processor
+	bulkStore      *sink.BulkStore
+	coldPath       *coldpath.Service
+	warmPath       *warmpath.Service
+	entityClassify *warmpath.EntityClassifyService
+	mongoClient    *mongo.Client
 }
 
 func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 	reg := scoring.NewRegistry(cfg.KeywordsJSONPath)
 	overlays := []string{cfg.KeywordsGrayPath}
-	if cfg.KeywordsLocalePath != "" {
-		overlays = append(overlays, cfg.KeywordsLocalePath)
-	} else if cfg.KeywordsLocale != "" {
-		overlays = append(overlays, "data/keywords-"+cfg.KeywordsLocale+".json")
-	}
+	overlays = append(overlays, config.KeywordOverlayPaths(cfg.KeywordsLocale, cfg.KeywordsLocalePath)...)
 	if err := reg.LoadWithOverlays(ctx, cfg.KeywordsJSONPath, overlays...); err != nil {
 		return nil, err
 	}
@@ -118,6 +115,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 					return sink.ConnectEntityStore(ctx, client, cfg.MongoDB, cfg.EntityCollection)
 				}, func(v *sink.EntityStore) {
 					v.CrossSourceWindow = cfg.CrossSourceHotWindow
+					v.HeatConfig = entityHeatFromConfig(cfg)
 					slog.Info("entity sightings enabled", "collection", cfg.EntityCollection)
 				}); store != nil {
 					entityRecorder = store
@@ -162,15 +160,10 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 	}
 
 	inner := sink.OpenStore(ctx, cfg.MongoURI, cfg.MongoDB, cfg.MongoCollection, cfg.WriteSlots, cfg.ExportJSONPath, cfg.ExportJSONFormat)
-	// Wrap before BulkStore so webhook fires only after inner upsert succeeds (not on buffer flush batch edge).
+	var crmWebhook *sink.WebhookClient
 	if inner != nil && cfg.CRMWebhookEnabled && cfg.CRMWebhookURL != "" {
-		inner = sink.WrapWebhook(inner, cfg.CRMWebhookURL, cfg.CRMWebhookSecret, cfg.HTTPTimeout)
-		slog.Info("crm webhook enabled", "url", "set")
-	}
-	if inner != nil {
-		deps.bulkStore = sink.NewBulkStore(inner, 50, 2*time.Second)
-	} else {
-		slog.Warn("leads will not be persisted without MONGO_URI or PARSER_EXPORT_JSON")
+		crmWebhook = sink.NewWebhookClient(cfg.CRMWebhookURL, cfg.CRMWebhookSecret, cfg.HTTPTimeout).
+			WithHeatMin(cfg.CRMWebhookHeatMin)
 	}
 
 	httpClient := httpclient.Shared(cfg.HTTPTimeout)
@@ -188,7 +181,9 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 	var embedPrescan *gemini.Prescan
 	var leadCluster *gemini.LeadCluster
 	var warmCapturer *warmpath.Capturer
+	var entityClassifyCapturer *warmpath.EntityClassifyCapturer
 	var leadPatcher sink.LeadAnalysisPatcher
+	var deferCRMWebhook bool
 
 	geminiDefer := cfg.ParserGeminiDefer && geminiClient != nil && deps.mongoClient != nil
 	// ParserGeminiDefer matrix when true:
@@ -203,13 +198,18 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 			geminiDefer = false
 		} else {
 			warmCapturer = warmpath.NewCapturer(cfg.WarmLeadQueueSize)
+			// deferCRMWebhook set only when warm path actually starts (lead patcher connected).
+			deferCRMWebhook = cfg.CRMWebhookAfterAnalysis && crmWebhook != nil
 			deps.warmPath = warmpath.NewService(warmpath.Config{
-				AnalyzeInterval:   cfg.GeminiLeadAnalyzeInterval,
-				BatchSize:         cfg.GeminiLeadBatchSize,
-				EngageEnabled:     cfg.ParserGeminiEngage,
-				EnrichEnabled:     cfg.ParserGeminiEnrichSynth,
-				PilotTagEnabled:   cfg.ParserPilotTag,
-				GeoBlockCountries: cfg.GeoBlockCountries,
+				AnalyzeInterval:         cfg.GeminiLeadAnalyzeInterval,
+				BatchSize:               cfg.GeminiLeadBatchSize,
+				EngageEnabled:           cfg.ParserGeminiEngage,
+				EnrichEnabled:           cfg.ParserGeminiEnrichSynth,
+				PilotTagEnabled:         cfg.ParserPilotTag,
+				GeoBlockCountries:       cfg.GeoBlockCountries,
+				GeoClassifyEnabled:      cfg.ParserGeoClassify,
+				CRMWebhook:              crmWebhook,
+				CRMWebhookAfterAnalysis: deferCRMWebhook,
 			}, warmCapturer, leadPatcher, geminiClient, reg)
 			slog.Info("warm path gemini enabled",
 				"analyze_interval", cfg.GeminiLeadAnalyzeInterval,
@@ -217,6 +217,42 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 				"sync_geo", cfg.ParserGeminiSyncGeo,
 			)
 		}
+	}
+
+	if cfg.ParserEntityGeminiEnabled && geminiClient != nil && entityRecorder != nil {
+		if reader, ok := entityRecorder.(entity.DocReader); ok {
+			if patcher, ok := entityRecorder.(entity.ClassificationPatcher); ok {
+				entityClassifyCapturer = warmpath.NewEntityClassifyCapturer(cfg.EntityGeminiQueueSize)
+				deps.entityClassify = warmpath.NewEntityClassifyService(
+					warmpath.EntityClassifyConfig{
+						AnalyzeInterval: cfg.EntityGeminiInterval,
+						Debounce:        cfg.EntityGeminiDebounce,
+					},
+					entityClassifyCapturer,
+					reader,
+					patcher,
+					geminiClient,
+				)
+				slog.Info("entity classify gemini enabled",
+					"analyze_interval", cfg.EntityGeminiInterval,
+					"debounce", cfg.EntityGeminiDebounce,
+				)
+			}
+		}
+	}
+
+	if inner != nil {
+		storeInner := inner
+		if crmWebhook != nil && !deferCRMWebhook {
+			storeInner = sink.AttachWebhook(inner, crmWebhook)
+			slog.Info("crm webhook enabled", "url", "set", "after_analysis", false)
+		} else if deferCRMWebhook {
+			// Same WebhookClient instance is passed to warmpath; hot-path Upsert must not notify.
+			slog.Info("crm webhook deferred until warm path analysis done")
+		}
+		deps.bulkStore = sink.NewBulkStore(storeInner, 50, 2*time.Second)
+	} else {
+		slog.Warn("leads will not be persisted without MONGO_URI or PARSER_EXPORT_JSON")
 	}
 
 	if geminiClient != nil && !geminiDefer {
@@ -248,39 +284,43 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		leadStore = deps.bulkStore
 	}
 	deps.processor = &pipeline.Processor{
-		Registry:           reg,
-		Seen:               dedup.NewSeenCache(50_000, 24*time.Hour),
-		Store:              leadStore,
-		MX:                 mx,
-		Junk:               junkCapturer,
-		SourceRep:          sourceRep,
-		KeywordStats:       keywordStats,
-		ICP:                geminiClient,
-		ICPEnabled:         icpEnabled,
-		ICPTgWebEnabled:    icpTgWebEnabled,
-		TgWebPrescanMode:   scoring.ParseTgWebPrescanMode(cfg.ParserTgWebPrescanMode),
-		Geo:                geminiClient,
-		GeoEnabled:         geoEnabled,
-		GeoBlockCountries:  cfg.GeoBlockCountries,
-		Engage:             geminiClient,
-		EngageEnabled:      engageEnabled,
-		Prescan:            embedPrescan,
-		PrescanEnabled:     prescanEnabled,
-		LeadCluster:        leadCluster,
-		LeadClusterEnabled: clusterEnabled,
-		Enricher:           enricher,
-		EnrichSynth:        geminiClient,
-		EnrichSynthEnabled: enrichSynthEnabled,
-		TimeDecayEnabled:   cfg.ParserTimeDecay,
-		PilotTagEnabled:    cfg.ParserPilotTag,
-		LeadStatusEnabled:  cfg.ParserLeadStatusEnabled,
-		GeminiDefer:        geminiDefer,
-		WarmPath:           warmCapturer,
-		EntityRecorder:     entityRecorder,
-		EntitySightings:    cfg.ParserEntitySightings && entityRecorder != nil,
-		CrossSourceHot:     cfg.ParserCrossSourceHot && cfg.ParserEntitySightings && entityRecorder != nil,
-		CrossSourceWindow:  cfg.CrossSourceHotWindow,
-		CrossSourceBoost:   cfg.CrossSourceHotBoost,
+		Registry:              reg,
+		Seen:                  dedup.NewSeenCache(50_000, 24*time.Hour),
+		Store:                 leadStore,
+		MX:                    mx,
+		Junk:                  junkCapturer,
+		SourceRep:             sourceRep,
+		KeywordStats:          keywordStats,
+		ICP:                   geminiClient,
+		ICPEnabled:            icpEnabled,
+		ICPTgWebEnabled:       icpTgWebEnabled,
+		TgWebPrescanMode:      scoring.ParseTgWebPrescanMode(cfg.ParserTgWebPrescanMode),
+		Geo:                   geminiClient,
+		GeoEnabled:            geoEnabled,
+		GeoBlockCountries:     cfg.GeoBlockCountries,
+		Engage:                geminiClient,
+		EngageEnabled:         engageEnabled,
+		Prescan:               embedPrescan,
+		PrescanEnabled:        prescanEnabled,
+		LeadCluster:           leadCluster,
+		LeadClusterEnabled:    clusterEnabled,
+		Enricher:              enricher,
+		EnrichSynth:           geminiClient,
+		EnrichSynthEnabled:    enrichSynthEnabled,
+		TimeDecayEnabled:      cfg.ParserTimeDecay,
+		PilotTagEnabled:       cfg.ParserPilotTag,
+		LeadStatusEnabled:     cfg.ParserLeadStatusEnabled,
+		GeminiDefer:           geminiDefer,
+		WarmPath:              warmCapturer,
+		EntityClassify:        entityClassifyCapturer,
+		EntityClassifyEnabled: cfg.ParserEntityGeminiEnabled && entityClassifyCapturer != nil,
+		EntityRecorder:        entityRecorder,
+		EntitySightings:       cfg.ParserEntitySightings && entityRecorder != nil,
+		CrossSourceHot:        cfg.ParserCrossSourceHot && cfg.ParserEntitySightings && entityRecorder != nil,
+		CrossSourceWindow:     cfg.CrossSourceHotWindow,
+		CrossSourceBoost:      cfg.CrossSourceHotBoost,
+		EntityHeatEnabled:     cfg.ParserEntityHeatEnabled && cfg.ParserEntitySightings && entityRecorder != nil,
+		EntityHeat:            entityHeatFromConfig(cfg),
 	}
 
 	if cfg.MetricsAddr != "" {
@@ -325,6 +365,9 @@ func runIngestOnce(ctx context.Context, cfg config.Config, deps *runtimeDeps, re
 	}
 	if deps.warmPath != nil {
 		deps.warmPath.Run(ctx, &wg)
+	}
+	if deps.entityClassify != nil {
+		deps.entityClassify.Run(ctx, &wg)
 	}
 
 	pool := pipeline.NewPool(cfg.WorkerCount, deps.processor, cfg.ProcessorTaskTimeout)

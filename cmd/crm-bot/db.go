@@ -25,12 +25,12 @@ Destructive commands require --yes.
 Examples:
   crm-bot db stats
   crm-bot db delete --hash abcdef12 --yes
-  crm-bot db purge --all --yes
   crm-bot db purge --status new --score-max 30 --yes
-  crm-bot db set-status --hash abcdef12 --status spam`,
+  crm-bot db set-status --hash abcdef12 --status spam
+  crm-bot db entity-split --id ENTITY_ID --hash HASH --yes`,
 	}
 
-	cmd.AddCommand(newDBStatsCmd(), newDBDeleteCmd(), newDBPurgeCmd(), newDBSetStatusCmd())
+	cmd.AddCommand(newDBStatsCmd(), newDBDeleteCmd(), newDBPurgeCmd(), newDBSetStatusCmd(), newDBEntitySplitCmd())
 	return cmd
 }
 
@@ -154,6 +154,53 @@ func newDBSetStatusCmd() *cobra.Command {
 	}
 	c.Flags().StringVar(&hashID, "hash", "", "lead hash_id or unique prefix")
 	c.Flags().StringVar(&status, "status", "", "new|contacted|won|lost|spam|archived")
+	return c
+}
+
+func newDBEntitySplitCmd() *cobra.Command {
+	var entityID, hashID string
+	var yes bool
+	c := &cobra.Command{
+		Use:   "entity-split",
+		Short: "Detach one lead hash into a new entity graph node",
+		Long: `Ops-only repair for false merges (e.g. shared domain, different buyers).
+
+Moves hash_id from --id entity into a new entity derived from that lead's identity keys.
+Requires --yes.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			entityID = strings.TrimSpace(entityID)
+			hashID = strings.TrimSpace(hashID)
+			if entityID == "" {
+				return fmt.Errorf("--id required")
+			}
+			if hashID == "" {
+				return fmt.Errorf("--hash required")
+			}
+			if !yes {
+				return fmt.Errorf("pass --yes to confirm entity split")
+			}
+			return withLeadStore(cmd.Context(), cmd.OutOrStdout(), func(_ context.Context, out io.Writer, s *store.LeadStore) error {
+				if !s.EntitiesEnabled() {
+					return fmt.Errorf("entity collection not configured (ENTITY_COLLECTION)")
+				}
+				result, err := s.SplitEntityHash(cmd.Context(), entityID, hashID)
+				if err != nil {
+					return err
+				}
+				if result.SourceDeleted {
+					_, _ = fmt.Fprintf(out, "split hash_id=%s -> new entity_id=%s (source %s deleted, was last hash)\n",
+						result.HashID, result.NewEntityID, result.SourceEntityID)
+					return nil
+				}
+				_, _ = fmt.Fprintf(out, "split hash_id=%s from entity_id=%s -> new entity_id=%s\n",
+					result.HashID, result.SourceEntityID, result.NewEntityID)
+				return nil
+			})
+		},
+	}
+	c.Flags().StringVar(&entityID, "id", "", "source entity_id")
+	c.Flags().StringVar(&hashID, "hash", "", "lead hash_id or unique prefix")
+	c.Flags().BoolVar(&yes, "yes", false, "confirm split")
 	return c
 }
 

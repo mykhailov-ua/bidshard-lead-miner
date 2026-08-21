@@ -24,6 +24,7 @@ func (s *EntityStore) MergeSightingAtomic(
 	pk entity.EntityKey,
 	in entity.SightingInput,
 	window time.Duration,
+	heat entity.HeatConfig,
 ) (entity.RecordResult, bool, error) {
 	if s == nil {
 		return entity.RecordResult{}, false, nil
@@ -37,11 +38,16 @@ func (s *EntityStore) MergeSightingAtomic(
 		return entity.RecordResult{}, false, nil
 	}
 
-	now := atomicSightingTime(in)
+	hashID := strings.TrimSpace(in.HashID)
+	if entity.EntityHashKnown(existing, hashID) {
+		return s.mergeEntitySightingRefresh(ctx, existing, in, window, heat)
+	}
+
+	now := entitySightingEventTime(in)
 	hasPain, buyerRole := atomicSightingSignals(in.Stack, in.Text, in.Matched)
 	family := entity.SourceFamily(in.Source)
-	hashID := strings.TrimSpace(in.HashID)
 	newFamily := family != "" && !containsString(existing.SourceFamilies, family)
+	gen := existing.MergeGeneration
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -97,20 +103,71 @@ func (s *EntityStore) MergeSightingAtomic(
 		return entity.RecordResult{}, false, err
 	}
 
+	entity.PatchSightingTimeline(&doc, in)
+	entity.RecomputeEntityHeat(&doc, heat, time.Now().UTC())
+
+	ok, err := s.ReplaceMerged(ctx, doc, gen)
+	if err != nil {
+		return entity.RecordResult{}, false, err
+	}
+	if !ok {
+		return entity.RecordResult{}, false, nil
+	}
+
 	result := entity.RecordResult{
 		EntityID:        doc.EntityID,
 		SightingCount:   doc.SightingCount,
 		SourceCount:     doc.SourceCount,
 		NewSourceFamily: newFamily,
 	}
-	return entity.EnrichRecordResult(result, doc, window), true, nil
+	return entity.EnrichRecordResult(result, doc, window, heat), true, nil
 }
 
-func atomicSightingTime(in entity.SightingInput) time.Time {
+func (s *EntityStore) mergeEntitySightingRefresh(
+	ctx context.Context,
+	existing *entity.EntityDoc,
+	in entity.SightingInput,
+	window time.Duration,
+	heat entity.HeatConfig,
+) (entity.RecordResult, bool, error) {
+	if existing == nil {
+		return entity.RecordResult{}, false, nil
+	}
+	doc := *existing
+	gen := doc.MergeGeneration
+	entity.RefreshEntitySighting(&doc, in)
+	entity.RecomputeEntityHeat(&doc, heat, time.Now().UTC())
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	ok, err := s.ReplaceMerged(ctx, doc, gen)
+	if err != nil {
+		return entity.RecordResult{}, false, err
+	}
+	if !ok {
+		return entity.RecordResult{}, false, nil
+	}
+	result := entity.RecordResult{
+		EntityID:      doc.EntityID,
+		SightingCount: doc.SightingCount,
+		SourceCount:   doc.SourceCount,
+	}
+	return entity.EnrichRecordResult(result, doc, window, heat), true, nil
+}
+
+func entitySightingEventTime(in entity.SightingInput) time.Time {
+	if !in.PostedAt.IsZero() {
+		return in.PostedAt.UTC()
+	}
 	if !in.SeenAt.IsZero() {
 		return in.SeenAt.UTC()
 	}
 	return time.Now().UTC()
+}
+
+func entityHashKnown(doc *entity.EntityDoc, hashID string) bool {
+	return entity.EntityHashKnown(doc, hashID)
 }
 
 func atomicSightingSignals(stack []string, text string, matched []string) (hasPain bool, buyerRole bool) {

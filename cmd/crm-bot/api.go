@@ -11,6 +11,7 @@ import (
 
 	"github.com/bidshard/parser/internal/crm/apiclient"
 	"github.com/bidshard/parser/internal/crm/store"
+	"github.com/bidshard/parser/internal/entity"
 	"github.com/bidshard/parser/internal/sink"
 	"github.com/spf13/cobra"
 )
@@ -43,6 +44,7 @@ Examples:
 		newAPIListCmd(),
 		newAPISearchCmd(),
 		newAPIShowCmd(),
+		newAPIEntitiesCmd(),
 		newAPISetStatusCmd(),
 		newAPIDeleteCmd(),
 		newAPIPurgeCmd(),
@@ -79,7 +81,9 @@ func newAPIListCmd() *cobra.Command {
 		sourcePrefix string
 		scoreMax     int
 		limit        int
+		sortBy       string
 		asJSON       bool
+		skipInbox    bool
 	)
 	c := &cobra.Command{
 		Use:   "list",
@@ -100,6 +104,14 @@ func newAPIListCmd() *cobra.Command {
 				if scoreMax > 0 {
 					qs.Set("score_max", strconv.Itoa(scoreMax))
 				}
+				if skipInbox {
+					qs.Set("inbox", "false")
+				} else if strings.EqualFold(strings.TrimSpace(status), "new") {
+					qs.Set("inbox", "true")
+				}
+				if s := strings.TrimSpace(sortBy); s != "" {
+					qs.Set("sort", s)
+				}
 				var result store.ListResult
 				path := "/v1/admin/leads?" + qs.Encode()
 				if err := client.GetJSON(ctx, path, &result); err != nil {
@@ -117,6 +129,8 @@ func newAPIListCmd() *cobra.Command {
 	c.Flags().StringVar(&sourcePrefix, "source-prefix", "", "filter by source prefix")
 	c.Flags().IntVar(&scoreMax, "score-max", 0, "filter score <= N")
 	c.Flags().IntVar(&limit, "limit", 50, "max rows")
+	c.Flags().StringVar(&sortBy, "sort", "", "sort: heat (default for status=new) or score")
+	c.Flags().BoolVar(&skipInbox, "all", false, "include pending/deferred leads (skip inbox filter)")
 	c.Flags().BoolVar(&asJSON, "json", false, "print JSON")
 	return c
 }
@@ -156,6 +170,116 @@ func newAPISearchCmd() *cobra.Command {
 		},
 	}
 	c.Flags().StringVar(&query, "q", "", "search text")
+	c.Flags().IntVar(&limit, "limit", 20, "max rows")
+	c.Flags().BoolVar(&asJSON, "json", false, "print JSON")
+	return c
+}
+
+func newAPIEntitiesCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "entities",
+		Short: "Entity graph admin (heat-ranked buyers)",
+	}
+	cmd.AddCommand(newAPIEntitiesListCmd(), newAPIEntitiesGetCmd(), newAPIEntitiesLeadsCmd())
+	return cmd
+}
+
+func newAPIEntitiesListCmd() *cobra.Command {
+	var minTier string
+	var limit int
+	var asJSON bool
+	c := &cobra.Command{
+		Use:   "list",
+		Short: "List entities by heat tier",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return withAPIClient(cmd.Context(), func(ctx context.Context, client *apiclient.Client) error {
+				if limit <= 0 {
+					limit = 20
+				}
+				qs := url.Values{"limit": {strconv.Itoa(limit)}}
+				if t := strings.TrimSpace(minTier); t != "" {
+					qs.Set("min_tier", t)
+				}
+				var result store.EntityListResult
+				if err := client.GetJSON(ctx, "/v1/admin/entities/list?"+qs.Encode(), &result); err != nil {
+					return err
+				}
+				if asJSON {
+					return writeJSON(cmd.OutOrStdout(), result)
+				}
+				apiclient.WriteEntityTable(cmd.OutOrStdout(), result.Entities)
+				return nil
+			})
+		},
+	}
+	c.Flags().StringVar(&minTier, "min-tier", "hot", "minimum heat tier: warm|hot|blazing")
+	c.Flags().IntVar(&limit, "limit", 20, "max rows")
+	c.Flags().BoolVar(&asJSON, "json", false, "print JSON")
+	return c
+}
+
+func newAPIEntitiesGetCmd() *cobra.Command {
+	var entityID string
+	var asJSON bool
+	c := &cobra.Command{
+		Use:   "get",
+		Short: "Show one entity graph node",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			entityID = strings.TrimSpace(entityID)
+			if entityID == "" {
+				return fmt.Errorf("--id required")
+			}
+			return withAPIClient(cmd.Context(), func(ctx context.Context, client *apiclient.Client) error {
+				qs := url.Values{"entity_id": {entityID}}
+				var doc entity.EntityDoc
+				if err := client.GetJSON(ctx, "/v1/admin/entities/get?"+qs.Encode(), &doc); err != nil {
+					return err
+				}
+				if asJSON {
+					return writeJSON(cmd.OutOrStdout(), doc)
+				}
+				return apiclient.WriteEntityJSON(cmd.OutOrStdout(), doc)
+			})
+		},
+	}
+	c.Flags().StringVar(&entityID, "id", "", "entity_id")
+	c.Flags().BoolVar(&asJSON, "json", false, "print JSON")
+	return c
+}
+
+func newAPIEntitiesLeadsCmd() *cobra.Command {
+	var entityID string
+	var limit int
+	var asJSON bool
+	c := &cobra.Command{
+		Use:   "leads",
+		Short: "List leads linked to an entity",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			entityID = strings.TrimSpace(entityID)
+			if entityID == "" {
+				return fmt.Errorf("--id required")
+			}
+			return withAPIClient(cmd.Context(), func(ctx context.Context, client *apiclient.Client) error {
+				if limit <= 0 {
+					limit = 20
+				}
+				qs := url.Values{"entity_id": {entityID}, "limit": {strconv.Itoa(limit)}}
+				var result struct {
+					EntityID string         `json:"entity_id"`
+					Leads    []sink.LeadDoc `json:"leads"`
+				}
+				if err := client.GetJSON(ctx, "/v1/admin/entities/leads?"+qs.Encode(), &result); err != nil {
+					return err
+				}
+				if asJSON {
+					return writeJSON(cmd.OutOrStdout(), result)
+				}
+				apiclient.WriteLeadTable(cmd.OutOrStdout(), result.Leads)
+				return nil
+			})
+		},
+	}
+	c.Flags().StringVar(&entityID, "id", "", "entity_id")
 	c.Flags().IntVar(&limit, "limit", 20, "max rows")
 	c.Flags().BoolVar(&asJSON, "json", false, "print JSON")
 	return c

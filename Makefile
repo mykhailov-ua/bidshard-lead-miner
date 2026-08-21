@@ -13,7 +13,7 @@
 #
 # Docs: README.md, docs/ops.md, docs/credentials.md
 
-.PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke docker-headless-build bpf-release-gate bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop
+.PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke docker-headless-build bpf-release-gate bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-domains-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop
 
 VENV := .venv
 VENV_PY := $(VENV)/bin/python
@@ -30,6 +30,12 @@ build-crm-bot: $(BIN_DIR)
 
 crm-bot-smoke:
 	bash scripts/dev/crm_bot_smoke.sh
+
+geo-funnel-report:
+	bash scripts/dev/geo_funnel_report.sh
+
+entity-heat-report:
+	bash scripts/dev/entity_heat_report.sh
 
 crm-caddy-up:
 	bash scripts/dev/crm_caddy_up.sh
@@ -123,6 +129,9 @@ tgweb-discover:
 
 tgweb-prune:
 	docker compose -f docker-compose.tgweb.yaml --profile tgweb run --rm tgweb-prune
+
+tgweb-domains-prune: build
+	./bin/parser telegram domains prune
 
 tgweb-crawl:
 	bash ./scripts/tgweb/crawl.sh

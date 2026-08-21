@@ -8,14 +8,16 @@ import (
 )
 
 type RawItem struct {
-	Source    string
-	Raw       string
-	Contact   string
-	Title     string
-	Username  string
-	MessageID int64
-	CrawlHTML string
-	PostedAt  time.Time
+	Source       string
+	Raw          string
+	Contact      string
+	Title        string
+	Username     string
+	ForumUserID  string
+	MessageID    int64
+	ChannelAbout string
+	CrawlHTML    string
+	PostedAt     time.Time
 }
 
 func (r RawItem) Text() string {
@@ -118,4 +120,6 @@ type Lead struct {
 	EntityID            string
 	EntitySightingCount int
 	EntitySourceCount   int
+	EntityHeat          float64
+	HeatTier            string
 }

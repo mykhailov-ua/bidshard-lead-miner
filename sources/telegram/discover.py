@@ -11,6 +11,7 @@ from .crossmention import discover_cross_mentions
 from .invites import discover_invite_hashes
 
 from .prefilter import channel_icp_relevant
+from .geo_heuristic import channel_geo_reject
 
 LOG = logging.getLogger("telegram.discover")
 
@@ -30,8 +31,11 @@ def load_serp_entries(path: str | Path) -> list[ChatConfig]:
     for entry in data.get("channels", []):
         username = str(entry.get("username", "")).strip().lstrip("@").lower()
         invite_hash = str(entry.get("invite_hash", "")).strip()
+        title = str(entry.get("title", username or invite_hash or "channel"))
+        if channel_geo_reject([title, str(entry.get("query", ""))]):
+            continue
         chat = ChatConfig(
-            name=str(entry.get("title", username or invite_hash or "channel")),
+            name=title,
             username=username,
             invite_hash=invite_hash,
             geo="global",
@@ -77,6 +81,8 @@ async def discover_via_search(
             username = username.lower()
             title = getattr(chat, "title", username) or username
             if not channel_icp_relevant([title, query]):
+                continue
+            if channel_geo_reject([title, query]):
                 continue
             cfg = ChatConfig(
                 name=title,

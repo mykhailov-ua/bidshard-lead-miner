@@ -6,6 +6,8 @@ import "strings"
 const (
 	KindCompany         = "company"
 	KindDomain          = "domain"
+	KindForumUID        = "forum_uid"
+	KindForumUser       = "forum_user"
 	KindTelegram        = "telegram"
 	KindTelegramChannel = "channel"
 )
@@ -24,8 +26,10 @@ func (k EntityKey) Canonical() string {
 var keyPriority = map[string]int{
 	KindCompany:         0,
 	KindDomain:          1,
-	KindTelegram:        2,
-	KindTelegramChannel: 3,
+	KindForumUID:        2,
+	KindForumUser:       3,
+	KindTelegram:        4,
+	KindTelegramChannel: 5,
 }
 
 func keyLess(a, b EntityKey) bool {

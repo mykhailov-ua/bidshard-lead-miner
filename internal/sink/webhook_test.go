@@ -66,6 +66,27 @@ func TestWrapWebhookUpsertNotifies(t *testing.T) {
 	}
 }
 
+func TestStoreNotifiesCRM(t *testing.T) {
+	t.Parallel()
+
+	inner := NewStubStore()
+	if StoreNotifiesCRM(inner) {
+		t.Fatal("stub store should not notify")
+	}
+	wrapped := WrapWebhook(inner, "http://127.0.0.1:1", "", time.Second)
+	if !StoreNotifiesCRM(wrapped) {
+		t.Fatal("webhook store should notify")
+	}
+	bulk := NewBulkStore(wrapped, 10, time.Second)
+	if !StoreNotifiesCRM(bulk) {
+		t.Fatal("bulk over webhook should notify")
+	}
+	bulkOnly := NewBulkStore(inner, 10, time.Second)
+	if StoreNotifiesCRM(bulkOnly) {
+		t.Fatal("bulk without webhook should not notify")
+	}
+}
+
 func TestValidateWebhookURL(t *testing.T) {
 	if err := ValidateWebhookURL(""); err == nil {
 		t.Fatal("expected error for empty url")

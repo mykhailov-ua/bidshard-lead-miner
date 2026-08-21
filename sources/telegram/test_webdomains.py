@@ -49,6 +49,10 @@ class WebDomainsTest(unittest.TestCase):
         self.assertFalse(is_valid_web_host("durov.gram"))
         self.assertTrue(is_valid_web_host("bojoko.com"))
 
+    def test_is_valid_web_host_rejects_ru_by_tld(self) -> None:
+        self.assertFalse(is_valid_web_host("tracker.example.ru"))
+        self.assertFalse(is_valid_web_host("affiliate.example.by"))
+
     def test_skips_google_and_gov(self) -> None:
         self.assertFalse(is_valid_web_host("news.google.com"))
         self.assertFalse(is_valid_web_host("agency.gov"))

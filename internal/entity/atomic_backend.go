@@ -16,5 +16,6 @@ type AtomicSightingBackend interface {
 		pk EntityKey,
 		in SightingInput,
 		window time.Duration,
+		heat HeatConfig,
 	) (RecordResult, bool, error)
 }

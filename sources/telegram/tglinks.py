@@ -200,6 +200,8 @@ _INVALID_TLD = frozenset(
         "bot",
     }
 )
+# RU/BY country-code TLDs (mirror internal/geo/filter.go).
+_BLOCKED_GEO_TLD = frozenset({"ru", "by", "su", "рф", "бел"})
 
 
 def is_valid_web_host(host: str) -> bool:
@@ -215,6 +217,8 @@ def is_valid_web_host(host: str) -> bool:
     if len(tld) < 2 or len(tld) > 24 or not tld.isalpha():
         return False
     if tld in _INVALID_TLD:
+        return False
+    if tld in _BLOCKED_GEO_TLD:
         return False
     return all(label for label in labels)
 

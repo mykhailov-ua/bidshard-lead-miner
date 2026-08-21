@@ -75,6 +75,7 @@ func TestApplyCrossSourceHotBoostPromotesMedium(t *testing.T) {
 func TestMemoryStoreCrossSourceHotAfterSecondFamily(t *testing.T) {
 	store := NewMemoryStore()
 	contacts := []extract.Contact{{Type: "email", Value: "ops@affnet.com"}}
+	now := time.Now().UTC()
 
 	_, err := store.RecordSighting(t.Context(), SightingInput{
 		ResolveInput: ResolveInput{
@@ -82,9 +83,11 @@ func TestMemoryStoreCrossSourceHotAfterSecondFamily(t *testing.T) {
 			Source:      "telegram:@affnet",
 			Contacts:    contacts,
 		},
-		HashID:  "hash-a",
-		Matched: []string{"voluum"},
-		Text:    "voluum alternative",
+		HashID:   "hash-a",
+		Matched:  []string{"voluum"},
+		Text:     "voluum alternative",
+		PostedAt: now.Add(-2 * 24 * time.Hour),
+		Score:    80,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -95,9 +98,11 @@ func TestMemoryStoreCrossSourceHotAfterSecondFamily(t *testing.T) {
 			Source:   "reddit:igaming",
 			Contacts: contacts,
 		},
-		HashID:  "hash-b",
-		Matched: []string{"postback"},
-		Text:    "postback failing",
+		HashID:   "hash-b",
+		Matched:  []string{"postback"},
+		Text:     "postback failing",
+		PostedAt: now.Add(-1 * 24 * time.Hour),
+		Score:    80,
 	})
 	if err != nil {
 		t.Fatal(err)

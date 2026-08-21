@@ -114,7 +114,25 @@
     {"id": "gray-stm-forum", "phrase": "stm forum", "weight": 8, "tag": "gray-source"},
     {"id": "gray-affiliatefix", "phrase": "affiliatefix", "weight": 8, "tag": "gray-source"},
     {"id": "gray-follow-along", "phrase": "follow along", "weight": 10, "tag": "gray-source"},
-    {"id": "gray-affiliate-world", "phrase": "affiliate world", "weight": 6, "tag": "gray-source"}
+    {"id": "gray-affiliate-world", "phrase": "affiliate world", "weight": 6, "tag": "gray-source"},
+
+    {"id": "gray-voluum-enterprise", "phrase": "voluum enterprise plan", "weight": 24, "tag": "gray-intent"},
+    {"id": "gray-capi-locked", "phrase": "capi locked enterprise", "weight": 26, "tag": "gray-pain"},
+    {"id": "gray-event-overage", "phrase": "event overage fee", "weight": 22, "tag": "gray-pain"},
+    {"id": "gray-stape-alternative", "phrase": "stape alternative", "weight": 20, "tag": "gray-intent"},
+    {"id": "gray-click-id-not-found", "phrase": "click id not found", "weight": 24, "tag": "gray-pain"},
+    {"id": "gray-click-id-truncated", "phrase": "click id truncated", "weight": 22, "tag": "gray-pain"},
+    {"id": "gray-literal-clickid", "phrase": "literal clickid in postback", "weight": 24, "tag": "gray-pain"},
+    {"id": "gray-ftd-discrepancy", "phrase": "ftd discrepancy", "weight": 24, "tag": "gray-pain"},
+    {"id": "gray-ngr-reconciliation", "phrase": "ngr reconciliation", "weight": 20, "tag": "gray-pain"},
+    {"id": "gray-tracker-numbers", "phrase": "tracker numbers don't match", "weight": 22, "tag": "gray-pain"},
+    {"id": "gray-capi-dedup", "phrase": "capi deduplication", "weight": 18, "tag": "gray-bidshard"},
+    {"id": "gray-event-id-dedup", "phrase": "event_id deduplication", "weight": 18, "tag": "gray-bidshard"},
+    {"id": "gray-bemob-alternative", "phrase": "bemob alternative", "weight": 22, "tag": "gray-intent"},
+    {"id": "gray-scaleo-alternative", "phrase": "scaleo alternative", "weight": 22, "tag": "gray-intent"},
+    {"id": "gray-keitaro-mysql", "phrase": "keitaro mysql slow", "weight": 20, "tag": "gray-pain"},
+    {"id": "gray-openrtb-discount", "phrase": "auction discount macro", "weight": 14, "tag": "gray-tech"},
+    {"id": "gray-flat-fee-unlimited", "phrase": "flat fee unlimited events", "weight": 22, "tag": "gray-intent"}
   ],
   "negative": [
     {"id": "gray-neg-affiliate-recruitment", "phrase": "affiliates wanted", "weight": -15, "tag": "negative"},
@@ -123,5 +141,19 @@
     {"id": "gray-neg-best-tracker-for-beginners", "phrase": "best tracker for beginners", "weight": -10, "tag": "negative"},
     {"id": "gray-neg-keitaro-vs-binom-review", "phrase": "keitaro vs binom review", "weight": -8, "tag": "negative"},
     {"id": "gray-neg-affiliate-marketing-course", "phrase": "affiliate marketing course", "weight": -12, "tag": "negative"}
+  ],
+  "hard_reject": [
+    {"id": "hr-geo-sberbank", "phrase": "sberbank", "tag": "geo-reject"},
+    {"id": "hr-geo-sberbank-ru", "phrase": "сбербанк", "tag": "geo-reject"},
+    {"id": "hr-geo-tinkoff", "phrase": "tinkoff", "tag": "geo-reject"},
+    {"id": "hr-geo-tinkoff-ru", "phrase": "тинькофф", "tag": "geo-reject"},
+    {"id": "hr-geo-mir-card", "phrase": "mir card", "tag": "geo-reject"},
+    {"id": "hr-geo-mir-card-ru", "phrase": "карта мир", "tag": "geo-reject"},
+    {"id": "hr-geo-rub-pricing", "phrase": "оплата руб", "tag": "geo-reject"},
+    {"id": "hr-geo-rubles", "phrase": "рубл", "tag": "geo-reject"},
+    {"id": "hr-geo-arbitrage-ru", "phrase": "арбитраж трафика", "tag": "geo-reject"},
+    {"id": "hr-geo-belarus", "phrase": "беларусь", "tag": "geo-reject"},
+    {"id": "hr-geo-belarusbank", "phrase": "belarusbank", "tag": "geo-reject"},
+    {"id": "hr-geo-ooo", "phrase": "ооо ", "tag": "geo-reject"}
   ]
 }

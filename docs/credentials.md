@@ -28,6 +28,40 @@ Powers ICP/geo classification, cold-path junk analysis, embeddings.
 | `GEMINI_API_KEY` | From [Google AI Studio](https://aistudio.google.com/api-keys) |
 | `PARSER_ICP_CLASSIFY` | Set `true` after adding the key |
 | `PARSER_GEO_CLASSIFY` | Set `true` after adding the key |
+| `PARSER_GEMINI_SYNC_GEO` | Set `true` when `PARSER_GEMINI_DEFER=true` and CRM webhook is on (geo before Mongo write) |
+
+### Prod geo compliance (RU/BY + CRM)
+
+When `PARSER_CRM_WEBHOOK=true`, configure geo before leads reach sales. One of:
+
+**Option A - defer + after-analysis webhook (recommended, saves inline Gemini RPM):**
+
+```env
+GEMINI_API_KEY=<key>
+PARSER_GEO_CLASSIFY=true
+PARSER_GEMINI_DEFER=true
+PARSER_CRM_WEBHOOK_AFTER_ANALYSIS=true
+PARSER_LEAD_STATUS_ENABLED=true
+GEO_BLOCK_COUNTRIES=RU,BY
+```
+
+Merge full profile: `cat config/env/.env.prod.example >> .env`
+
+**Option B - inline sync geo on accept:**
+
+```env
+GEMINI_API_KEY=<key>
+PARSER_GEO_CLASSIFY=true
+PARSER_GEMINI_SYNC_GEO=true
+GEO_BLOCK_COUNTRIES=RU,BY
+PARSER_ENRICH_RDAP=true
+```
+
+`parser config check` errors on prod when CRM webhook lacks a geo gate. Unset env keys get safe defaults via `applyComplianceDefaults` when `PARSER_CRM_WEBHOOK=true`.
+
+CRM inbox: `crm-bot api list --status new` hides `analysis_status=pending` and parser reject statuses. Pass `--all` to include deferred leads.
+
+See [backlog-geo-compliance.md](backlog-geo-compliance.md) for full rollout.
 
 1. Create an API key in AI Studio.
 2. Add `GEMINI_API_KEY=<key>` to `.env`.

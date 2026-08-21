@@ -97,6 +97,7 @@ Rebuild after Go changes - otherwise the container runs a stale binary. `network
 | `make preflight-tgweb` | Config, proxy hints, registry, TLS smoke (proxy), HTTP smoke |
 | `make tgweb-discover` | Telethon discover |
 | `make tgweb-prune` | Prune invalid hosts from registry |
+| `make tgweb-domains-prune` | Host prune via `parser telegram domains prune` (no Docker) |
 | `make tgweb-crawl` | Seed + preflight + docker crawl |
 | `make tgweb-crawl-bpf` | Same + optional BPF baseline (`PARSER_BPF_BASELINE=1`, Linux + sudo) |
 | `make tgweb-crawl-residential` | Crawl (requires `PARSER_PROXY_LIST` in `.env`) |
@@ -126,7 +127,98 @@ Headless in default Alpine Docker image is not supported. Use `make docker-headl
 | Mongo ping failed | `docker compose up -d mongo` |
 | `--domains` ignores a host | Add domain to registry JSON first |
 
-Env profiles: `config/env/.env.local.example`, `.env.tgweb.example`, `.env.residential.example`.
+Env profiles: `config/env/.env.local.example`, `.env.tgweb.example`, `.env.residential.example`, `.env.vps.example`, `.env.global.example`.
+
+### tgweb prescan mode
+
+| Value | Behavior | When |
+| --- | --- | --- |
+| `aggressive` (default) | Site LPR bypasses keyword prescan / some hard_reject | Dev crawl tuning |
+| `strict` | Require affiliate keyword hits on page text | Prod / geo compliance |
+
+Set `PARSER_TGWEB_PRESCAN_MODE=strict` on VPS (see `config/env/.env.vps.example`).
+
+### Geo compliance registry hygiene
+
+After Telethon discover or SERP harvest, drop RU/BY hosts before crawl:
+
+```bash
+make tgweb-domains-prune
+# or: go run ./cmd/parser telegram domains prune
+make tgweb-prune   # same via Docker profile
+```
+
+Manual audit (gitignored runtime files):
+
+- `data/runtime/discovered_telegram_channels.json` - remove CIS-heavy channels (Cyrillic titles, tgstat noise)
+- `data/runtime/discovered_telegram_domains.json` - prune removes `.ru`/`.by`/`.su` TLDs automatically
+
+Re-run discover after editing `config/discover.icp.json`: `make tgweb-discover`.
+
+See [backlog-geo-compliance.md](backlog-geo-compliance.md).
+
+Entity graph / cross-source heat (forum identity, recency tiers, CRM inbox): [backlog-entity-heat.md](backlog-entity-heat.md).
+
+---
+
+## Global discovery (non-RU bias)
+
+After geo compliance (P0-P2), widen recall outside RU/BY:
+
+### Locale keyword overlays
+
+```env
+KEYWORDS_LOCALE=es,pt
+```
+
+Loads `data/keywords-es.json` and `data/keywords-pt.json` on top of base + gray registry. Rotate weekly (e.g. `es,pt` then `de,fr`) to cover EU markets without enabling RU locale files.
+
+Profile: `config/env/.env.global.example` (merge into `.env`).
+
+### HTTP source bundle
+
+`PARSER_SOURCE=all` does **not** include tgweb, github, ct, or reviews. Recommended prod HTTP mix:
+
+```env
+PARSER_SOURCE=forum,supply,lander,reddit,warrior,serp,reviews
+```
+
+Add `GITHUB_TOKEN` + `GITHUB_SEARCH_QUERIES` for GitHub issue search; enable `ct` / `reviews` when seeds are populated.
+
+### Gemini discover diff
+
+Suggest new global dorks from junk/accept stats:
+
+```env
+GEMINI_DISCOVER_DIFF_EVERY=5
+GEMINI_DISCOVER_DIFF_DIR=data/suggestions
+GEMINI_API_KEY=...
+```
+
+After each cold-path cycle, review files under `data/suggestions/`. Merge approved `telegram_search` / `serp_dorks` lines into `config/discover.icp.json` manually (no auto-merge). Then `make tgweb-discover`.
+
+### Entity heat report (weekly soak)
+
+Negative-selection metrics for cross-source entity graph quality:
+
+```bash
+make entity-heat-report
+# or: bash scripts/dev/entity_heat_report.sh
+```
+
+Writes `data/suggestions/entity_heat_YYYYMMDD.txt` (hot + low confidence, under-hot cold tiers, forum_user hit rate) and `entity_pain_YYYYMMDD.txt` (top `unified_pain` strings for keyword feedback into `data/keywords.json`).
+
+False merge repair: `crm-bot db entity-split --id ENTITY_ID --hash HASH --yes` (on-server, Mongo reachable).
+
+### Proxy egress for global SERP/tgweb
+
+On datacenter VPS, use residential proxy with geo session in username (provider-specific):
+
+```env
+PARSER_PROXY_LIST=http://user-country-us-session-abc:pass@gw.dataimpulse.com:823
+```
+
+Verify before crawl: `make preflight-tgweb`. See [config/env/.env.residential.example](../config/env/.env.residential.example).
 
 ---
 

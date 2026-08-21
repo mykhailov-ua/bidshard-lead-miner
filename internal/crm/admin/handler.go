@@ -56,6 +56,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handleDeleteOne(w, r)
 	case r.Method == http.MethodPatch && path == "/v1/admin/leads":
 		h.handlePatchLead(w, r)
+	case r.Method == http.MethodGet && path == "/v1/admin/entities/list":
+		h.handleListEntities(w, r)
+	case r.Method == http.MethodGet && path == "/v1/admin/entities/get":
+		h.handleGetEntity(w, r)
+	case r.Method == http.MethodGet && path == "/v1/admin/entities/leads":
+		h.handleListEntityLeads(w, r)
 	default:
 		http.NotFound(w, r)
 	}
@@ -72,11 +78,14 @@ func (h *Handler) handleStats(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleListLeads(w http.ResponseWriter, r *http.Request) {
 	limit := parseLimit(r.URL.Query().Get("limit"), 50)
+	status := strings.TrimSpace(r.URL.Query().Get("status"))
 	filter := store.ListFilter{
-		Status:       strings.TrimSpace(r.URL.Query().Get("status")),
+		Status:       status,
 		SourcePrefix: strings.TrimSpace(r.URL.Query().Get("source_prefix")),
 		ScoreMax:     parseScoreMax(r.URL.Query().Get("score_max")),
 		Limit:        limit,
+		InboxOnly:    parseInboxOnly(r.URL.Query().Get("inbox"), status),
+		Sort:         parseListSort(r.URL.Query().Get("sort"), status),
 	}
 	result, err := h.store.List(r.Context(), filter)
 	if err != nil {
@@ -272,6 +281,80 @@ func (h *Handler) handlePatchLead(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"hash_id": hashID, "status": strings.TrimSpace(req.Status)})
 }
 
+func (h *Handler) handleListEntities(w http.ResponseWriter, r *http.Request) {
+	if !h.store.EntitiesEnabled() {
+		http.Error(w, "entities not configured", http.StatusServiceUnavailable)
+		return
+	}
+	result, err := h.store.ListEntities(r.Context(), store.EntityListFilter{
+		MinTier: strings.TrimSpace(r.URL.Query().Get("min_tier")),
+		Limit:   parseLimit(r.URL.Query().Get("limit"), 20),
+	})
+	if err != nil {
+		http.Error(w, "list failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (h *Handler) handleGetEntity(w http.ResponseWriter, r *http.Request) {
+	if !h.store.EntitiesEnabled() {
+		http.Error(w, "entities not configured", http.StatusServiceUnavailable)
+		return
+	}
+	entityID := strings.TrimSpace(r.URL.Query().Get("entity_id"))
+	if entityID == "" {
+		http.Error(w, "entity_id required", http.StatusBadRequest)
+		return
+	}
+	doc, err := h.store.GetEntity(r.Context(), entityID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "get failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, doc)
+}
+
+func (h *Handler) handleListEntityLeads(w http.ResponseWriter, r *http.Request) {
+	if !h.store.EntitiesEnabled() {
+		http.Error(w, "entities not configured", http.StatusServiceUnavailable)
+		return
+	}
+	entityID := strings.TrimSpace(r.URL.Query().Get("entity_id"))
+	if entityID == "" {
+		http.Error(w, "entity_id required", http.StatusBadRequest)
+		return
+	}
+	leads, err := h.store.ListEntityLeads(r.Context(), entityID, parseLimit(r.URL.Query().Get("limit"), 20))
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "list failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"entity_id": entityID, "leads": leads})
+}
+
+// parseListSort defaults to entity heat for sales inbox (status=new); use sort=score for legacy ordering.
+func parseListSort(raw, status string) string {
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	switch raw {
+	case "score", "heat":
+		return raw
+	default:
+		if strings.EqualFold(strings.TrimSpace(status), "new") {
+			return "heat"
+		}
+		return "score"
+	}
+}
+
 func parseLimit(raw string, fallback int64) int64 {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -313,6 +396,19 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, out any) error {
 		return fmt.Errorf("trailing json")
 	}
 	return nil
+}
+
+// parseInboxOnly enables sales inbox filtering. Default on for status=new unless inbox=0|false.
+func parseInboxOnly(raw, status string) bool {
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	switch raw {
+	case "0", "false", "no":
+		return false
+	case "1", "true", "yes":
+		return true
+	default:
+		return strings.EqualFold(strings.TrimSpace(status), "new")
+	}
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

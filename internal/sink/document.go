@@ -52,6 +52,8 @@ type LeadDoc struct {
 	EntityID            string          `bson:"entity_id,omitempty" json:"entity_id,omitempty"`
 	EntitySightingCount int             `bson:"entity_sighting_count,omitempty" json:"entity_sighting_count,omitempty"`
 	EntitySourceCount   int             `bson:"entity_source_count,omitempty" json:"entity_source_count,omitempty"`
+	EntityHeat          float64         `bson:"entity_heat,omitempty" json:"entity_heat,omitempty"`
+	HeatTier            string          `bson:"heat_tier,omitempty" json:"heat_tier,omitempty"`
 }
 
 func ToLeadDoc(lead model.Lead) LeadDoc {
@@ -116,6 +118,8 @@ func ToLeadDoc(lead model.Lead) LeadDoc {
 		EntityID:            lead.EntityID,
 		EntitySightingCount: lead.EntitySightingCount,
 		EntitySourceCount:   lead.EntitySourceCount,
+		EntityHeat:          lead.EntityHeat,
+		HeatTier:            lead.HeatTier,
 	}
 	return doc
 }
@@ -159,6 +163,8 @@ type LeadDocUpdateFields struct {
 	EntityID            string          `bson:"entity_id,omitempty"`
 	EntitySightingCount int             `bson:"entity_sighting_count,omitempty"`
 	EntitySourceCount   int             `bson:"entity_source_count,omitempty"`
+	EntityHeat          float64         `bson:"entity_heat,omitempty"`
+	HeatTier            string          `bson:"heat_tier,omitempty"`
 }
 
 func ToLeadDocUpdateBSON(doc LeadDoc) (bson.M, error) {
@@ -200,6 +206,8 @@ func ToLeadDocUpdateBSON(doc LeadDoc) (bson.M, error) {
 		EntityID:            doc.EntityID,
 		EntitySightingCount: doc.EntitySightingCount,
 		EntitySourceCount:   doc.EntitySourceCount,
+		EntityHeat:          doc.EntityHeat,
+		HeatTier:            doc.HeatTier,
 	})
 	if err != nil {
 		return nil, err

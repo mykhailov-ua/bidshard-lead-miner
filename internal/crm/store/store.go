@@ -23,6 +23,7 @@ var ErrNotFound = errors.New("lead not found")
 
 type LeadStore struct {
 	leads         *mongo.Collection
+	entities      *mongo.Collection
 	sourceStats   *mongo.Collection
 	keywordStats  *mongo.Collection
 	crmBoosts     *mongo.Collection
@@ -50,6 +51,9 @@ func New(client *mongo.Client, opts Options) *LeadStore {
 		statsTimeout:  opts.statsTimeout(),
 		exportMaxRows: opts.exportMaxRows(),
 		searchMaxRows: opts.searchMaxRows(),
+	}
+	if opts.EntityCollection != "" {
+		s.entities = db.Collection(opts.EntityCollection)
 	}
 	if opts.SourceStatsCollection != "" {
 		s.sourceStats = db.Collection(opts.SourceStatsCollection)
@@ -112,6 +116,8 @@ type ListFilter struct {
 	ScoreMax     int
 	Limit        int64
 	Cursor       *ListCursor
+	InboxOnly    bool   // exclude pending analysis and parser geo/icp rejects
+	Sort         string // heat (default inbox) or score
 }
 
 type ListCursor struct {
@@ -135,9 +141,25 @@ func (f ListFilter) clampLimit() int64 {
 	return limit
 }
 
+func (f ListFilter) sortSpec() bson.D {
+	if strings.EqualFold(strings.TrimSpace(f.Sort), "score") {
+		return bson.D{
+			{Key: "score", Value: -1},
+			{Key: "hash_id", Value: 1},
+		}
+	}
+	return bson.D{
+		{Key: "entity_heat", Value: -1},
+		{Key: "score", Value: -1},
+		{Key: "hash_id", Value: 1},
+	}
+}
+
 func (f ListFilter) matchQuery() bson.M {
 	q := bson.M{}
-	if status := f.Status; status != "" {
+	if f.InboxOnly {
+		applyInboxFilter(q, strings.TrimSpace(f.Status))
+	} else if status := f.Status; status != "" {
 		q["status"] = status
 	}
 	if prefix := strings.TrimSpace(f.SourcePrefix); prefix != "" {
@@ -167,10 +189,7 @@ func (s *LeadStore) List(ctx context.Context, filter ListFilter) (ListResult, er
 	defer cancel()
 
 	opts := options.Find().
-		SetSort(bson.D{
-			{Key: "score", Value: -1},
-			{Key: "hash_id", Value: 1},
-		}).
+		SetSort(filter.sortSpec()).
 		// limit+1 detects whether a next page exists without CountDocuments.
 		SetLimit(limit + 1).
 		SetProjection(leadCardProjection())
@@ -228,23 +247,27 @@ func (s *LeadStore) GetByHashID(ctx context.Context, hashID string) (sink.LeadDo
 
 func leadCardProjection() bson.M {
 	return bson.M{
-		"hash_id":          1,
-		"ts":               1,
-		"round_id":         1,
-		"priority":         1,
-		"score":            1,
-		"source":           1,
-		"title":            1,
-		"contacts":         1,
-		"matched":          1,
-		"snippet":          1,
-		"status":           1,
-		"status_at":        1,
-		"outreach_draft":   1,
-		"outreach_channel": 1,
-		"outreach_angle":   1,
-		"pilot_qualified":  1,
-		"geo_country":      1,
-		"entity_id":        1,
+		"hash_id":               1,
+		"ts":                    1,
+		"round_id":              1,
+		"priority":              1,
+		"score":                 1,
+		"source":                1,
+		"title":                 1,
+		"contacts":              1,
+		"matched":               1,
+		"snippet":               1,
+		"status":                1,
+		"status_at":             1,
+		"outreach_draft":        1,
+		"outreach_channel":      1,
+		"outreach_angle":        1,
+		"pilot_qualified":       1,
+		"geo_country":           1,
+		"entity_id":             1,
+		"entity_heat":           1,
+		"heat_tier":             1,
+		"entity_sighting_count": 1,
+		"entity_source_count":   1,
 	}
 }

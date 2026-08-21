@@ -52,3 +52,13 @@ medium.com
 notion.site
 docs.google.com
 github.com
+
+# RU/BY consumer mail (geo compliance - GEO-P0-02)
+mail.ru
+yandex.ru
+ya.ru
+bk.ru
+list.ru
+inbox.ru
+rambler.ru
+internet.ru

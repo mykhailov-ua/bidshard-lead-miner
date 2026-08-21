@@ -83,6 +83,9 @@ func Run(ctx context.Context, cfg config.Config) error {
 	if deps.warmPath != nil {
 		deps.warmPath.Run(ctx, &wg)
 	}
+	if deps.entityClassify != nil {
+		deps.entityClassify.Run(ctx, &wg)
+	}
 
 	startBackgroundWorkers(ctx, cfg, deps, &wg)
 

@@ -6,7 +6,9 @@
 #   parser telegram scrape  (sidecar reads this yaml)
 #
 # Paths under data/runtime/ are gitignored; Docker uses parser_runtime named volume.
-# Manual chats[] only for private groups or numeric chat_id overrides.
+#
+# Manual chats[]: curate EU/LATAM/global channels (geo: ru is dropped at load - never add RU).
+# Replace example usernames with real public channels before enabling.
 #
 discover:
   enabled: true
@@ -21,8 +23,17 @@ discover:
     messages_per_channel: 50
     rescan_days: 30  # skip channels crawled within this window
 
-# Manual additions only (joined private groups, numeric chat_id, etc.)
-chats: []
+# Manual additions (public channels only). geo is metadata for ops; loader skips geo: ru.
+chats:
+  # - name: igaming_latam
+  #   username: affiliate_latam_en
+  #   geo: latam
+  # - name: eu_acquisition
+  #   username: igaming_acquisition
+  #   geo: eu
+  # - name: global_stm
+  #   username: stmaffiliate
+  #   geo: global
 
 session: data/runtime/telethon.session
 cursor_db: data/runtime/crawler.db

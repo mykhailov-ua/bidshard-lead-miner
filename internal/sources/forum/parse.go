@@ -13,6 +13,7 @@ var (
 	xenforoBodyRe = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*bbWrapper[^"]*"[^>]*>(.*?)</div>`)
 	usernameRe    = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*username[^"]*"[^>]*>(.*?)</div>`)
 	xenforoUserRe = regexp.MustCompile(`(?is)<a[^>]*class="[^"]*username[^"]*"[^>]*>(.*?)</a>`)
+	xenforoUIDRe  = regexp.MustCompile(`(?is)<a[^>]*class="[^"]*username[^"]*"[^>]*data-user-id="(\d+)"`)
 	datetimeAttr  = regexp.MustCompile(`(?i)datetime="([^"]+)"`)
 	dateTextRe    = regexp.MustCompile(`(?i)\b(\d{4}-\d{2}-\d{2}|\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\b`)
 	threadLinkRe  = regexp.MustCompile(`(?i)href="([^"]*(?:/threads/|/t/|thread-|\?t=)[^"]*)"`)
@@ -22,6 +23,7 @@ var (
 
 type Post struct {
 	Author   string
+	UserID   string
 	Body     string
 	PostedAt time.Time
 }
@@ -91,6 +93,7 @@ func parseWithRegex(raw string) []Post {
 	if len(users) == 0 {
 		users = xenforoUserRe.FindAllStringSubmatch(raw, -1)
 	}
+	uids := xenforoUIDRe.FindAllStringSubmatch(raw, -1)
 	postDate := parseDateFromRaw(raw)
 
 	var posts []Post
@@ -100,10 +103,14 @@ func parseWithRegex(raw string) []Post {
 		if i < len(users) {
 			author = stripTags(users[i][1])
 		}
+		userID := ""
+		if i < len(uids) {
+			userID = strings.TrimSpace(uids[i][1])
+		}
 		if body == "" {
 			continue
 		}
-		posts = append(posts, Post{Author: author, Body: body, PostedAt: postDate})
+		posts = append(posts, Post{Author: author, UserID: userID, Body: body, PostedAt: postDate})
 	}
 	return posts
 }

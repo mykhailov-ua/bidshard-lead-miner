@@ -112,6 +112,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 					Raw:      post.Body,
 					Contact:  primary,
 					Title:    post.Author,
+					Username: post.Author,
 					PostedAt: post.PostedAt,
 				}
 

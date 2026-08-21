@@ -38,3 +38,20 @@ func TestBlacklist(t *testing.T) {
 		t.Errorf("expected legit@example.com / example.com NOT to be blacklisted")
 	}
 }
+
+func TestBlacklistRUMailDomains(t *testing.T) {
+	dir := t.TempDir()
+	domPath := filepath.Join(dir, "domains.txt")
+	content := "mail.ru\nyandex.ru\n"
+	if err := os.WriteFile(domPath, []byte(content), 0644); err != nil {
+		t.Fatalf("write doms: %v", err)
+	}
+	if err := LoadBlacklistDomains(domPath); err != nil {
+		t.Fatalf("LoadBlacklistDomains failed: %v", err)
+	}
+	for _, email := range []string{"ops@mail.ru", "buyer@yandex.ru"} {
+		if !IsBlacklisted(email, "") {
+			t.Fatalf("expected %q to be blacklisted", email)
+		}
+	}
+}

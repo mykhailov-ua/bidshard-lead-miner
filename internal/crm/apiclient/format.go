@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/bidshard/parser/internal/crm/store"
+	"github.com/bidshard/parser/internal/entity"
 	"github.com/bidshard/parser/internal/sink"
 )
 
@@ -20,6 +21,36 @@ func WriteStats(out io.Writer, stats store.DBStats) {
 		}
 		_, _ = fmt.Fprintf(out, "  %s: %d\n", status, row.Count)
 	}
+}
+
+func WriteEntityTable(out io.Writer, entities []entity.EntityDoc) {
+	if len(entities) == 0 {
+		_, _ = fmt.Fprintln(out, "no entities")
+		return
+	}
+	tw := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "HEAT\tTIER\tFAMILIES\tPAIN\tENTITY_ID")
+	for _, doc := range entities {
+		pain := doc.UnifiedPain
+		if pain == "" && len(doc.Matched) > 0 {
+			pain = strings.Join(doc.Matched, ",")
+		}
+		_, _ = fmt.Fprintf(tw, "%.0f\t%s\t%d\t%s\t%s\n",
+			doc.HeatScore,
+			doc.HeatTier,
+			doc.SourceCount,
+			truncate(pain, 48),
+			doc.EntityID,
+		)
+	}
+	_ = tw.Flush()
+}
+
+func WriteEntityJSON(out io.Writer, doc entity.EntityDoc) error {
+	enc := json.NewEncoder(out)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	return enc.Encode(doc)
 }
 
 func WriteLeadTable(out io.Writer, leads []sink.LeadDoc) {

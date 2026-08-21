@@ -20,4 +20,8 @@ func TestTargetDomain(t *testing.T) {
 	if d != "example.com" {
 		t.Fatalf("got %q", d)
 	}
+	d = TargetDomain("tgweb:@affnet:topxpartners.com", nil)
+	if d != "topxpartners.com" {
+		t.Fatalf("tgweb domain=%q", d)
+	}
 }

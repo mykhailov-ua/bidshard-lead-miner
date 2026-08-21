@@ -8,13 +8,6 @@ import (
 	"github.com/bidshard/parser/internal/validate"
 )
 
-func sightingTime(in SightingInput) time.Time {
-	if !in.SeenAt.IsZero() {
-		return in.SeenAt.UTC()
-	}
-	return time.Now().UTC()
-}
-
 func sightingSignals(stack []string, text string, matched []string) (hasPain bool, buyerRole bool) {
 	hasPain = len(matched) > 0 || validate.HasPainContext(text)
 	_, tags := scoring.PilotQualified("", stack, text)
@@ -29,7 +22,11 @@ func sightingSignals(stack []string, text string, matched []string) (hasPain boo
 
 // NewDoc builds an entity document from the first sighting.
 func NewDoc(entityID string, pk EntityKey, keys []EntityKey, in SightingInput) EntityDoc {
-	now := sightingTime(in)
+	return NewDocWithHeat(entityID, pk, keys, in, DefaultHeatConfig(), time.Now().UTC())
+}
+
+// NewDocWithHeat builds an entity document and computes initial heat when enabled.
+func NewDocWithHeat(entityID string, pk EntityKey, keys []EntityKey, in SightingInput, heat HeatConfig, now time.Time) EntityDoc {
 	hasPain, buyerRole := sightingSignals(in.Stack, in.Text, in.Matched)
 	family := SourceFamily(in.Source)
 
@@ -43,8 +40,6 @@ func NewDoc(entityID string, pk EntityKey, keys []EntityKey, in SightingInput) E
 		SourceFamilies: uniqStrings([]string{family}),
 		Matched:        uniqStrings(in.Matched),
 		Stack:          uniqStrings(in.Stack),
-		FirstSeen:      now,
-		LastSeen:       now,
 		SightingCount:  1,
 		SourceCount:    1,
 		CanonicalHash:  strings.TrimSpace(in.HashID),
@@ -53,25 +48,35 @@ func NewDoc(entityID string, pk EntityKey, keys []EntityKey, in SightingInput) E
 	if hasPain {
 		doc.PainHits = 1
 	}
+	appendOrRefreshEntitySighting(&doc, in)
+	updateEntitySeenBounds(&doc, in)
+	RecomputeEntityHeat(&doc, heat, now)
 	return doc
 }
 
 // MergeSighting applies a sighting onto an existing entity document.
 func MergeSighting(doc *EntityDoc, keys []EntityKey, in SightingInput) RecordResult {
+	return MergeSightingWithHeat(doc, keys, in, DefaultHeatConfig(), time.Now().UTC())
+}
+
+// MergeSightingWithHeat applies a sighting and recomputes entity heat when cfg.Enabled.
+func MergeSightingWithHeat(doc *EntityDoc, keys []EntityKey, in SightingInput, heat HeatConfig, now time.Time) RecordResult {
 	if doc == nil {
 		return RecordResult{}
 	}
-	now := sightingTime(in)
+	hashID := strings.TrimSpace(in.HashID)
+	if entityHashKnown(doc, hashID) {
+		return refreshEntitySighting(doc, in)
+	}
+
 	hasPain, buyerRole := sightingSignals(in.Stack, in.Text, in.Matched)
 	family := SourceFamily(in.Source)
 
 	newFamily := family != "" && !containsString(doc.SourceFamilies, family)
 	doc.SightingCount++
-	// Bump generation so Mongo replaceIfGeneration rejects concurrent writers on the same entity.
 	doc.MergeGeneration++
-	doc.LastSeen = now
 	doc.AliasKeys = unionStrings(doc.AliasKeys, AliasTokens(keys))
-	doc.HashIDs = unionStrings(doc.HashIDs, []string{strings.TrimSpace(in.HashID)})
+	doc.HashIDs = unionStrings(doc.HashIDs, []string{hashID})
 	doc.Sources = unionStrings(doc.Sources, []string{strings.TrimSpace(in.Source)})
 	if newFamily {
 		doc.SourceFamilies = unionStrings(doc.SourceFamilies, []string{family})
@@ -87,17 +92,41 @@ func MergeSighting(doc *EntityDoc, keys []EntityKey, in SightingInput) RecordRes
 		doc.BuyerRoleSeen = true
 	}
 	if doc.CanonicalHash == "" {
-		doc.CanonicalHash = strings.TrimSpace(in.HashID)
+		doc.CanonicalHash = hashID
 	} else if buyerRole && !hadBuyerRole {
 		// Promote latest buyer-role sighting hash as canonical for cross-source hot patching.
-		doc.CanonicalHash = strings.TrimSpace(in.HashID)
+		doc.CanonicalHash = hashID
 	}
+
+	appendOrRefreshEntitySighting(doc, in)
+	updateEntitySeenBounds(doc, in)
+	RecomputeEntityHeat(doc, heat, now)
 
 	return RecordResult{
 		EntityID:        doc.EntityID,
 		SightingCount:   doc.SightingCount,
 		SourceCount:     doc.SourceCount,
 		NewSourceFamily: newFamily,
+	}
+}
+
+// refreshEntitySighting updates crawl time and bounds for a duplicate hash_id without bumping counters.
+func refreshEntitySighting(doc *EntityDoc, in SightingInput) RecordResult {
+	return refreshEntitySightingWithHeat(doc, in, DefaultHeatConfig(), time.Now().UTC())
+}
+
+func refreshEntitySightingWithHeat(doc *EntityDoc, in SightingInput, heat HeatConfig, now time.Time) RecordResult {
+	if doc == nil {
+		return RecordResult{}
+	}
+	doc.MergeGeneration++
+	appendOrRefreshEntitySighting(doc, in)
+	updateEntitySeenBounds(doc, in)
+	RecomputeEntityHeat(doc, heat, now)
+	return RecordResult{
+		EntityID:      doc.EntityID,
+		SightingCount: doc.SightingCount,
+		SourceCount:   doc.SourceCount,
 	}
 }
 

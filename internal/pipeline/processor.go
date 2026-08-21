@@ -52,40 +52,44 @@ type EnrichSynthesizer interface {
 }
 
 type Processor struct {
-	Registry           *scoring.Registry
-	Seen               *dedup.SeenCache
-	Store              sink.Store
-	MX                 validate.MXValidator
-	Junk               *coldpath.Capturer
-	SourceRep          *scoring.SourceReputation
-	KeywordStats       *sink.KeywordStatsStore
-	ICP                ICPClassifier
-	ICPEnabled         bool
-	ICPTgWebEnabled    bool
-	TgWebPrescanMode   scoring.TgWebPrescanMode
-	Geo                GeoClassifier
-	GeoEnabled         bool
-	GeoBlockCountries  []string
-	Engage             EngagementClassifier
-	EngageEnabled      bool
-	Prescan            EmbedPrescanner
-	PrescanEnabled     bool
-	LeadCluster        LeadClusterer
-	LeadClusterEnabled bool
-	Enricher           *enrich.Enricher
-	EnrichSynth        EnrichSynthesizer
-	EnrichSynthEnabled bool
-	TimeDecayEnabled   bool
-	PilotTagEnabled    bool
-	LeadStatusEnabled  bool
-	GeminiDefer        bool
-	WarmPath           *warmpath.Capturer
-	EntityRecorder     entity.Recorder
-	EntitySightings    bool
-	CrossSourceHot     bool
-	CrossSourceWindow  time.Duration
-	CrossSourceBoost   int
-	hashInflight       sync.Map // hash_id -> struct{}
+	Registry              *scoring.Registry
+	Seen                  *dedup.SeenCache
+	Store                 sink.Store
+	MX                    validate.MXValidator
+	Junk                  *coldpath.Capturer
+	SourceRep             *scoring.SourceReputation
+	KeywordStats          *sink.KeywordStatsStore
+	ICP                   ICPClassifier
+	ICPEnabled            bool
+	ICPTgWebEnabled       bool
+	TgWebPrescanMode      scoring.TgWebPrescanMode
+	Geo                   GeoClassifier
+	GeoEnabled            bool
+	GeoBlockCountries     []string
+	Engage                EngagementClassifier
+	EngageEnabled         bool
+	Prescan               EmbedPrescanner
+	PrescanEnabled        bool
+	LeadCluster           LeadClusterer
+	LeadClusterEnabled    bool
+	Enricher              *enrich.Enricher
+	EnrichSynth           EnrichSynthesizer
+	EnrichSynthEnabled    bool
+	TimeDecayEnabled      bool
+	PilotTagEnabled       bool
+	LeadStatusEnabled     bool
+	GeminiDefer           bool
+	WarmPath              *warmpath.Capturer
+	EntityRecorder        entity.Recorder
+	EntitySightings       bool
+	CrossSourceHot        bool
+	CrossSourceWindow     time.Duration
+	CrossSourceBoost      int
+	EntityClassifyEnabled bool
+	EntityClassify        *warmpath.EntityClassifyCapturer
+	EntityHeatEnabled     bool
+	EntityHeat            entity.HeatConfig
+	hashInflight          sync.Map // hash_id -> struct{}
 }
 
 type ProcessOutcome struct {
@@ -286,8 +290,8 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		return out
 	}
 	if p.Seen != nil && p.Seen.Seen(hashID) {
-		result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, entity.ResolveInput{}))
-		p.maybePatchCanonicalCrossSourceHot(ctx, hashID, result)
+		result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
+		p.maybePatchCanonicalLead(ctx, hashID, result)
 		out.Dedup = true
 		slog.Debug("seen cache hit", "round_id", task.RoundID, "hash_id", hashID)
 		return out
@@ -295,8 +299,8 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 
 	if !p.acquireHash(hashID) {
 		// Another worker is already past Seen/Exists for this hash_id; skip duplicate Gemini/Mongo work.
-		result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, entity.ResolveInput{}))
-		p.maybePatchCanonicalCrossSourceHot(ctx, hashID, result)
+		result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
+		p.maybePatchCanonicalLead(ctx, hashID, result)
 		out.Dedup = true
 		slog.Debug("hash inflight dedup", "round_id", task.RoundID, "hash_id", hashID)
 		return out
@@ -310,8 +314,8 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			return out
 		}
 		if exists {
-			result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, entity.ResolveInput{}))
-			p.maybePatchCanonicalCrossSourceHot(ctx, hashID, result)
+			result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
+			p.maybePatchCanonicalLead(ctx, hashID, result)
 			out.Dedup = true
 			if p.Seen != nil {
 				p.Seen.Mark(hashID)
@@ -330,8 +334,8 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		if dup, clusterOf, err := p.LeadCluster.CheckDuplicate(ctx, hashID, text); err != nil {
 			slog.Warn("lead cluster check failed", "round_id", task.RoundID, "hash_id", hashID, "error", err)
 		} else if dup {
-			result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, entity.ResolveInput{}))
-			p.maybePatchCanonicalCrossSourceHot(ctx, hashID, result)
+			result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
+			p.maybePatchCanonicalLead(ctx, hashID, result)
 			out.Dedup = true
 			slog.Debug("semantic lead dedup", "round_id", task.RoundID, "hash_id", hashID, "cluster_of", clusterOf)
 			return out
@@ -345,7 +349,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		if len(blocked) == 0 {
 			blocked = []string{"RU", "BY"}
 		}
-		if res, err := p.Geo.ClassifyGeo(ctx, text, contactStrs, blocked); err != nil {
+		if res, err := p.Geo.ClassifyGeo(ctx, geoClassifyText(task.Item, text), contactStrs, blocked); err != nil {
 			slog.Warn("geo classify failed", "round_id", task.RoundID, "error", err)
 		} else {
 			geoResult = res
@@ -447,7 +451,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		lead.Tags = entity.AppendUniqueTag(lead.Tags, scoring.TagPublisherSurface)
 	}
 
-	entityResult := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, entity.ResolveInput{
+	entityResult := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{
 		CompanyName:  lead.CompanyName,
 		DisplayName:  lead.DisplayName,
 		GravatarName: lead.GravatarName,
@@ -458,7 +462,22 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		lead.EntitySightingCount = entityResult.SightingCount
 		lead.EntitySourceCount = entityResult.SourceCount
 	}
-	if p.CrossSourceHot && entityResult.CrossSourceHot {
+	if p.EntityHeatEnabled {
+		entity.ApplyEntityHeatToLead(&lead, entityResult, p.Registry, p.EntityHeat)
+		if entityResult.CrossSourceHot {
+			priority = scoring.Priority(lead.Priority)
+			slog.Info("entity heat boost",
+				"round_id", task.RoundID,
+				"entity_id", entityResult.EntityID,
+				"hash_id", hashID,
+				"heat_tier", entityResult.HeatTier,
+				"heat_score", entityResult.HeatScore,
+				"source_count", entityResult.SourceCount,
+				"score", lead.Score,
+				"priority", lead.Priority,
+			)
+		}
+	} else if p.CrossSourceHot && entityResult.CrossSourceHot {
 		entity.ApplyCrossSourceHotBoost(&lead, p.Registry, p.CrossSourceBoost)
 		priority = scoring.Priority(lead.Priority)
 		slog.Info("cross-source hot boost",
@@ -474,13 +493,13 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	if p.Store != nil {
 		if err := p.Store.Upsert(ctx, lead); err != nil {
 			if sink.IsDuplicateKey(err) {
-				dupResult := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, entity.ResolveInput{
+				dupResult := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{
 					CompanyName:  lead.CompanyName,
 					DisplayName:  lead.DisplayName,
 					GravatarName: lead.GravatarName,
 					Source:       lead.Source,
 				}))
-				p.maybePatchCanonicalCrossSourceHot(ctx, hashID, dupResult)
+				p.maybePatchCanonicalLead(ctx, hashID, dupResult)
 				out.Dedup = true
 				if p.Seen != nil {
 					p.Seen.Mark(hashID)
@@ -532,6 +551,9 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			RDAPCountry:   enrichResult.RDAPCountry,
 			DomainAgeDays: enrichResult.DomainAgeDays,
 			DisplayName:   enrichResult.DisplayName,
+			EntityID:      lead.EntityID,
+			EntityHeat:    lead.EntityHeat,
+			HeatTier:      lead.HeatTier,
 		})
 	}
 	if p.SourceRep != nil {
@@ -802,10 +824,11 @@ func (p *Processor) icpClassifierEnabled(source string) bool {
 	return p.ICPTgWebEnabled && filter.IsTgWebSource(source)
 }
 
-func entitySightingInput(task Task, contacts []extract.Contact, hashID string, matched, stack []string, text string, resolve entity.ResolveInput) entity.SightingInput {
+func entitySightingInput(task Task, contacts []extract.Contact, hashID string, matched, stack []string, text string, score int, resolve entity.ResolveInput) entity.SightingInput {
 	if resolve.Source == "" {
 		resolve.Source = task.Item.Source
 	}
+	resolve = entity.EnrichForumIdentity(resolve, task.Item.Username, task.Item.Title, task.Item.ForumUserID)
 	resolve.Contacts = contacts
 	return entity.SightingInput{
 		ResolveInput: resolve,
@@ -813,6 +836,8 @@ func entitySightingInput(task Task, contacts []extract.Contact, hashID string, m
 		Matched:      matched,
 		Stack:        stack,
 		Text:         text,
+		Score:        score,
+		PostedAt:     task.Item.PostedAt,
 		SeenAt:       time.Now().UTC(),
 	}
 }
@@ -863,18 +888,61 @@ func (p *Processor) recordEntitySighting(ctx context.Context, in entity.Sighting
 			"sighting_count", result.SightingCount,
 		)
 	}
+	p.maybeCaptureEntityClassify(result)
 	return result
 }
 
-func (p *Processor) maybePatchCanonicalCrossSourceHot(ctx context.Context, currentHash string, result entity.RecordResult) {
-	if !p.CrossSourceHot || !result.CrossSourceHot || p.Store == nil {
+func (p *Processor) maybeCaptureEntityClassify(result entity.RecordResult) {
+	if !p.EntityClassifyEnabled || p.EntityClassify == nil {
 		return
 	}
+	if !entity.ShouldTriggerEntityClassify(result) {
+		return
+	}
+	p.EntityClassify.TryCapture(warmpath.EntityClassifyEvent{
+		EntityID:   result.EntityID,
+		ForceFresh: result.NewSourceFamily,
+	})
+}
+
+func (p *Processor) maybePatchCanonicalLead(ctx context.Context, currentHash string, result entity.RecordResult) {
 	canonical := strings.TrimSpace(result.CanonicalHash)
-	if canonical == "" || canonical == currentHash {
+	if canonical == "" || canonical == currentHash || p.Store == nil {
 		return
 	}
-	// Dedup hit on a duplicate sighting: boost score on the canonical lead already stored.
+	if p.EntityHeatEnabled {
+		if entity.HeatTierRank(result.HeatTier) < entity.HeatTierRank(entity.HeatTierHot) {
+			return
+		}
+		patcher, ok := p.Store.(sink.EntityHeatPatcher)
+		if !ok {
+			return
+		}
+		boost := entity.HeatBoostForTier(result.HeatTier, p.EntityHeat)
+		if err := patcher.ApplyEntityHeat(ctx, canonical, sink.EntityHeatPatch{
+			HeatScore:     result.HeatScore,
+			HeatTier:      result.HeatTier,
+			SightingCount: result.SightingCount,
+			SourceCount:   result.SourceCount,
+			Boost:         boost,
+		}); err != nil {
+			slog.Warn("entity heat patch failed",
+				"entity_id", result.EntityID,
+				"canonical_hash", canonical,
+				"error", err,
+			)
+			return
+		}
+		slog.Info("entity heat patched canonical lead",
+			"entity_id", result.EntityID,
+			"canonical_hash", canonical,
+			"heat_tier", result.HeatTier,
+		)
+		return
+	}
+	if !p.CrossSourceHot || !result.CrossSourceHot {
+		return
+	}
 	patcher, ok := p.Store.(sink.CrossSourceHotPatcher)
 	if !ok {
 		return
@@ -933,4 +1001,18 @@ func tgWebLogArgs(task Task, extra []any) []any {
 		"snippet_preview", diag.Preview(task.Item.Raw, 200),
 	}
 	return append(args, extra...)
+}
+
+const geoClassifyAboutMax = 500
+
+// geoClassifyText prepends Telegram channel about (from sidecar) for Gemini geo when present.
+func geoClassifyText(item model.RawItem, text string) string {
+	about := strings.TrimSpace(item.ChannelAbout)
+	if about == "" {
+		return text
+	}
+	if len(about) > geoClassifyAboutMax {
+		about = about[:geoClassifyAboutMax]
+	}
+	return "Channel about: " + about + "\n\n" + text
 }

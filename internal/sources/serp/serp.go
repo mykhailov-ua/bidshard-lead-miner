@@ -11,6 +11,7 @@ import (
 
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/extract"
+	"github.com/bidshard/parser/internal/geo"
 	"github.com/bidshard/parser/internal/httpclient"
 	"github.com/bidshard/parser/internal/model"
 )
@@ -178,7 +179,7 @@ func extractDomain(rawURL string) string {
 }
 
 func isBlockedSERPDomain(domain string) bool {
-	return strings.HasSuffix(domain, ".ru") || strings.HasSuffix(domain, ".by") || strings.HasSuffix(domain, ".su")
+	return geo.IsBlockedTLD(domain)
 }
 
 func stripTags(s string) string {

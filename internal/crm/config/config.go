@@ -18,6 +18,7 @@ type Config struct {
 	CrmBoostCollection     string
 	LeadNotesCollection    string
 	LeadCrmMetaCollection  string
+	EntityCollection       string
 	ShutdownTimeout        time.Duration
 	QueryTimeout           time.Duration
 	WriteTimeout           time.Duration
@@ -45,6 +46,7 @@ func Load() (Config, error) {
 		CrmBoostCollection:     env("CRM_BOOST_COLLECTION", "crm_boosts"),
 		LeadNotesCollection:    env("CRM_LEAD_NOTES_COLLECTION", "lead_notes"),
 		LeadCrmMetaCollection:  env("CRM_META_COLLECTION", "lead_crm_meta"),
+		EntityCollection:       env("ENTITY_COLLECTION", "entities"),
 		ShutdownTimeout:        envDuration("CRM_SHUTDOWN_TIMEOUT", 30*time.Second),
 		QueryTimeout:           envDuration("CRM_QUERY_TIMEOUT", 5*time.Second),
 		WriteTimeout:           envDuration("CRM_WRITE_TIMEOUT", 3*time.Second),

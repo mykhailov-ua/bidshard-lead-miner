@@ -6,6 +6,7 @@ import (
 )
 
 // RunTickerFlush batches items from in until ctx is done or in closes.
+// flush errors are ignored here; callers log inside flush (cold-path junk ingest).
 func RunTickerFlush[T any](
 	ctx context.Context,
 	in <-chan T,

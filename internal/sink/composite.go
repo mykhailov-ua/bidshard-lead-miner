@@ -46,6 +46,17 @@ func (c *CompositeStore) UpdateStatus(ctx context.Context, hashID, status string
 	return nil
 }
 
+func (c *CompositeStore) ApplyEntityHeat(ctx context.Context, hashID string, patch EntityHeatPatch) error {
+	for _, s := range c.stores {
+		if patcher, ok := s.(EntityHeatPatcher); ok {
+			if err := patcher.ApplyEntityHeat(ctx, hashID, patch); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (c *CompositeStore) ApplyCrossSourceHot(ctx context.Context, hashID string, boost int) error {
 	for _, s := range c.stores {
 		if patcher, ok := s.(CrossSourceHotPatcher); ok {

@@ -27,6 +27,12 @@ func LoadSeedDomains(path string) ([]string, error) {
 		if i == 0 && strings.EqualFold(domain, "domain") {
 			continue
 		}
+		if len(row) > 1 {
+			geoTag := strings.ToLower(strings.TrimSpace(row[1]))
+			if geoTag == "ru" || geoTag == "by" {
+				continue
+			}
+		}
 		domain = strings.TrimPrefix(strings.ToLower(domain), "https://")
 		domain = strings.TrimPrefix(domain, "http://")
 		domain = strings.TrimSuffix(domain, "/")
@@ -34,6 +40,9 @@ func LoadSeedDomains(path string) ([]string, error) {
 			domain = strings.Split(domain, "/")[0]
 		}
 		if res := geo.Filter(domain); !res.OK {
+			continue
+		}
+		if geo.IsBlockedTLD(domain) {
 			continue
 		}
 		if _, ok := seen[domain]; ok {

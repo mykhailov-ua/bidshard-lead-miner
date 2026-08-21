@@ -15,8 +15,11 @@ const (
 )
 
 // CrossSourceHot reports whether an entity accumulated enough cross-source pain signals.
-// Hot when >=2 source families, >=1 pain hit, and (LastSeen-FirstSeen) fits the window (span, not recency).
+// When heat_tier is set, this is an alias for heat_tier >= hot (HEAT-P2 migration).
 func CrossSourceHot(doc EntityDoc, window time.Duration) bool {
+	if doc.HeatTier != "" {
+		return HeatTierRank(doc.HeatTier) >= HeatTierRank(HeatTierHot)
+	}
 	if doc.SourceCount < MinCrossSourceSourceCount {
 		return false
 	}
@@ -57,9 +60,26 @@ func ApplyCrossSourceHotBoost(lead *model.Lead, reg *scoring.Registry, boost int
 	lead.Priority = string(priority)
 }
 
+// ApplyEntityHeatToLead patches lead fields from entity heat and applies tier boosts.
+func ApplyEntityHeatToLead(lead *model.Lead, result RecordResult, reg *scoring.Registry, cfg HeatConfig) {
+	if lead == nil {
+		return
+	}
+	lead.EntityHeat = result.HeatScore
+	lead.HeatTier = result.HeatTier
+	if result.HeatTier == "" {
+		return
+	}
+	if HeatTierRank(result.HeatTier) >= HeatTierRank(HeatTierHot) {
+		ApplyCrossSourceHotBoost(lead, reg, heatBoostForTier(result.HeatTier, cfg))
+	}
+}
+
 // EnrichRecordResult adds cross-source hot fields from the entity document.
-func EnrichRecordResult(result RecordResult, doc EntityDoc, window time.Duration) RecordResult {
+func EnrichRecordResult(result RecordResult, doc EntityDoc, window time.Duration, heat HeatConfig) RecordResult {
 	result.CanonicalHash = doc.CanonicalHash
+	result.HeatScore = doc.HeatScore
+	result.HeatTier = doc.HeatTier
 	result.CrossSourceHot = CrossSourceHot(doc, window)
 	return result
 }

@@ -107,6 +107,7 @@ config/caddy/
 ```bash
 crm-bot api stats
 crm-bot api list --status new --limit 20
+crm-bot api list --status new --all
 crm-bot api search --q voluum
 crm-bot api show --hash <id>
 crm-bot api set-status --hash <id> --status contacted
@@ -145,6 +146,8 @@ crm-bot db purge --all --yes
 | CRM-06 | Remove Telegram + web UI | done |
 | CRM-07 | Notes/tags via API (optional) | backlog |
 | CRM-08 | Audit log collection | backlog |
+| CRM-09 | Inbox filter (pending/geo_rejected) | done (GEO-P0-03) |
+| CRM-10 | Entity heat inbox (`entities list`, sort by heat, webhook min tier) | backlog ([backlog-entity-heat.md](backlog-entity-heat.md) P4) |
 
 ---
 

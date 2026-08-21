@@ -23,6 +23,7 @@ func RecordSightingCore(
 	in SightingInput,
 	window time.Duration,
 	maxAttempts int,
+	heat HeatConfig,
 	backend SightingBackend,
 ) (RecordResult, error) {
 	if backend == nil {
@@ -44,7 +45,7 @@ func RecordSightingCore(
 	pk, _ := PrimaryKey(keys)
 
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		result, done, err := recordSightingOnce(ctx, backend, keys, aliases, candidateID, pk, in, window)
+		result, done, err := recordSightingOnce(ctx, backend, keys, aliases, candidateID, pk, in, window, heat)
 		if err != nil || done {
 			return result, err
 		}
@@ -61,9 +62,10 @@ func recordSightingOnce(
 	pk EntityKey,
 	in SightingInput,
 	window time.Duration,
+	heat HeatConfig,
 ) (RecordResult, bool, error) {
 	if ab, ok := backend.(AtomicSightingBackend); ok {
-		result, found, err := ab.MergeSightingAtomic(ctx, keys, aliases, candidateID, pk, in, window)
+		result, found, err := ab.MergeSightingAtomic(ctx, keys, aliases, candidateID, pk, in, window, heat)
 		if err != nil {
 			return RecordResult{}, true, err
 		}
@@ -78,7 +80,7 @@ func recordSightingOnce(
 	}
 	if existing != nil {
 		gen := existing.MergeGeneration
-		result := MergeSighting(existing, keys, in)
+		result := MergeSightingWithHeat(existing, keys, in, heat, time.Now().UTC())
 		ok, err := backend.ReplaceMerged(ctx, *existing, gen)
 		if err != nil {
 			return RecordResult{}, true, err
@@ -86,10 +88,10 @@ func recordSightingOnce(
 		if !ok {
 			return RecordResult{}, false, nil
 		}
-		return EnrichRecordResult(result, *existing, window), true, nil
+		return EnrichRecordResult(result, *existing, window, heat), true, nil
 	}
 
-	doc := NewDoc(candidateID, pk, keys, in)
+	doc := NewDocWithHeat(candidateID, pk, keys, in, heat, time.Now().UTC())
 	dup, err := backend.InsertNew(ctx, doc)
 	if err != nil {
 		return RecordResult{}, true, err
@@ -102,5 +104,5 @@ func recordSightingOnce(
 		SightingCount: 1,
 		SourceCount:   1,
 		NewEntity:     true,
-	}, doc, window), true, nil
+	}, doc, window, heat), true, nil
 }

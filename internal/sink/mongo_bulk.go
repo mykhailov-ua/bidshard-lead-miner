@@ -43,6 +43,14 @@ func (b *BulkStore) LeadsWritten() int64 {
 	return b.leadsWritten.Load()
 }
 
+// UnderlyingStore returns the store wrapped by BulkStore (Mongo, export, webhook, etc.).
+func (b *BulkStore) UnderlyingStore() Store {
+	if b == nil {
+		return nil
+	}
+	return b.inner
+}
+
 func (b *BulkStore) Exists(ctx context.Context, hashID string) (bool, error) {
 	b.mu.Lock()
 	// Treat pending batch as written to avoid duplicate upserts within the same crawl flush window.
@@ -76,6 +84,13 @@ func (b *BulkStore) Upsert(ctx context.Context, lead model.Lead) error {
 
 func (b *BulkStore) UpdateStatus(ctx context.Context, hashID, status string) error {
 	return b.inner.UpdateStatus(ctx, hashID, status)
+}
+
+func (b *BulkStore) ApplyEntityHeat(ctx context.Context, hashID string, patch EntityHeatPatch) error {
+	if patcher, ok := b.inner.(EntityHeatPatcher); ok {
+		return patcher.ApplyEntityHeat(ctx, hashID, patch)
+	}
+	return nil
 }
 
 func (b *BulkStore) ApplyCrossSourceHot(ctx context.Context, hashID string, boost int) error {

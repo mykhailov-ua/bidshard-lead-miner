@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/bidshard/parser/internal/extract"
+	"github.com/bidshard/parser/internal/sources/tgweb"
 )
 
 // TargetDomain picks the best domain for RDAP/DNS enrichment.
@@ -39,6 +40,8 @@ func domainFromSource(source string) string {
 		return strings.TrimPrefix(source, "supply:")
 	case strings.HasPrefix(source, "ct:"):
 		return strings.TrimPrefix(source, "ct:")
+	case strings.HasPrefix(source, "tgweb:"):
+		return tgweb.SiteDomainFromSource(source)
 	}
 	return ""
 }

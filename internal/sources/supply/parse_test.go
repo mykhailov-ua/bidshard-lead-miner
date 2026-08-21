@@ -1,6 +1,7 @@
 package supply
 
 import (
+	"os"
 	"testing"
 )
 
@@ -57,5 +58,22 @@ func TestLoadSeedDomains(t *testing.T) {
 	}
 	if len(domains) < 20 {
 		t.Fatalf("domains=%d want >=20", len(domains))
+	}
+}
+
+func TestLoadSeedDomainsSkipsRUGeoTag(t *testing.T) {
+	t.Parallel()
+
+	path := t.TempDir() + "/seed.csv"
+	content := "domain,geo,notes\nallowed.example,global,ok\nblocked.example,ru,skip\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	domains, err := LoadSeedDomains(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(domains) != 1 || domains[0] != "allowed.example" {
+		t.Fatalf("domains=%v want [allowed.example]", domains)
 	}
 }

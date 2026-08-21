@@ -13,26 +13,29 @@ import (
 )
 
 type Config struct {
-	AnalyzeInterval   time.Duration
-	BatchSize         int
-	EngageEnabled     bool
-	EnrichEnabled     bool
-	PilotTagEnabled   bool
-	GeoBlockCountries []string
+	AnalyzeInterval         time.Duration
+	BatchSize               int
+	EngageEnabled           bool
+	EnrichEnabled           bool
+	PilotTagEnabled         bool
+	GeoBlockCountries       []string
+	GeoClassifyEnabled      bool // mirrors PARSER_GEO_CLASSIFY; when false warm path skips geo_rejected
+	CRMWebhook              *sink.WebhookClient
+	CRMWebhookAfterAnalysis bool // PARSER_CRM_WEBHOOK_AFTER_ANALYSIS: notify CRM only after analysis_status=done
 }
 
 type Service struct {
 	cfg      Config
 	capturer *Capturer
 	patcher  sink.LeadAnalysisPatcher
-	gemini   *gemini.Client
+	analyzer LeadBatchAnalyzer
 	registry *scoring.Registry
 
 	mu     sync.Mutex
 	buffer []Event
 }
 
-func NewService(cfg Config, capturer *Capturer, patcher sink.LeadAnalysisPatcher, client *gemini.Client, reg *scoring.Registry) *Service {
+func NewService(cfg Config, capturer *Capturer, patcher sink.LeadAnalysisPatcher, analyzer LeadBatchAnalyzer, reg *scoring.Registry) *Service {
 	cfg.AnalyzeInterval = worker.DurationOr(cfg.AnalyzeInterval, 5*time.Minute)
 	cfg.BatchSize = worker.IntOr(cfg.BatchSize, 15)
 	if len(cfg.GeoBlockCountries) == 0 {
@@ -42,14 +45,14 @@ func NewService(cfg Config, capturer *Capturer, patcher sink.LeadAnalysisPatcher
 		cfg:      cfg,
 		capturer: capturer,
 		patcher:  patcher,
-		gemini:   client,
+		analyzer: analyzer,
 		registry: reg,
 		buffer:   make([]Event, 0, cfg.BatchSize*2),
 	}
 }
 
 func (s *Service) Run(ctx context.Context, wg *sync.WaitGroup) {
-	if s == nil || s.capturer == nil || s.patcher == nil || s.gemini == nil {
+	if s == nil || s.capturer == nil || s.patcher == nil || s.analyzer == nil {
 		return
 	}
 	worker.Run(ctx, wg, s.run)
@@ -130,7 +133,7 @@ func (s *Service) flush(ctx context.Context) {
 		})
 	}
 
-	results, err := s.gemini.AnalyzeLeadBatch(ctx, inputs)
+	results, err := s.analyzer.AnalyzeLeadBatch(ctx, inputs, s.cfg.GeoClassifyEnabled)
 	if err != nil {
 		slog.Warn("warm path lead batch failed", "count", len(batch), "error", err)
 		return // dropped batch; lead stays analysis_status=pending until next sighting
@@ -164,7 +167,7 @@ func (s *Service) takeBatch() []Event {
 func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatchResult, highMin int) {
 	// Apply deferred Gemini policy: geo hard-reject -> ICP reject only at Low -> hot bump -> pilot/enrich at High.
 	blocked := s.cfg.GeoBlockCountries
-	if res.Geo.ShouldReject(blocked) {
+	if s.cfg.GeoClassifyEnabled && res.Geo.ShouldReject(blocked) {
 		if err := s.patcher.PatchLeadAnalysis(ctx, sink.LeadAnalysisPatch{
 			HashID:         ev.HashID,
 			AnalysisStatus: "geo_rejected",
@@ -242,6 +245,10 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 		slog.Warn("warm path analysis patch failed", "hash_id", ev.HashID, "error", err)
 		return
 	}
+	// Defer-mode CRM contract: webhook only after Mongo patch succeeds and lead is not geo/icp rejected.
+	if s.cfg.CRMWebhook != nil && s.cfg.CRMWebhookAfterAnalysis {
+		s.cfg.CRMWebhook.NotifyLead(leadForCRM(ev, patch))
+	}
 	slog.Debug("warm path lead analyzed", "hash_id", ev.HashID, "priority", patch.Priority, "icp", patch.ICP)
 }
 
@@ -251,4 +258,12 @@ func highMinFromReg(reg *scoring.Registry) int {
 	}
 	_, _, _, highMin, _ := reg.Snapshot()
 	return highMin
+}
+
+// DeferredCRMWebhook reports CRM notify timing for defer + after-analysis mode.
+func (s *Service) DeferredCRMWebhook() bool {
+	if s == nil {
+		return false
+	}
+	return s.cfg.CRMWebhookAfterAnalysis && s.cfg.CRMWebhook != nil
 }
