@@ -28,9 +28,6 @@ func RunLogin(ctx context.Context, opts Options) error {
 	if opts.ConfigPath == "" {
 		opts.ConfigPath = "config/sources.telegram.yaml"
 	}
-	if opts.PythonBin == "" {
-		opts.PythonBin = "python3"
-	}
 	if opts.WorkDir == "" {
 		wd, err := os.Getwd()
 		if err != nil {
@@ -45,6 +42,9 @@ func RunLogin(ctx context.Context, opts Options) error {
 	workDir, err = resolveRepoRoot(workDir)
 	if err != nil {
 		return err
+	}
+	if opts.PythonBin == "" {
+		opts.PythonBin = defaultPythonBin(workDir)
 	}
 
 	args := []string{"-m", "sources.telegram.scraper", "--config", opts.ConfigPath}
@@ -73,9 +73,6 @@ func RunDiscover(ctx context.Context, opts Options) error {
 	if opts.ConfigPath == "" {
 		opts.ConfigPath = "config/sources.telegram.yaml"
 	}
-	if opts.PythonBin == "" {
-		opts.PythonBin = "python3"
-	}
 	if opts.WorkDir == "" {
 		wd, err := os.Getwd()
 		if err != nil {
@@ -90,6 +87,9 @@ func RunDiscover(ctx context.Context, opts Options) error {
 	workDir, err = resolveRepoRoot(workDir)
 	if err != nil {
 		return err
+	}
+	if opts.PythonBin == "" {
+		opts.PythonBin = defaultPythonBin(workDir)
 	}
 
 	args := []string{"-m", "sources.telegram.scraper", "--config", opts.ConfigPath, "--discover-only"}
@@ -109,9 +109,6 @@ func Run(ctx context.Context, opts Options, stdout io.Writer) error {
 	if opts.ConfigPath == "" {
 		opts.ConfigPath = "config/sources.telegram.yaml"
 	}
-	if opts.PythonBin == "" {
-		opts.PythonBin = "python3"
-	}
 	if opts.WorkDir == "" {
 		wd, err := os.Getwd()
 		if err != nil {
@@ -128,6 +125,9 @@ func Run(ctx context.Context, opts Options, stdout io.Writer) error {
 		return err
 	}
 	opts.WorkDir = workDir
+	if opts.PythonBin == "" {
+		opts.PythonBin = defaultPythonBin(workDir)
+	}
 
 	args := []string{"-m", "sources.telegram.scraper", "--config", opts.ConfigPath, "--stdout"}
 	if opts.Once {
@@ -173,6 +173,17 @@ func Run(ctx context.Context, opts Options, stdout io.Writer) error {
 		}
 		return nil
 	}
+}
+
+func defaultPythonBin(workDir string) string {
+	if bin := strings.TrimSpace(os.Getenv("PARSER_PYTHON_BIN")); bin != "" {
+		return bin
+	}
+	venv := filepath.Join(workDir, ".venv", "bin", "python")
+	if st, err := os.Stat(venv); err == nil && !st.IsDir() && st.Mode()&0111 != 0 {
+		return venv
+	}
+	return "python3"
 }
 
 func buildEnv(workDir string, extra []string) []string {

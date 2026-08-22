@@ -10,6 +10,19 @@ cd "$ROOT"
 
 log() { printf 'ci: %s\n' "$*"; }
 
+ensure_python_venv() {
+	if [[ -x "$ROOT/.venv/bin/python" ]]; then
+		return 0
+	fi
+	log "python venv setup"
+	python3 -m venv "$ROOT/.venv" --without-pip 2>/dev/null || python3 -m venv "$ROOT/.venv"
+	pip3 install --target "$("$ROOT/.venv/bin/python" -c 'import site; print(site.getsitepackages()[0])')" \
+		-r requirements.txt -r requirements-headless.txt -r requirements-dev.txt
+}
+
+ensure_python_venv
+export PARSER_PYTHON_BIN="$ROOT/.venv/bin/python"
+
 log "go build"
 go build ./...
 
@@ -20,11 +33,6 @@ log "parser slop check"
 bash scripts/ci/check_parser_slop.sh
 
 log "python lint + tests"
-if [[ ! -x "$ROOT/.venv/bin/python" ]]; then
-	python3 -m venv "$ROOT/.venv" --without-pip 2>/dev/null || python3 -m venv "$ROOT/.venv"
-	pip3 install --target "$("$ROOT/.venv/bin/python" -c 'import site; print(site.getsitepackages()[0])')" \
-		-r requirements.txt -r requirements-headless.txt -r requirements-dev.txt
-fi
 make lint
 make test-py
 

@@ -33,4 +33,5 @@ if [[ "$(uname -s)" == "Linux" && "${PARSER_BPF_PREFLIGHT}" == "1" ]]; then
 fi
 
 log "mongo=$MONGO_URI crawl_mode=$TGWEB_CRAWL_MODE domains=$DOMAINS bpf=$PARSER_BPF_PREFLIGHT"
+make tgweb-seed
 make deploy-preflight
