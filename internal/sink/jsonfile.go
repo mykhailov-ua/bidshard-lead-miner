@@ -32,3 +32,8 @@ func (s *JSONFileSink) Upsert(ctx context.Context, lead model.Lead) error {
 	_ = ctx
 	return s.appendLead(s.f, lead, s.format)
 }
+
+func (s *JSONFileSink) AppendLeadDoc(ctx context.Context, doc LeadDoc) error {
+	_ = ctx
+	return s.appendLead(s.f, LeadDocToModel(doc), s.format)
+}

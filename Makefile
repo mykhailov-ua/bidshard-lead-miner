@@ -11,9 +11,9 @@
 # BPF dev (Linux, root):
 #   make bpf-dev && sudo make bpf-session-start
 #
-# Docs: README.md, docs/OPS.md, docs/CREDENTIALS.md
+# Docs: README.md, docs/OPS.md, docs/CREDENTIALS.md, docs/DEPLOY.md
 
-.PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke docker-headless-build bpf-release-gate bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-domains-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop
+.PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight deploy-preflight ci ci-deploy-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke docker-headless-build bpf-release-gate bpf-leak-gate tgweb-bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-domains-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop
 
 VENV := .venv
 VENV_PY := $(VENV)/bin/python
@@ -48,7 +48,7 @@ setup: venv
 
 venv:
 	@test -x $(VENV_PY) || python3 -m venv $(VENV) --without-pip || python3 -m venv $(VENV)
-	pip3 install --target "$$($(VENV_PY) -c 'import site; print(site.getsitepackages()[0])')" -r requirements.txt -r requirements-headless.txt
+	pip3 install --target "$$($(VENV_PY) -c 'import site; print(site.getsitepackages()[0])')" -r requirements.txt -r requirements-headless.txt -r requirements-dev.txt
 
 test:
 	go test ./...
@@ -64,6 +64,8 @@ test-telegram: test-py
 
 lint:
 	go vet ./...
+	$(if $(wildcard $(VENV_PY)),$(VENV_PY),python3) -m ruff check sources scripts
+	$(if $(wildcard $(VENV_PY)),$(VENV_PY),python3) -m pyright sources scripts
 
 fmt:
 	gofmt -w $$(git ls-files '*.go')
@@ -98,6 +100,18 @@ preflight-tgweb:
 vps-preflight: build
 	bash ./scripts/proxy/vps-preflight.sh
 
+# Pre-deploy: vps-preflight + tgweb crawl under eBPF leak probe (Linux + sudo). See scripts/proxy/deploy-preflight.sh
+deploy-preflight: build
+	bash ./scripts/proxy/deploy-preflight.sh
+
+# CI gates (Go test, slop, Python, BPF fixture leak-gate on Linux).
+ci:
+	bash ./scripts/ci/run.sh
+
+# CI deploy preflight (no proxy, host tgweb crawl). See scripts/ci/deploy-preflight.sh
+ci-deploy-preflight: build
+	bash ./scripts/ci/deploy-preflight.sh
+
 forum-live-check: build
 	bash ./scripts/sources/forum-live-check.sh
 
@@ -114,6 +128,10 @@ bpf-release-gate:
 bpf-leak-gate:
 	@test -n "$(SESSION)" || (echo "usage: make bpf-leak-gate SESSION=var/bpf-session/<ts>" && exit 1)
 	bash ./scripts/lib/bpf_leak_gate.sh "$(SESSION)"
+
+# Pre-deploy: tgweb crawl + eBPF session + strict leak-gate (Linux + sudo). See scripts/tgweb/bpf-leak-preflight.sh
+tgweb-bpf-leak-gate:
+	bash ./scripts/tgweb/bpf-leak-preflight.sh
 
 tgweb-green-accept: build
 	bash ./scripts/tgweb/green-accept.sh

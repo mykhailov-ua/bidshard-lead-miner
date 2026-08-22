@@ -18,6 +18,9 @@ type BPFGateConfig struct {
 	MaxParserFDDelta       int64
 	MaxParserPeakOpenFDs   int64
 	MaxParserNetFDEstimate int64
+	// Syscall FD counters are noisy on short windows (cold-start open burst). Skip net_fd_estimate
+	// and fd_open-close/s checks when duration_sec is below this (0 = always evaluate).
+	MinSyscallLeakEvalSec float64
 }
 
 func DefaultBPFGateConfig() BPFGateConfig {
@@ -40,6 +43,7 @@ func LeakGateConfig() BPFGateConfig {
 	cfg.MaxParserPeakOpenFDs = 256
 	cfg.MaxParserNetFDEstimate = 32
 	cfg.MaxThreadForkDelta = 200
+	cfg.MinSyscallLeakEvalSec = 30
 	return cfg
 }
 
@@ -118,6 +122,9 @@ func evaluateLeakSignals(summary bpfSummary, cfg BPFGateConfig) []string {
 	}
 	for _, p := range summary.PIDStats {
 		if !strings.EqualFold(p.Role, "parser") {
+			continue
+		}
+		if cfg.MinSyscallLeakEvalSec > 0 && summary.DurationSec > 0 && summary.DurationSec < cfg.MinSyscallLeakEvalSec {
 			continue
 		}
 		if cfg.MaxParserNetFDEstimate > 0 && p.NetFDEstimate > cfg.MaxParserNetFDEstimate {

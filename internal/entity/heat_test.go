@@ -104,6 +104,28 @@ func TestHeatTierMeetsMin(t *testing.T) {
 	}
 }
 
+func TestRoundHeatScore(t *testing.T) {
+	if got := RoundHeatScore(48.4); got != 48 {
+		t.Fatalf("round down: got %d", got)
+	}
+	if got := RoundHeatScore(48.5); got != 49 {
+		t.Fatalf("round half up: got %d", got)
+	}
+}
+
+func TestRecomputeEntityHeatSetsScoreRound(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	doc := EntityDoc{
+		Sightings: []EntitySighting{
+			{PostedAt: now.Add(-2 * 24 * time.Hour), Matched: []string{"voluum"}, Score: 40},
+		},
+	}
+	RecomputeEntityHeat(&doc, DefaultHeatConfig(), now)
+	if doc.HeatScoreRound != RoundHeatScore(doc.HeatScore) {
+		t.Fatalf("heat_score_round=%d heat_score=%.2f", doc.HeatScoreRound, doc.HeatScore)
+	}
+}
+
 func TestDiversityBonusTwoFamilies(t *testing.T) {
 	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 	sightings := []EntitySighting{

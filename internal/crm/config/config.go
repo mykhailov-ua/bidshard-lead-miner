@@ -10,56 +10,58 @@ import (
 )
 
 type Config struct {
-	MongoURI               string
-	MongoDB                string
-	MongoCollection        string
-	SourceStatsCollection  string
-	KeywordStatsCollection string
-	CrmBoostCollection     string
-	LeadNotesCollection    string
-	LeadCrmMetaCollection  string
-	EntityCollection       string
-	ShutdownTimeout        time.Duration
-	QueryTimeout           time.Duration
-	WriteTimeout           time.Duration
-	StatsTimeout           time.Duration
-	WebhookAddr            string
-	WebhookSecret          string
-	MetricsAddr            string
-	PprofAddr              string
-	ExportMaxRows          int
-	SearchTimeout          time.Duration
-	SearchMaxRows          int
-	LogFormat              string
-	LogLevel               string
+	MongoURI                  string
+	MongoDB                   string
+	MongoCollection           string
+	SourceStatsCollection     string
+	KeywordStatsCollection    string
+	CrmBoostCollection        string
+	LeadNotesCollection       string
+	LeadCrmMetaCollection     string
+	WebhookFeedbackCollection string
+	EntityCollection          string
+	ShutdownTimeout           time.Duration
+	QueryTimeout              time.Duration
+	WriteTimeout              time.Duration
+	StatsTimeout              time.Duration
+	WebhookAddr               string
+	WebhookSecret             string
+	MetricsAddr               string
+	PprofAddr                 string
+	ExportMaxRows             int
+	SearchTimeout             time.Duration
+	SearchMaxRows             int
+	LogFormat                 string
+	LogLevel                  string
 }
 
 func Load() (Config, error) {
 	parsercfg.LoadDotEnv()
 
 	cfg := Config{
-		MongoURI:               env("MONGO_URI", ""),
-		MongoDB:                env("MONGO_DB", "parser"),
-		MongoCollection:        env("PARSER_MONGO_COLLECTION", "leads"),
-		SourceStatsCollection:  env("SOURCE_STATS_COLLECTION", "source_stats"),
-		KeywordStatsCollection: env("KEYWORD_STATS_COLLECTION", "keyword_stats"),
-		CrmBoostCollection:     env("CRM_BOOST_COLLECTION", "crm_boosts"),
-		LeadNotesCollection:    env("CRM_LEAD_NOTES_COLLECTION", "lead_notes"),
-		LeadCrmMetaCollection:  env("CRM_META_COLLECTION", "lead_crm_meta"),
-		EntityCollection:       env("ENTITY_COLLECTION", "entities"),
-		ShutdownTimeout:        envDuration("CRM_SHUTDOWN_TIMEOUT", 30*time.Second),
-		QueryTimeout:           envDuration("CRM_QUERY_TIMEOUT", 5*time.Second),
-		WriteTimeout:           envDuration("CRM_WRITE_TIMEOUT", 3*time.Second),
-		StatsTimeout:           envDuration("CRM_STATS_TIMEOUT", 15*time.Second),
-		WebhookAddr:            env("CRM_WEBHOOK_ADDR", "127.0.0.1:8080"),
-		WebhookSecret:          strings.TrimSpace(env("CRM_WEBHOOK_SECRET", "")),
-		MetricsAddr:            env("CRM_METRICS_ADDR", ""),
-		PprofAddr:              env("CRM_PPROF_ADDR", ""),
-		ExportMaxRows:          envInt("CRM_EXPORT_MAX_ROWS", 500),
-		SearchTimeout:          envDuration("CRM_SEARCH_TIMEOUT", 5*time.Second),
-		SearchMaxRows:          envInt("CRM_SEARCH_MAX_ROWS", 20),
-		LogFormat:              env("CRM_LOG_FORMAT", "auto"),
-		LogLevel:               env("CRM_LOG_LEVEL", "info"),
+		MongoURI:                  env("MONGO_URI", ""),
+		MongoDB:                   env("MONGO_DB", "parser"),
+		MongoCollection:           env("PARSER_MONGO_COLLECTION", "leads"),
+		SourceStatsCollection:     env("SOURCE_STATS_COLLECTION", "source_stats"),
+		KeywordStatsCollection:    env("KEYWORD_STATS_COLLECTION", "keyword_stats"),
+		CrmBoostCollection:        env("CRM_BOOST_COLLECTION", "crm_boosts"),
+		LeadNotesCollection:       env("CRM_LEAD_NOTES_COLLECTION", "lead_notes"),
+		LeadCrmMetaCollection:     env("CRM_META_COLLECTION", "lead_crm_meta"),
+		WebhookFeedbackCollection: env("CRM_WEBHOOK_FEEDBACK_COLLECTION", "webhook_feedback"),
+		EntityCollection:          env("ENTITY_COLLECTION", "entities"),
+		ShutdownTimeout:           envDuration("CRM_SHUTDOWN_TIMEOUT", 30*time.Second),
+		QueryTimeout:              envDuration("CRM_QUERY_TIMEOUT", 5*time.Second),
+		WriteTimeout:              envDuration("CRM_WRITE_TIMEOUT", 3*time.Second),
+		StatsTimeout:              envDuration("CRM_STATS_TIMEOUT", 15*time.Second),
+		WebhookAddr:               env("CRM_WEBHOOK_ADDR", "127.0.0.1:8080"),
+		WebhookSecret:             strings.TrimSpace(env("CRM_WEBHOOK_SECRET", "")),
+		MetricsAddr:               env("CRM_METRICS_ADDR", ""),
+		PprofAddr:                 env("CRM_PPROF_ADDR", ""),
+		ExportMaxRows:             envInt("CRM_EXPORT_MAX_ROWS", 500),
+		SearchTimeout:             envDuration("CRM_SEARCH_TIMEOUT", 5*time.Second),
+		SearchMaxRows:             envInt("CRM_SEARCH_MAX_ROWS", 20),
+		LogFormat:                 env("CRM_LOG_FORMAT", "auto"),
+		LogLevel:                  env("CRM_LOG_LEVEL", "info"),
 	}
 	return cfg, nil
 }

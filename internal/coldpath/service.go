@@ -7,22 +7,37 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/batch"
+	"github.com/bidshard/parser/internal/discover"
+	"github.com/bidshard/parser/internal/entity"
 	"github.com/bidshard/parser/internal/gemini"
+	"github.com/bidshard/parser/internal/scoring"
 	"github.com/bidshard/parser/internal/sink"
 	"github.com/bidshard/parser/internal/worker"
 )
 
 type Config struct {
-	AnalyzeInterval   time.Duration
-	ReportInterval    time.Duration
-	BatchSize         int
-	FlushInterval     time.Duration
-	FlushBatch        int
-	KeywordDiffEvery  int
-	KeywordDiffDir    string
-	DiscoverDiffEvery int
-	DiscoverDiffDir   string
-	EmbedThreshold    float64
+	AnalyzeInterval          time.Duration
+	ReportInterval           time.Duration
+	BatchSize                int
+	FlushInterval            time.Duration
+	FlushBatch               int
+	KeywordDiffEvery         int
+	KeywordDiffDir           string
+	DiscoverDiffEvery        int
+	DiscoverDiffDir          string
+	PainVocabDiffEvery       int
+	EmbedThreshold           float64
+	HardRejectShadowDailyCap int
+}
+
+// ServiceExtras wires optional cold-path audit and enrichment workers.
+type ServiceExtras struct {
+	Stale        *StaleLeadRegrader
+	DupSuggest   *DuplicateSuggestScanner
+	GeoAudit     *GeoAuditRunner
+	WebhookAudit *WebhookAuditReporter
+	SourceStats  *sink.SourceStatsStore
+	ChannelsPath string
 }
 
 type Service struct {
@@ -30,20 +45,31 @@ type Service struct {
 	capturer     *Capturer
 	junk         *sink.JunkStore
 	gemini       *gemini.Client
-	crm          *sink.CrmBoostStore
+	crm          BoostStore
 	embed        *sink.EmbeddingStore
 	keywordStats *sink.KeywordStatsStore
+	registry     *scoring.Registry
+	leads        BoostLeadLookup
+	entityPains  entity.PainSampleLister
+	stale        *StaleLeadRegrader
+	dupSuggest   *DuplicateSuggestScanner
+	geoAudit     *GeoAuditRunner
+	webhookAudit *WebhookAuditReporter
+	sourceStats  *sink.SourceStatsStore
+	channelsPath string
 
-	lastReportEnd     time.Time
-	reportCount       int
-	embedThreshold    float64
-	keywordDiffEvery  int
-	keywordDiffDir    string
-	discoverDiffEvery int
-	discoverDiffDir   string
+	lastReportEnd      time.Time
+	reportCount        int
+	embedThreshold     float64
+	keywordDiffEvery   int
+	keywordDiffDir     string
+	discoverDiffEvery  int
+	discoverDiffDir    string
+	painVocabDiffEvery int
+	shadowDailyCap     int
 }
 
-func NewService(cfg Config, capturer *Capturer, junk *sink.JunkStore, client *gemini.Client, crm *sink.CrmBoostStore, embed *sink.EmbeddingStore, keywordStats *sink.KeywordStatsStore) *Service {
+func NewService(cfg Config, capturer *Capturer, junk *sink.JunkStore, client *gemini.Client, crm BoostStore, embed *sink.EmbeddingStore, keywordStats *sink.KeywordStatsStore, registry *scoring.Registry, leads BoostLeadLookup, entityPains entity.PainSampleLister, extras ServiceExtras) *Service {
 	cfg.AnalyzeInterval = worker.DurationOr(cfg.AnalyzeInterval, 15*time.Minute)
 	cfg.ReportInterval = worker.DurationOr(cfg.ReportInterval, 6*time.Hour)
 	cfg.BatchSize = worker.IntOr(cfg.BatchSize, 20)
@@ -57,20 +83,38 @@ func NewService(cfg Config, capturer *Capturer, junk *sink.JunkStore, client *ge
 	if cfg.DiscoverDiffDir == "" {
 		cfg.DiscoverDiffDir = cfg.KeywordDiffDir
 	}
+	if cfg.HardRejectShadowDailyCap <= 0 {
+		cfg.HardRejectShadowDailyCap = 10
+	}
+	painEvery := cfg.PainVocabDiffEvery
+	if painEvery <= 0 {
+		painEvery = cfg.KeywordDiffEvery
+	}
 	return &Service{
-		cfg:               cfg,
-		capturer:          capturer,
-		junk:              junk,
-		gemini:            client,
-		crm:               crm,
-		embed:             embed,
-		keywordStats:      keywordStats,
-		lastReportEnd:     time.Now().UTC(),
-		embedThreshold:    cfg.EmbedThreshold,
-		keywordDiffEvery:  cfg.KeywordDiffEvery,
-		keywordDiffDir:    cfg.KeywordDiffDir,
-		discoverDiffEvery: cfg.DiscoverDiffEvery,
-		discoverDiffDir:   cfg.DiscoverDiffDir,
+		cfg:                cfg,
+		capturer:           capturer,
+		junk:               junk,
+		gemini:             client,
+		crm:                crm,
+		embed:              embed,
+		keywordStats:       keywordStats,
+		registry:           registry,
+		leads:              leads,
+		entityPains:        entityPains,
+		stale:              extras.Stale,
+		dupSuggest:         extras.DupSuggest,
+		geoAudit:           extras.GeoAudit,
+		webhookAudit:       extras.WebhookAudit,
+		sourceStats:        extras.SourceStats,
+		channelsPath:       extras.ChannelsPath,
+		lastReportEnd:      time.Now().UTC(),
+		embedThreshold:     cfg.EmbedThreshold,
+		keywordDiffEvery:   cfg.KeywordDiffEvery,
+		keywordDiffDir:     cfg.KeywordDiffDir,
+		discoverDiffEvery:  cfg.DiscoverDiffEvery,
+		discoverDiffDir:    cfg.DiscoverDiffDir,
+		painVocabDiffEvery: painEvery,
+		shadowDailyCap:     cfg.HardRejectShadowDailyCap,
 	}
 }
 
@@ -94,6 +138,34 @@ func (s *Service) run(ctx context.Context) {
 	worker.Run(ctx, &wg, s.ingestLoop)
 	worker.Run(ctx, &wg, s.analyzeLoop)
 	worker.Run(ctx, &wg, s.reportLoop)
+	if s.stale != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.stale.Run(ctx)
+		}()
+	}
+	if s.dupSuggest != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.dupSuggest.Run(ctx)
+		}()
+	}
+	if s.geoAudit != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.geoAudit.Run(ctx)
+		}()
+	}
+	if s.webhookAudit != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.webhookAudit.Run(ctx)
+		}()
+	}
 	wg.Wait()
 
 	if dropped := s.capturer.Dropped(); dropped > 0 {
@@ -136,10 +208,21 @@ func (s *Service) analyzeLoop(ctx context.Context) {
 }
 
 func (s *Service) runAnalyze(ctx context.Context) {
-	docs, err := s.junk.FindPendingAnalysis(ctx, s.cfg.BatchSize)
+	docs, err := s.junk.FindPendingAnalysisExcluding(ctx, ReasonHardRejectShadow, s.cfg.BatchSize)
 	if err != nil {
 		slog.Warn("junk find pending failed", "error", err)
 		return
+	}
+	if len(docs) < s.cfg.BatchSize {
+		shadowBudget := s.shadowAnalyzeBudget(ctx)
+		if shadowBudget > 0 {
+			shadow, err := s.junk.FindPendingByReason(ctx, ReasonHardRejectShadow, shadowBudget)
+			if err != nil {
+				slog.Warn("junk find shadow pending failed", "error", err)
+			} else {
+				docs = append(docs, shadow...)
+			}
+		}
 	}
 	if len(docs) == 0 {
 		return
@@ -180,6 +263,23 @@ func (s *Service) runAnalyze(ctx context.Context) {
 	}
 
 	slog.Info("gemini junk batch analyzed", "requested", len(docs), "applied", applied)
+	s.runBoostWorker(ctx)
+}
+
+func (s *Service) shadowAnalyzeBudget(ctx context.Context) int {
+	if s == nil || s.junk == nil || s.shadowDailyCap <= 0 {
+		return 0
+	}
+	start := time.Now().UTC().Truncate(24 * time.Hour)
+	n, err := s.junk.CountAnalyzedByReasonSince(ctx, ReasonHardRejectShadow, start)
+	if err != nil {
+		return s.shadowDailyCap
+	}
+	remaining := s.shadowDailyCap - int(n)
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
 }
 
 func (s *Service) reportLoop(ctx context.Context) {
@@ -219,13 +319,19 @@ func (s *Service) runReport(ctx context.Context) {
 		return
 	}
 
+	sourceStats, err := s.junk.SourceBreakdown(ctx, periodStart, 20)
+	if err != nil {
+		slog.Warn("junk source breakdown failed", "error", err)
+		return
+	}
+
 	samples, err := s.junk.SampleAnalyzed(ctx, periodStart, 30)
 	if err != nil {
 		slog.Warn("junk sample analyzed failed", "error", err)
 		return
 	}
 
-	in := gemini.ReportInputFromStore(periodStart, periodEnd, total, stats, samples)
+	in := gemini.ReportInputFromStore(periodStart, periodEnd, total, stats, sourceStats, samples)
 	result, err := s.gemini.BuildJunkReport(ctx, in)
 	if err != nil {
 		slog.Warn("gemini report failed", "error", err)
@@ -242,6 +348,7 @@ func (s *Service) runReport(ctx context.Context) {
 		FalseNegativeCandidates: result.FalseNegativeCandidates,
 		Recommendations:         result.Recommendations,
 		KeywordSuggestions:      result.KeywordSuggestions,
+		SourceStats:             sourceStats,
 	}
 	if err := s.junk.InsertReport(ctx, doc); err != nil {
 		slog.Warn("junk report insert failed", "error", err)
@@ -251,6 +358,14 @@ func (s *Service) runReport(ctx context.Context) {
 	reportID := doc.ID.Hex()
 	s.maybeWriteKeywordDiff(ctx, reportID, result, periodStart)
 	s.maybeWriteDiscoverDiff(ctx, reportID, result, periodStart)
+	s.maybeWritePainVocabDiff(ctx, reportID, periodStart)
+	if s.sourceStats != nil && s.channelsPath != "" {
+		if stats, err := s.sourceStats.ListAll(ctx); err == nil {
+			if path, err := discover.WriteDorkRankReport(s.channelsPath, s.keywordDiffDir, stats); err == nil && path != "" {
+				slog.Info("dork rank report written", "path", path)
+			}
+		}
+	}
 
 	s.lastReportEnd = periodEnd
 	slog.Info("gemini junk report saved",

@@ -33,6 +33,9 @@ type LeadAnalysisPatch struct {
 	CompanyType     string
 	EnrichSummary   string
 	GeoConfidence   string
+	DuplicateOf     string
+	ContactQuality  string
+	Stale           bool
 }
 
 // LeadAnalysisPatcher patches deferred Gemini analysis results.
@@ -116,6 +119,15 @@ func (s *MongoStore) PatchLeadAnalysis(ctx context.Context, patch LeadAnalysisPa
 	}
 	if patch.GeoConfidence != "" {
 		set["geo_confidence"] = patch.GeoConfidence
+	}
+	if patch.DuplicateOf != "" {
+		set["duplicate_of"] = patch.DuplicateOf
+	}
+	if patch.ContactQuality != "" {
+		set["contact_quality"] = patch.ContactQuality
+	}
+	if patch.Stale {
+		set["stale"] = true
 	}
 
 	if err := s.writeSlots.Acquire(ctx, 1); err != nil {

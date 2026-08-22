@@ -162,11 +162,24 @@ func TestForumHostFromSource(t *testing.T) {
 }
 
 func TestEnrichForumIdentity(t *testing.T) {
-	in := EnrichForumIdentity(ResolveInput{}, "", "ForumAuthor", "999")
+	in := EnrichForumIdentity(ResolveInput{}, "ForumAuthor", "Thread title must not become user", "999")
 	if in.ForumUser != "ForumAuthor" {
 		t.Fatalf("ForumUser=%q", in.ForumUser)
 	}
 	if in.ForumUID != "999" {
 		t.Fatalf("ForumUID=%q", in.ForumUID)
+	}
+}
+
+func TestEnrichForumIdentityIgnoresTitleWithoutUsername(t *testing.T) {
+	in := EnrichForumIdentity(ResolveInput{Source: "forum:affiliatefix.com/thread-a"}, "", "Voluum billing help", "")
+	if in.ForumUser != "" {
+		t.Fatalf("ForumUser=%q want empty when username missing", in.ForumUser)
+	}
+	keys := ResolveKeys(in)
+	for _, k := range keys {
+		if k.Kind == KindForumUser {
+			t.Fatalf("unexpected forum_user key from title: %+v", k)
+		}
 	}
 }

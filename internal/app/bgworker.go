@@ -6,6 +6,7 @@ import (
 
 	"github.com/bidshard/parser/internal/bgworker"
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/gemini"
 	"github.com/bidshard/parser/internal/sources/serp"
 	"github.com/bidshard/parser/internal/telethon"
 )
@@ -57,6 +58,21 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 				},
 			},
 		)
+	}
+
+	if cfg.ParserChannelTriage && cfg.GeminiAPIKey != "" {
+		if client, err := gemini.NewClient(cfg.GeminiAPIKey, cfg.GeminiModel); err == nil {
+			jobs = append(jobs, bgworker.Job{
+				Name:          "telegram_channel_triage",
+				Interval:      cfg.BGChannelTriageInterval,
+				SkipIfRunning: true,
+				Run: func(ctx context.Context) error {
+					return telethon.RunChannelTriage(ctx, telethon.ChannelTriageConfig{
+						ChannelsPath: cfg.TelegramChannelsPath,
+					}, client)
+				},
+			})
+		}
 	}
 
 	bgworker.Run(ctx, wg, jobs)

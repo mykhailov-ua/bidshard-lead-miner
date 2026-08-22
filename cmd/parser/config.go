@@ -202,12 +202,8 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 			_, _ = fmt.Fprintln(out, "ok  crm webhook URL set")
 		}
 	}
-	for _, w := range config.GeoComplianceWarnings(cfg) {
-		warnings = append(warnings, w)
-	}
-	for _, e := range config.GeoComplianceErrors(cfg, seedcheck.Profile() == seedcheck.ProfileProd) {
-		errors = append(errors, e)
-	}
+	warnings = append(warnings, config.GeoComplianceWarnings(cfg)...)
+	errors = append(errors, config.GeoComplianceErrors(cfg, seedcheck.Profile() == seedcheck.ProfileProd)...)
 	if config.SyncGeoGateConfigured(cfg) {
 		_, _ = fmt.Fprintln(out, "ok  sync geo gate configured (inline before Mongo write)")
 	}

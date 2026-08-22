@@ -14,6 +14,60 @@ func TestEvaluateBPFGatePass(t *testing.T) {
 	}
 }
 
+func TestEvaluateBPFLeakGateShortSessionSkipsSyscallHeuristics(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	summaryPath := filepath.Join(dir, "summary.json")
+	payload := []byte(`{
+  "duration_sec": 5,
+  "proc_samples": [{
+    "role": "parser",
+    "name": "parser",
+    "peak_open_fds": 120,
+    "fd_delta": 4
+  }],
+  "pid_stats": [{
+    "role": "parser",
+    "net_fd_estimate": 74,
+    "fd_open_per_sec": 50,
+    "fd_close_per_sec": 20
+  }]
+}`)
+	if err := os.WriteFile(summaryPath, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := EvaluateBPFGate(summaryPath, LeakGateConfig()); err != nil {
+		t.Fatalf("expected pass on short session syscall burst: %v", err)
+	}
+}
+
+func TestEvaluateBPFLeakGateLongSessionSyscallFail(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	summaryPath := filepath.Join(dir, "summary.json")
+	payload := []byte(`{
+  "duration_sec": 60,
+  "proc_samples": [{
+    "role": "parser",
+    "name": "parser",
+    "peak_open_fds": 120,
+    "fd_delta": 4
+  }],
+  "pid_stats": [{
+    "role": "parser",
+    "net_fd_estimate": 74,
+    "fd_open_per_sec": 50,
+    "fd_close_per_sec": 20
+  }]
+}`)
+	if err := os.WriteFile(summaryPath, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := EvaluateBPFGate(summaryPath, LeakGateConfig()); err == nil {
+		t.Fatal("expected leak gate failure for sustained syscall FD drift")
+	}
+}
+
 func TestEvaluateBPFLeakGateFailFDDelta(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

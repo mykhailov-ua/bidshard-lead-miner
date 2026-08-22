@@ -3,21 +3,25 @@ package queue
 import (
 	"sync/atomic"
 	"time"
+
+	"github.com/bidshard/parser/internal/metrics"
 )
 
 // Capturer enqueues events without blocking the hot path.
 type Capturer[T any] struct {
+	name    string
 	ch      chan T
 	dropped atomic.Int64
 	prep    func(T) T
 	logDrop func(T)
 }
 
-func NewCapturer[T any](buffer, defaultBuffer int, prep func(T) T, logDrop func(T)) *Capturer[T] {
+func NewCapturer[T any](name string, buffer, defaultBuffer int, prep func(T) T, logDrop func(T)) *Capturer[T] {
 	if buffer <= 0 {
 		buffer = defaultBuffer
 	}
 	return &Capturer[T]{
+		name:    name,
 		ch:      make(chan T, buffer),
 		prep:    prep,
 		logDrop: logDrop,
@@ -49,6 +53,9 @@ func (c *Capturer[T]) TryCapture(ev T) {
 	case c.ch <- ev:
 	default:
 		c.dropped.Add(1)
+		if c.name != "" {
+			metrics.RecordQueueDropped(c.name)
+		}
 		if c.logDrop != nil {
 			c.logDrop(ev)
 		}

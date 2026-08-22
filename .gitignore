@@ -2,6 +2,9 @@
 .env.local
 .env.*.local
 
+# Local backlog (not versioned)
+BACKLOG.md
+
 # Backups
 backups/
 

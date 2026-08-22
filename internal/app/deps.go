@@ -29,12 +29,13 @@ import (
 )
 
 type runtimeDeps struct {
-	processor      *pipeline.Processor
-	bulkStore      *sink.BulkStore
-	coldPath       *coldpath.Service
-	warmPath       *warmpath.Service
-	entityClassify *warmpath.EntityClassifyService
-	mongoClient    *mongo.Client
+	processor         *pipeline.Processor
+	bulkStore         *sink.BulkStore
+	coldPath          *coldpath.Service
+	warmPath          *warmpath.Service
+	entityClassify    *warmpath.EntityClassifyService
+	entityLinkSuggest *warmpath.EntityLinkSuggestService
+	mongoClient       *mongo.Client
 }
 
 func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
@@ -139,16 +140,81 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 			return sink.ConnectJunkStore(ctx, deps.mongoClient, cfg.MongoDB, cfg.ColdJunkCollection, cfg.ColdReportCollection)
 		}, nil); junkStore != nil {
 			crmStore, _ := sink.ConnectCrmBoost(ctx, deps.mongoClient, cfg.MongoDB, cfg.CrmBoostCollection)
+			var geoAuditStore *sink.GeoAuditStore
+			if geoStore, err := sink.ConnectGeoAuditStore(ctx, deps.mongoClient, cfg.MongoDB, cfg.GeoAuditCollection); err == nil {
+				geoAuditStore = geoStore
+			}
+			var boostLeads coldpath.BoostLeadLookup
+			var staleRegrader *coldpath.StaleLeadRegrader
+			var dupScanner *coldpath.DuplicateSuggestScanner
+			var geoAudit *coldpath.GeoAuditRunner
+			if leadMongo, err := sink.NewMongoStoreFromClient(ctx, deps.mongoClient, cfg.MongoDB, cfg.MongoCollection, cfg.WriteSlots); err == nil {
+				boostLeads = leadMongo
+				if geminiClient != nil {
+					staleRegrader = coldpath.NewStaleLeadRegrader(
+						cfg.StaleLeadRegradeInterval,
+						cfg.StaleLeadAge,
+						50,
+						leadMongo,
+						leadMongo,
+						geminiClient,
+						reg,
+					)
+					if geoAuditStore != nil {
+						geoAudit = coldpath.NewGeoAuditRunner(
+							cfg.GeoAuditInterval,
+							cfg.GeoAuditSampleN,
+							junkStore,
+							leadMongo,
+							geminiClient,
+							geoAuditStore,
+							cfg.GeoBlockCountries,
+						)
+					}
+				}
+				if geminiClient != nil && embedStore != nil {
+					dupCluster := gemini.NewLeadCluster(geminiClient, embedStore, cfg.GeminiEmbedThreshold)
+					dupScanner = coldpath.NewDuplicateSuggestScanner(
+						cfg.DuplicateSuggestInterval,
+						cfg.DuplicateSuggestWindow,
+						200,
+						leadMongo,
+						leadMongo,
+						dupCluster,
+					)
+				}
+			}
+			var webhookAudit *coldpath.WebhookAuditReporter
+			if feedbackStore := connectOptional("webhook feedback store", func() (*sink.WebhookFeedbackStore, error) {
+				return sink.ConnectWebhookFeedbackStore(ctx, deps.mongoClient, cfg.MongoDB, cfg.WebhookFeedbackCollection)
+			}, nil); feedbackStore != nil {
+				webhookAudit = coldpath.NewWebhookAuditReporter(cfg.WebhookAuditInterval, feedbackStore, cfg.GeminiKeywordDiffDir)
+			}
+			var painLister entity.PainSampleLister
+			if entityRecorder != nil {
+				if pl, ok := entityRecorder.(entity.PainSampleLister); ok {
+					painLister = pl
+				}
+			}
 			deps.coldPath = coldpath.NewService(coldpath.Config{
-				AnalyzeInterval:   cfg.GeminiAnalyzeInterval,
-				ReportInterval:    cfg.GeminiReportInterval,
-				BatchSize:         cfg.GeminiBatchSize,
-				KeywordDiffEvery:  cfg.GeminiKeywordDiffEvery,
-				KeywordDiffDir:    cfg.GeminiKeywordDiffDir,
-				DiscoverDiffEvery: cfg.GeminiDiscoverDiffEvery,
-				DiscoverDiffDir:   cfg.GeminiDiscoverDiffDir,
-				EmbedThreshold:    cfg.GeminiEmbedThreshold,
-			}, junkCapturer, junkStore, geminiClient, crmStore, embedStore, keywordStats)
+				AnalyzeInterval:          cfg.GeminiAnalyzeInterval,
+				ReportInterval:           cfg.GeminiReportInterval,
+				BatchSize:                cfg.GeminiBatchSize,
+				KeywordDiffEvery:         cfg.GeminiKeywordDiffEvery,
+				KeywordDiffDir:           cfg.GeminiKeywordDiffDir,
+				DiscoverDiffEvery:        cfg.GeminiDiscoverDiffEvery,
+				DiscoverDiffDir:          cfg.GeminiDiscoverDiffDir,
+				PainVocabDiffEvery:       cfg.GeminiPainVocabDiffEvery,
+				EmbedThreshold:           cfg.GeminiEmbedThreshold,
+				HardRejectShadowDailyCap: cfg.HardRejectShadowDailyCap,
+			}, junkCapturer, junkStore, geminiClient, crmStore, embedStore, keywordStats, reg, boostLeads, painLister, coldpath.ServiceExtras{
+				Stale:        staleRegrader,
+				DupSuggest:   dupScanner,
+				GeoAudit:     geoAudit,
+				WebhookAudit: webhookAudit,
+				SourceStats:  sourceStats,
+				ChannelsPath: cfg.TelegramChannelsPath,
+			})
 			slog.Info("cold path gemini enabled",
 				"model", cfg.GeminiModel,
 				"analyze_interval", cfg.GeminiAnalyzeInterval,
@@ -200,22 +266,79 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 			warmCapturer = warmpath.NewCapturer(cfg.WarmLeadQueueSize)
 			// deferCRMWebhook set only when warm path actually starts (lead patcher connected).
 			deferCRMWebhook = cfg.CRMWebhookAfterAnalysis && crmWebhook != nil
+			var warmExtras warmpath.ServiceExtras
+			// Second MongoStore handle on the leads collection; avoids coupling warm path to bulk upsert store.
+			var leadMongo *sink.MongoStore
+			if store, err := sink.NewMongoStoreFromClient(ctx, deps.mongoClient, cfg.MongoDB, cfg.MongoCollection, cfg.WriteSlots); err == nil {
+				leadMongo = store
+				warmExtras.PendingScanner = warmpath.NewMongoPendingScanner(leadMongo)
+			}
+			if cfg.ExportJSONPath != "" && leadMongo != nil {
+				if exportSink, err := sink.NewJSONFileSink(cfg.ExportJSONPath, cfg.ExportJSONFormat); err != nil {
+					slog.Warn("warm path export sync failed", "path", cfg.ExportJSONPath, "error", err)
+				} else {
+					leadPatcher = sink.NewExportSyncPatcher(leadPatcher, leadMongo, exportSink)
+					slog.Info("warm path export sync enabled", "path", cfg.ExportJSONPath)
+				}
+			}
+			if cfg.WarmAnalysisDLQCollection != "" {
+				if dlq, err := sink.ConnectWarmAnalysisDLQ(ctx, deps.mongoClient, cfg.MongoDB, cfg.WarmAnalysisDLQCollection, cfg.WriteSlots); err != nil {
+					slog.Warn("warm path dlq connect failed", "error", err)
+				} else {
+					warmExtras.DLQ = warmpath.NewMongoAnalysisDLQ(dlq)
+				}
+			}
+			if cfg.ParserWarmEmbedPrescan && geminiClient != nil {
+				warmExtras.Prescan = gemini.NewPrescan(geminiClient, cfg.GeminiEmbedPainMin, cfg.GeminiEmbedSpamMin)
+				if junkStore, err := sink.ConnectJunkStore(ctx, deps.mongoClient, cfg.MongoDB, cfg.ColdJunkCollection, cfg.ColdReportCollection); err == nil {
+					warmExtras.Junk = junkStore
+				}
+			}
+			if cfg.ParserWarmEmbedCluster && geminiClient != nil && embedStore != nil {
+				warmExtras.Cluster = gemini.NewLeadCluster(geminiClient, embedStore, cfg.GeminiEmbedThreshold)
+			}
+			if cfg.ParserGeminiEngageMedium && geminiClient != nil {
+				warmExtras.EngageMedium = geminiClient
+			}
 			deps.warmPath = warmpath.NewService(warmpath.Config{
 				AnalyzeInterval:         cfg.GeminiLeadAnalyzeInterval,
 				BatchSize:               cfg.GeminiLeadBatchSize,
 				EngageEnabled:           cfg.ParserGeminiEngage,
+				EngageMediumEnabled:     cfg.ParserGeminiEngageMedium,
 				EnrichEnabled:           cfg.ParserGeminiEnrichSynth,
 				PilotTagEnabled:         cfg.ParserPilotTag,
 				GeoBlockCountries:       cfg.GeoBlockCountries,
 				GeoClassifyEnabled:      cfg.ParserGeoClassify,
 				CRMWebhook:              crmWebhook,
 				CRMWebhookAfterAnalysis: deferCRMWebhook,
-			}, warmCapturer, leadPatcher, geminiClient, reg)
+				RetryMaxAttempts:        cfg.WarmAnalysisRetryMax,
+				RetryBaseDelay:          cfg.WarmAnalysisRetryBase,
+				PendingRescanInterval:   cfg.WarmAnalysisPendingScanInterval,
+				PendingStaleAge:         cfg.WarmAnalysisPendingStale,
+				ShutdownDrainTimeout:    cfg.WarmAnalysisShutdownDrain,
+			}, warmCapturer, leadPatcher, geminiClient, reg, warmExtras)
 			slog.Info("warm path gemini enabled",
 				"analyze_interval", cfg.GeminiLeadAnalyzeInterval,
 				"batch_size", cfg.GeminiLeadBatchSize,
 				"sync_geo", cfg.ParserGeminiSyncGeo,
+				"warm_embed_prescan", cfg.ParserWarmEmbedPrescan,
+				"warm_embed_cluster", cfg.ParserWarmEmbedCluster,
+				"engage_medium", cfg.ParserGeminiEngageMedium,
 			)
+		}
+	}
+
+	if cfg.ParserEntityLinkSuggest && geminiClient != nil {
+		if entityStore, ok := entityRecorder.(*sink.EntityStore); ok {
+			deps.entityLinkSuggest = warmpath.NewEntityLinkSuggestService(
+				warmpath.EntityLinkSuggestConfig{
+					Interval: cfg.EntityLinkSuggestInterval,
+				},
+				entityStore,
+				geminiClient,
+				entityStore,
+			)
+			slog.Info("entity link suggest enabled", "interval", cfg.EntityLinkSuggestInterval)
 		}
 	}
 
@@ -223,15 +346,36 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		if reader, ok := entityRecorder.(entity.DocReader); ok {
 			if patcher, ok := entityRecorder.(entity.ClassificationPatcher); ok {
 				entityClassifyCapturer = warmpath.NewEntityClassifyCapturer(cfg.EntityGeminiQueueSize)
+				outreachEnabled := cfg.ParserGeminiEngage || cfg.ParserEntityOutreachNarrative
+				var classifyExtras warmpath.EntityClassifyExtras
+				if force, ok := entityRecorder.(entity.ClassifyForceLister); ok {
+					classifyExtras.Force = force
+				}
+				if lowConf, ok := entityRecorder.(entity.LowConfidenceHotLister); ok {
+					classifyExtras.LowConf = lowConf
+				}
+				if deps.mongoClient != nil {
+					if leadMongo, err := sink.NewMongoStoreFromClient(ctx, deps.mongoClient, cfg.MongoDB, cfg.MongoCollection, cfg.WriteSlots); err == nil {
+						classifyExtras.LeadHeat = leadMongo
+						classifyExtras.Contacts = leadMongo
+						classifyExtras.Outreach = leadMongo
+					}
+				}
+				if outreachEnabled {
+					classifyExtras.Narrator = geminiClient
+				}
 				deps.entityClassify = warmpath.NewEntityClassifyService(
 					warmpath.EntityClassifyConfig{
-						AnalyzeInterval: cfg.EntityGeminiInterval,
-						Debounce:        cfg.EntityGeminiDebounce,
+						AnalyzeInterval:          cfg.EntityGeminiInterval,
+						Debounce:                 cfg.EntityGeminiDebounce,
+						LowConfidenceDebounce:    cfg.EntityGeminiLowConfidenceDebounce,
+						OutreachNarrativeEnabled: outreachEnabled,
 					},
 					entityClassifyCapturer,
 					reader,
 					patcher,
 					geminiClient,
+					classifyExtras,
 				)
 				slog.Info("entity classify gemini enabled",
 					"analyze_interval", cfg.EntityGeminiInterval,
@@ -321,6 +465,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		CrossSourceBoost:      cfg.CrossSourceHotBoost,
 		EntityHeatEnabled:     cfg.ParserEntityHeatEnabled && cfg.ParserEntitySightings && entityRecorder != nil,
 		EntityHeat:            entityHeatFromConfig(cfg),
+		HardRejectShadowPct:   cfg.HardRejectShadowPct,
 	}
 
 	if cfg.MetricsAddr != "" {
@@ -368,6 +513,9 @@ func runIngestOnce(ctx context.Context, cfg config.Config, deps *runtimeDeps, re
 	}
 	if deps.entityClassify != nil {
 		deps.entityClassify.Run(ctx, &wg)
+	}
+	if deps.entityLinkSuggest != nil {
+		deps.entityLinkSuggest.Run(ctx, &wg)
 	}
 
 	pool := pipeline.NewPool(cfg.WorkerCount, deps.processor, cfg.ProcessorTaskTimeout)

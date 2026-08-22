@@ -21,8 +21,9 @@ func (s *MemoryStore) PatchEntityClassification(_ context.Context, entityID stri
 	doc.ActorConfidence = patch.ActorConfidence
 	doc.BuyerIntent = patch.BuyerIntent
 	doc.NeedsReview = patch.NeedsReview
-	doc.HeatTier = patch.HeatTier
-	doc.HeatScore = patch.HeatScore
 	doc.EntityClassifiedAt = patch.EntityClassifiedAt
+	if patch.HeatTierDowngrade != "" {
+		doc.HeatTier = patch.HeatTierDowngrade
+	}
 	return nil
 }

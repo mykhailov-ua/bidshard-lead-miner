@@ -6,12 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from .config import ChatConfig, DiscoverConfig
-from .domains import append_domains
 from .crossmention import discover_cross_mentions
-from .invites import discover_invite_hashes
-
-from .prefilter import channel_icp_relevant
+from .domains import append_domains
 from .geo_heuristic import channel_geo_reject
+from .invites import discover_invite_hashes
+from .prefilter import channel_icp_relevant
 
 LOG = logging.getLogger("telegram.discover")
 

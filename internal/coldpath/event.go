@@ -18,12 +18,14 @@ const (
 	ReasonEmptyHash       = "empty_hash"
 	ReasonMXReject        = "mx_reject"
 	ReasonHardReject      = "hard_reject"
+	ReasonHardRejectShadow = "hard_reject_shadow"
 	ReasonTelegramSpam    = "telegram_spam"
 	ReasonEmailNoContext  = "email_no_context"
 	ReasonLangReject      = "lang_reject"
 	ReasonICPReject       = "icp_reject"
 	ReasonBlacklist       = "blacklist"
 	ReasonEmbedSpam       = "embed_spam"
+	ReasonWarmPrescanSpam = "warm_prescan_spam"
 	ReasonSemanticDedup   = "semantic_dedup"
 )
 

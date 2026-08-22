@@ -51,7 +51,7 @@ func GeoComplianceErrors(cfg Config, prodProfile bool) []string {
 	if hotPathCRM && cfg.ParserGeminiDefer && !cfg.ParserGeminiSyncGeo {
 		out = append(out, "defer+CRM without sync geo or PARSER_CRM_WEBHOOK_AFTER_ANALYSIS=true")
 	}
-	if prodProfile && !SyncGeoGateConfigured(cfg) && !(cfg.ParserGeminiDefer && cfg.CRMWebhookAfterAnalysis && cfg.ParserGeoClassify) {
+	if prodProfile && !SyncGeoGateConfigured(cfg) && (!cfg.ParserGeminiDefer || !cfg.CRMWebhookAfterAnalysis || !cfg.ParserGeoClassify) {
 		out = append(out, "prod: no geo gate before CRM (enable sync geo or defer+after-analysis webhook)")
 	}
 	return out

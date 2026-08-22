@@ -30,7 +30,7 @@ Examples:
   crm-bot db entity-split --id ENTITY_ID --hash HASH --yes`,
 	}
 
-	cmd.AddCommand(newDBStatsCmd(), newDBDeleteCmd(), newDBPurgeCmd(), newDBSetStatusCmd(), newDBEntitySplitCmd())
+	cmd.AddCommand(newDBStatsCmd(), newDBDeleteCmd(), newDBPurgeCmd(), newDBSetStatusCmd(), newDBEntitySplitCmd(), newBoostsCmd())
 	return cmd
 }
 

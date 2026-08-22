@@ -243,5 +243,7 @@ func init() {
 		newVersionCmd(),
 		newSourcesCmd(),
 		newConfigCmd(),
+		newSuggestionsCmd(),
+		newColdCmd(),
 	)
 }

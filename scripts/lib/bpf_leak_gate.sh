@@ -17,7 +17,12 @@ if [[ ! -f "$SUMMARY" ]]; then
 	exit 1
 fi
 
-if ! go run ./cmd/bpf-report -leak-gate "$SESSION"; then
+if [[ -x "$ROOT/bin/bpf-report" ]]; then
+	if ! "$ROOT/bin/bpf-report" -leak-gate "$SESSION"; then
+		printf 'bpf-leak-gate: FAIL (see above)\n' >&2
+		exit 1
+	fi
+elif ! go run ./cmd/bpf-report -leak-gate "$SESSION"; then
 	printf 'bpf-leak-gate: FAIL (see above)\n' >&2
 	exit 1
 fi

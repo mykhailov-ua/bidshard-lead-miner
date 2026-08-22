@@ -27,7 +27,8 @@ On a datacenter host, add residential proxy:
 ```bash
 cat config/env/.env.residential.example >> .env
 cat config/env/.env.vps.example >> .env   # prod seeds + paths
-make vps-preflight                        # proxy-check + preflight + config check
+make deploy-preflight                   # vps-preflight + BPF leak gate (Linux + sudo)
+make vps-preflight                        # proxy-check + preflight + config check only
 make tgweb-crawl-residential
 make tgweb-green-accept                   # requires GEMINI_API_KEY; exits 0 when accepted>=1
 ```
@@ -100,6 +101,9 @@ Rebuild after Go changes - otherwise the container runs a stale binary. `network
 | `make tgweb-domains-prune` | Host prune via `parser telegram domains prune` (no Docker) |
 | `make tgweb-crawl` | Seed + preflight + docker crawl |
 | `make tgweb-crawl-bpf` | Same + optional BPF baseline (`PARSER_BPF_BASELINE=1`, Linux + sudo) |
+| `make vps-preflight` | Proxy-check + tgweb preflight + `parser config check` |
+| `make deploy-preflight` | `vps-preflight` + tgweb crawl under eBPF leak gate (Linux + sudo) |
+| `make tgweb-bpf-leak-gate` | BPF leak gate only (`scripts/tgweb/bpf-leak-preflight.sh`) |
 | `make tgweb-crawl-residential` | Crawl (requires `PARSER_PROXY_LIST` in `.env`) |
 | `make docker-tgweb-crawl` | Docker only (`DOMAINS=...`) |
 | `make proxy-check` | Curl through first proxy |
@@ -194,6 +198,17 @@ GEMINI_API_KEY=...
 ```
 
 After each cold-path cycle, review files under `data/suggestions/`. Merge approved `telegram_search` / `serp_dorks` lines into `config/discover.icp.json` manually (no auto-merge). Then `make tgweb-discover`.
+
+### Weekly ops checklist
+
+Run once per week on a host with Mongo + optional Gemini:
+
+1. `make entity-heat-report` - entity heat negative selection + semantic_cluster collisions
+2. `parser suggestions list` - review pending keyword/discover/pain_vocab diffs
+3. `parser suggestions preview --file ...` then `parser suggestions apply --file ...` after backup
+4. `parser cold report` - junk aggregate report (or wait for scheduled cold-path cycle)
+5. `crm-bot api stats` - inbox backlog; mark spam in CRM to feed `webhook_feedback` audit
+6. Check `data/suggestions/dork_rank_*.json` and `webhook_audit_*.json` when present
 
 ### Entity heat report (weekly soak)
 

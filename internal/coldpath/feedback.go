@@ -138,6 +138,44 @@ func (s *Service) maybeWriteDiscoverDiff(ctx context.Context, reportID string, r
 	)
 }
 
+func (s *Service) maybeWritePainVocabDiff(ctx context.Context, reportID string, periodStart time.Time) {
+	if s.painVocabDiffEvery <= 0 || s.keywordDiffDir == "" || s.gemini == nil {
+		return
+	}
+	if s.reportCount%s.painVocabDiffEvery != 0 {
+		return
+	}
+	var pains []string
+	if s.entityPains != nil {
+		var err error
+		pains, err = s.entityPains.ListUnifiedPainSamples(ctx, 20)
+		if err != nil {
+			slog.Warn("unified_pain sample fetch failed", "error", err)
+		}
+	}
+	snippets, err := s.falseNegativeSnippets(ctx, periodStart)
+	if err != nil {
+		return
+	}
+	if len(pains) == 0 && len(snippets) == 0 {
+		return
+	}
+	diff, err := s.gemini.BuildPainVocabDiff(ctx, pains, snippets)
+	if err != nil {
+		slog.Warn("pain vocab diff build failed", "error", err)
+		return
+	}
+	diff = enrichKeywordDiffWithStats(ctx, s.keywordStats, diff)
+	diff.ReportID = reportID
+	diff.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
+	path, err := discover.WritePendingJSON(s.keywordDiffDir, "pain_vocab_pending", reportID, diff)
+	if err != nil {
+		slog.Warn("pain vocab diff write failed", "error", err)
+		return
+	}
+	slog.Info("pain vocab diff pending approve", "path", path, "add_keywords", len(diff.AddKeywords), "add_hard_reject", len(diff.AddHardReject))
+}
+
 func (s *Service) falseNegativeSnippets(ctx context.Context, periodStart time.Time) ([]string, error) {
 	samples, err := s.junk.FindByCategorySince(ctx, "false_negative", periodStart, 15)
 	if err != nil {

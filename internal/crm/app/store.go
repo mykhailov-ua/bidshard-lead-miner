@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	parsercfg "github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/crm/config"
 	"github.com/bidshard/parser/internal/crm/store"
 	"github.com/bidshard/parser/internal/sink"
@@ -24,6 +25,7 @@ func OpenLeadStore(ctx context.Context, cfg config.Config) (*store.LeadStore, *m
 		DBName:                 cfg.MongoDB,
 		LeadsCollection:        cfg.MongoCollection,
 		EntityCollection:       cfg.EntityCollection,
+		EntityHeatConfig:       entityHeatFromParserConfig(mustParserConfig()),
 		SourceStatsCollection:  cfg.SourceStatsCollection,
 		KeywordStatsCollection: cfg.KeywordStatsCollection,
 		CrmBoostCollection:     cfg.CrmBoostCollection,
@@ -36,6 +38,14 @@ func OpenLeadStore(ctx context.Context, cfg config.Config) (*store.LeadStore, *m
 		SearchMaxRows:          int64(cfg.SearchMaxRows),
 	})
 	return leadStore, client, nil
+}
+
+func mustParserConfig() parsercfg.Config {
+	cfg, err := parsercfg.Load()
+	if err != nil {
+		return parsercfg.Config{}
+	}
+	return cfg
 }
 
 func CloseMongo(client *mongo.Client) {

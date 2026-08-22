@@ -4,7 +4,7 @@ Lead collection and scoring from public gray-market sources (forums, Reddit, Git
 
 **Geo policy:** hard-reject RU/BY (`GEO_BLOCK_COUNTRIES`). LinkedIn is not supported.
 
-**Credentials:** [docs/CREDENTIALS.md](docs/CREDENTIALS.md) | **VPS deploy:** [docs/DEPLOY_VPS.md](docs/DEPLOY_VPS.md) | **Operations (tgweb, proxy, eBPF):** [docs/OPS.md](docs/OPS.md)
+**Credentials:** [docs/CREDENTIALS.md](docs/CREDENTIALS.md) | **VPS deploy:** [docs/DEPLOY.md](docs/DEPLOY.md) | **Operations (tgweb, proxy, eBPF):** [docs/OPS.md](docs/OPS.md)
 
 ---
 

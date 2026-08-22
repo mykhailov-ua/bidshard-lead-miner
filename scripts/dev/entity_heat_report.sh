@@ -90,6 +90,19 @@ if (forumFamily + warriorFamily > 0) {
 print('forum/warrior sighting rows (sum): ' + forumSightingTotal);
 print('');
 
+print('== semantic_cluster collisions (2+ entities, same cluster) ==');
+coll.aggregate([
+  {\$match: {semantic_cluster: {\$exists: true, \$ne: ''}}},
+  {\$group: {_id: '\$semantic_cluster', n: {\$sum: 1}, entities: {\$push: '\$entity_id'}, maxHeat: {\$max: '\$heat_score'}}},
+  {\$match: {n: {\$gte: 2}}},
+  {\$sort: {n: -1, maxHeat: -1}},
+  {\$limit: 15},
+]).forEach(row => {
+  const ents = (row.entities || []).slice(0, 4).join(',');
+  print('  cluster=' + row._id + ' n=' + row.n + ' heat_max=' + (row.maxHeat||0).toFixed(0) + ' ids=' + ents);
+});
+print('');
+
 print('== top unified_pain (for keyword feedback) ==');
 coll.aggregate([
   {\$match: {unified_pain: {\$exists: true, \$ne: ''}}},

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bidshard/parser/internal/extract"
 	"github.com/bidshard/parser/internal/model"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -42,6 +43,7 @@ type LeadDoc struct {
 	OutreachChannel     string          `bson:"outreach_channel,omitempty" json:"outreach_channel,omitempty"`
 	OutreachAngle       string          `bson:"outreach_angle,omitempty" json:"outreach_angle,omitempty"`
 	OutreachDraft       string          `bson:"outreach_draft,omitempty" json:"outreach_draft,omitempty"`
+	EntityProof         string          `bson:"entity_proof,omitempty" json:"entity_proof,omitempty"`
 	PilotQualified      bool            `bson:"pilot_qualified,omitempty" json:"pilot_qualified,omitempty"`
 	PilotWhy            string          `bson:"pilot_why,omitempty" json:"pilot_why,omitempty"`
 	CompanyType         string          `bson:"company_type,omitempty" json:"company_type,omitempty"`
@@ -54,6 +56,10 @@ type LeadDoc struct {
 	EntitySourceCount   int             `bson:"entity_source_count,omitempty" json:"entity_source_count,omitempty"`
 	EntityHeat          float64         `bson:"entity_heat,omitempty" json:"entity_heat,omitempty"`
 	HeatTier            string          `bson:"heat_tier,omitempty" json:"heat_tier,omitempty"`
+	DuplicateOf         string          `bson:"duplicate_of,omitempty" json:"duplicate_of,omitempty"`
+	DuplicateSuggest    string          `bson:"duplicate_suggest,omitempty" json:"duplicate_suggest,omitempty"`
+	ContactQuality      string          `bson:"contact_quality,omitempty" json:"contact_quality,omitempty"`
+	Stale               bool            `bson:"stale,omitempty" json:"stale,omitempty"`
 }
 
 func ToLeadDoc(lead model.Lead) LeadDoc {
@@ -108,6 +114,7 @@ func ToLeadDoc(lead model.Lead) LeadDoc {
 		OutreachChannel:     lead.OutreachChannel,
 		OutreachAngle:       lead.OutreachAngle,
 		OutreachDraft:       lead.OutreachDraft,
+		EntityProof:         lead.EntityProof,
 		PilotQualified:      lead.PilotQualified,
 		PilotWhy:            lead.PilotWhy,
 		CompanyType:         lead.CompanyType,
@@ -120,6 +127,10 @@ func ToLeadDoc(lead model.Lead) LeadDoc {
 		EntitySourceCount:   lead.EntitySourceCount,
 		EntityHeat:          lead.EntityHeat,
 		HeatTier:            lead.HeatTier,
+		DuplicateOf:         lead.DuplicateOf,
+		DuplicateSuggest:    lead.DuplicateSuggest,
+		ContactQuality:      lead.ContactQuality,
+		Stale:               lead.Stale,
 	}
 	return doc
 }
@@ -155,6 +166,7 @@ type LeadDocUpdateFields struct {
 	OutreachChannel     string          `bson:"outreach_channel,omitempty"`
 	OutreachAngle       string          `bson:"outreach_angle,omitempty"`
 	OutreachDraft       string          `bson:"outreach_draft,omitempty"`
+	EntityProof         string          `bson:"entity_proof,omitempty"`
 	PilotQualified      bool            `bson:"pilot_qualified,omitempty"`
 	PilotWhy            string          `bson:"pilot_why,omitempty"`
 	CompanyType         string          `bson:"company_type,omitempty"`
@@ -165,6 +177,10 @@ type LeadDocUpdateFields struct {
 	EntitySourceCount   int             `bson:"entity_source_count,omitempty"`
 	EntityHeat          float64         `bson:"entity_heat,omitempty"`
 	HeatTier            string          `bson:"heat_tier,omitempty"`
+	DuplicateOf         string          `bson:"duplicate_of,omitempty"`
+	DuplicateSuggest    string          `bson:"duplicate_suggest,omitempty"`
+	ContactQuality      string          `bson:"contact_quality,omitempty"`
+	Stale               bool            `bson:"stale,omitempty"`
 }
 
 func ToLeadDocUpdateBSON(doc LeadDoc) (bson.M, error) {
@@ -198,6 +214,7 @@ func ToLeadDocUpdateBSON(doc LeadDoc) (bson.M, error) {
 		OutreachChannel:     doc.OutreachChannel,
 		OutreachAngle:       doc.OutreachAngle,
 		OutreachDraft:       doc.OutreachDraft,
+		EntityProof:         doc.EntityProof,
 		PilotQualified:      doc.PilotQualified,
 		PilotWhy:            doc.PilotWhy,
 		CompanyType:         doc.CompanyType,
@@ -208,6 +225,10 @@ func ToLeadDocUpdateBSON(doc LeadDoc) (bson.M, error) {
 		EntitySourceCount:   doc.EntitySourceCount,
 		EntityHeat:          doc.EntityHeat,
 		HeatTier:            doc.HeatTier,
+		DuplicateOf:         doc.DuplicateOf,
+		DuplicateSuggest:    doc.DuplicateSuggest,
+		ContactQuality:      doc.ContactQuality,
+		Stale:               doc.Stale,
 	})
 	if err != nil {
 		return nil, err
@@ -217,6 +238,66 @@ func ToLeadDocUpdateBSON(doc LeadDoc) (bson.M, error) {
 		return nil, err
 	}
 	return fields, nil
+}
+
+// LeadDocToModel converts a stored lead document for export replay.
+func LeadDocToModel(doc LeadDoc) model.Lead {
+	contacts := make([]extract.Contact, 0, len(doc.Contacts))
+	for _, c := range doc.Contacts {
+		contacts = append(contacts, extract.Contact{Type: c.Type, Value: c.Value})
+	}
+	return model.Lead{
+		TS:                  doc.TS,
+		RoundID:             doc.RoundID,
+		HashID:              doc.HashID,
+		Priority:            doc.Priority,
+		Score:               doc.Score,
+		Source:              doc.Source,
+		Title:               doc.Title,
+		Contacts:            extract.FormatAll(contacts),
+		Matched:             append([]string(nil), doc.Matched...),
+		Snippet:             doc.Snippet,
+		ICP:                 doc.ICP,
+		Hot:                 doc.Hot,
+		SpendTier:           doc.SpendTier,
+		ICPWhy:              doc.ICPWhy,
+		GeoCountry:          doc.GeoCountry,
+		CompanyCountry:      doc.CompanyCountry,
+		CompanyName:         doc.CompanyName,
+		GeoSignals:          append([]string(nil), doc.GeoSignals...),
+		GeoWhy:              doc.GeoWhy,
+		WhoisCountry:        doc.WhoisCountry,
+		DomainAgeDays:       doc.DomainAgeDays,
+		DisplayName:         doc.DisplayName,
+		GravatarName:        doc.GravatarName,
+		EmailVerified:       doc.EmailVerified,
+		PostedAt:            doc.PostedAt,
+		Stack:               append([]string(nil), doc.Stack...),
+		Tags:                append([]string(nil), doc.Tags...),
+		Lang:                doc.Lang,
+		Status:              doc.Status,
+		StatusAt:            doc.StatusAt,
+		OutreachChannel:     doc.OutreachChannel,
+		OutreachAngle:       doc.OutreachAngle,
+		OutreachDraft:       doc.OutreachDraft,
+		EntityProof:         doc.EntityProof,
+		PilotQualified:      doc.PilotQualified,
+		PilotWhy:            doc.PilotWhy,
+		CompanyType:         doc.CompanyType,
+		EnrichSummary:       doc.EnrichSummary,
+		GeoConfidence:       doc.GeoConfidence,
+		AnalysisStatus:      doc.AnalysisStatus,
+		AnalysisAt:          doc.AnalysisAt,
+		EntityID:            doc.EntityID,
+		EntitySightingCount: doc.EntitySightingCount,
+		EntitySourceCount:   doc.EntitySourceCount,
+		EntityHeat:          doc.EntityHeat,
+		HeatTier:            doc.HeatTier,
+		DuplicateOf:         doc.DuplicateOf,
+		DuplicateSuggest:    doc.DuplicateSuggest,
+		ContactQuality:      doc.ContactQuality,
+		Stale:               doc.Stale,
+	}
 }
 
 func leadDocUpsertUpdate(doc LeadDoc) (bson.M, error) {

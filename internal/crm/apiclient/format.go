@@ -35,8 +35,8 @@ func WriteEntityTable(out io.Writer, entities []entity.EntityDoc) {
 		if pain == "" && len(doc.Matched) > 0 {
 			pain = strings.Join(doc.Matched, ",")
 		}
-		_, _ = fmt.Fprintf(tw, "%.0f\t%s\t%d\t%s\t%s\n",
-			doc.HeatScore,
+		_, _ = fmt.Fprintf(tw, "%d\t%s\t%d\t%s\t%s\n",
+			entity.DisplayHeatScore(doc),
 			doc.HeatTier,
 			doc.SourceCount,
 			truncate(pain, 48),

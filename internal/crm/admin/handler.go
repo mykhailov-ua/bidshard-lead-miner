@@ -17,11 +17,12 @@ const maxBodyBytes = 16 << 10
 // Handler exposes /v1/admin/* on the crm-bot HTTP listener.
 // Auth is enforced by Caddy basicauth in production, not inside this package.
 type Handler struct {
-	store *store.LeadStore
+	store     *store.LeadStore
+	explainer LeadExplainer
 }
 
-func NewHandler(leadStore *store.LeadStore) *Handler {
-	return &Handler{store: leadStore}
+func NewHandler(leadStore *store.LeadStore, explainer LeadExplainer) *Handler {
+	return &Handler{store: leadStore, explainer: explainer}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +39,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == http.MethodGet && path == "/v1/admin/stats":
 		h.handleStats(w, r)
+	case r.Method == http.MethodGet && path == "/v1/admin/leads/explain":
+		h.handleExplainLead(w, r)
 	case r.Method == http.MethodGet && path == "/v1/admin/leads/search":
 		h.handleSearchLeads(w, r)
 	case r.Method == http.MethodGet && path == "/v1/admin/leads/get":
@@ -139,6 +142,28 @@ func (h *Handler) handleGetLead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, lead)
+}
+
+func (h *Handler) handleExplainLead(w http.ResponseWriter, r *http.Request) {
+	if h.explainer == nil {
+		http.Error(w, "explain not configured", http.StatusServiceUnavailable)
+		return
+	}
+	hashID := strings.TrimSpace(r.URL.Query().Get("hash_id"))
+	if hashID == "" {
+		http.Error(w, "hash_id required", http.StatusBadRequest)
+		return
+	}
+	summary, err := h.explainer.Explain(r.Context(), hashID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "explain failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"hash_id": hashID, "summary": summary})
 }
 
 func (h *Handler) handleListNotes(w http.ResponseWriter, r *http.Request) {

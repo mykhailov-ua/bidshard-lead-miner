@@ -25,9 +25,12 @@ type NoteDoc struct {
 }
 
 type LeadMetaDoc struct {
-	HashID    string    `bson:"hash_id"`
-	Tags      []string  `bson:"tags,omitempty"`
-	UpdatedAt time.Time `bson:"updated_at"`
+	HashID           string    `bson:"hash_id"`
+	Tags             []string  `bson:"tags,omitempty"`
+	ExplainSummary   string    `bson:"explain_summary,omitempty"`
+	ExplainCachedAt  time.Time `bson:"explain_cached_at,omitempty"`
+	ExplainExpiresAt time.Time `bson:"explain_expires_at,omitempty"`
+	UpdatedAt        time.Time `bson:"updated_at"`
 }
 
 func normalizeNoteText(text string) (string, error) {

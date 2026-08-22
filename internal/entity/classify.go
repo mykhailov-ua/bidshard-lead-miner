@@ -1,6 +1,9 @@
 package entity
 
-import "time"
+import (
+	"sort"
+	"time"
+)
 
 const splitActorConfidenceMin = 0.7
 
@@ -10,9 +13,11 @@ type EntityClassificationPatch struct {
 	ActorConfidence    float64
 	BuyerIntent        string
 	NeedsReview        bool
-	HeatTier           string
-	HeatScore          float64
 	EntityClassifiedAt time.Time
+	// HeatTierDowngrade is set only when classify downgrades hot/blazing to warm.
+	// Empty means the patch must not touch heat_tier or heat_score in Mongo.
+	HeatTierDowngrade string
+	SemanticCluster   string
 }
 
 // ShouldTriggerEntityClassify reports whether warm-path Gemini entity validation should run.
@@ -43,15 +48,13 @@ func ApplyEntityClassification(doc *EntityDoc, res GeminiClassifyResult, now tim
 		ActorConfidence:    res.ActorConfidence,
 		BuyerIntent:        res.BuyerIntent,
 		NeedsReview:        res.SplitRecommended,
-		HeatTier:           doc.HeatTier,
-		HeatScore:          doc.HeatScore,
 		EntityClassifiedAt: now,
 	}
 
 	if !res.SameActor && res.ActorConfidence >= splitActorConfidenceMin {
 		patch.NeedsReview = true
 		if HeatTierRank(doc.HeatTier) >= HeatTierRank(HeatTierHot) {
-			patch.HeatTier = HeatTierWarm
+			patch.HeatTierDowngrade = HeatTierWarm
 		}
 	}
 	if res.SplitRecommended {
@@ -62,9 +65,12 @@ func ApplyEntityClassification(doc *EntityDoc, res GeminiClassifyResult, now tim
 	doc.ActorConfidence = patch.ActorConfidence
 	doc.BuyerIntent = patch.BuyerIntent
 	doc.NeedsReview = patch.NeedsReview
-	doc.HeatTier = patch.HeatTier
-	doc.HeatScore = patch.HeatScore
 	doc.EntityClassifiedAt = patch.EntityClassifiedAt
+	if patch.HeatTierDowngrade != "" {
+		doc.HeatTier = patch.HeatTierDowngrade
+	}
+	patch.SemanticCluster = SemanticClusterID(doc.Matched, patch.UnifiedPain)
+	doc.SemanticCluster = patch.SemanticCluster
 	return patch
 }
 
@@ -80,14 +86,46 @@ type GeminiClassifyResult struct {
 
 // ClassifySightingsFromDoc returns up to 5 sightings for Gemini input (newest first).
 func ClassifySightingsFromDoc(doc EntityDoc) []EntitySighting {
+	return ClassifySightingsFromDocLimit(doc, MaxEntityClassifySightings)
+}
+
+// ClassifySightingsFromDocLimit returns up to limit sightings (newest first).
+func ClassifySightingsFromDocLimit(doc EntityDoc, limit int) []EntitySighting {
 	if len(doc.Sightings) == 0 {
 		return nil
 	}
+	if limit <= 0 {
+		limit = MaxEntityClassifySightings
+	}
 	out := append([]EntitySighting(nil), doc.Sightings...)
-	if len(out) > maxEntityClassifySightings {
-		out = out[:maxEntityClassifySightings]
+	sort.Slice(out, func(i, j int) bool {
+		ti := sightingEventTimeOf(out[i])
+		tj := sightingEventTimeOf(out[j])
+		if ti.Equal(tj) {
+			// Stable tie-break when PostedAt missing on both sightings.
+			return out[i].HashID > out[j].HashID
+		}
+		return ti.After(tj)
+	})
+	if len(out) > limit {
+		out = out[:limit]
 	}
 	return out
 }
 
-const maxEntityClassifySightings = 5
+const MaxEntityClassifySightings = 5
+
+const MaxLowConfidenceClassifySightings = 20
+
+const lowConfidenceActorThreshold = 0.5
+
+// IsLowConfidenceHot reports hot/blazing entities that need more sightings for classify.
+func IsLowConfidenceHot(doc EntityDoc) bool {
+	if HeatTierRank(doc.HeatTier) < HeatTierRank(HeatTierHot) {
+		return false
+	}
+	if doc.EntityClassifiedAt.IsZero() {
+		return true
+	}
+	return doc.ActorConfidence < lowConfidenceActorThreshold
+}

@@ -1,0 +1,19 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["sources", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "PIE", "FURB"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Network crawlers: log and continue on provider errors.
+"sources/telegram/*.py" = ["BLE001"]
+"sources/headless/*.py" = ["BLE001"]
+# Intentional Cyrillic / homoglyph patterns for geo and spam detection.
+"sources/telegram/geo_heuristic.py" = ["BLE001", "RUF001"]
+"sources/telegram/prefilter.py" = ["BLE001", "RUF001"]
+# parse_args() before local imports in scraper CLI.
+"sources/telegram/scraper.py" = ["BLE001", "EXE001", "E402"]
+"scripts/**/*.py" = ["EXE001"]

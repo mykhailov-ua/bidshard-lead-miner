@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 import yaml
 
@@ -86,7 +85,7 @@ def load_config(path: str | Path) -> ScraperConfig:
     yaml_queries = [
         str(q).strip() for q in discover_raw.get("queries", []) if str(q).strip()
     ]
-    queries = yaml_queries if yaml_queries else icp_telegram
+    queries = yaml_queries or icp_telegram
 
     cross_raw = discover_raw.get("cross_mention", {}) or {}
     cross_mention = CrossMentionConfig(

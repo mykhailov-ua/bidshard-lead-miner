@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: test and lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-headless.txt
+            requirements-dev.txt
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Run CI gates
+        run: bash scripts/ci/run.sh
+
+  deploy-preflight:
+    name: deploy preflight (BPF)
+    runs-on: ubuntu-latest
+    # Full crawl + eBPF is slow; run on main pushes, manual dispatch, and PRs when labeled.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/master' ||
+      contains(github.event.pull_request.labels.*.name, 'deploy-preflight')
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval \"db.adminCommand('ping')\""
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install BPF build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm libbpf-dev make linux-headers-generic
+
+      - name: Deploy preflight (proxy smoke + tgweb BPF leak gate)
+        env:
+          GITHUB_ACTIONS: "true"
+          DEPLOY_PREFLIGHT_CI: "1"
+          MONGO_URI: mongodb://127.0.0.1:27017
+          PARSER_SEED_PROFILE: dev
+          PARSER_BG_TELEGRAM: "false"
+          PARSER_ICP_CLASSIFY_TGWEB: "false"
+          PARSER_GEMINI_DEFER: "true"
+          TGWEB_CRAWL_MODE: host
+          DOMAINS: blask.com
+          PARSER_BPF_PREFLIGHT: "1"
+        run: bash scripts/ci/deploy-preflight.sh

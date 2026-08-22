@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -87,7 +87,7 @@ def append_domains(
 
     added = 0
     upgraded = 0
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     for entry in entries:
         row = _normalize_entry(entry)
         if row is None:

@@ -110,6 +110,7 @@ type Lead struct {
 	OutreachChannel     string
 	OutreachAngle       string
 	OutreachDraft       string
+	EntityProof         string
 	PilotQualified      bool
 	PilotWhy            string
 	CompanyType         string
@@ -122,4 +123,8 @@ type Lead struct {
 	EntitySourceCount   int
 	EntityHeat          float64
 	HeatTier            string
+	DuplicateOf         string
+	DuplicateSuggest    string
+	ContactQuality      string
+	Stale               bool
 }

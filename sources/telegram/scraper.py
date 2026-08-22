@@ -7,14 +7,13 @@ import json
 import logging
 import os
 import sys
-import time
 from pathlib import Path
 from typing import Any, TextIO
 
 from .config import ChatConfig, ScraperConfig, load_config
 from .cursor import CursorStore
 from .discover import chats_for_scrape, run_discover
-from .domains import append_domains
+from .domains import RegistryEntry, append_domains
 from .tglinks import web_domains
 
 LOG = logging.getLogger("telegram.scraper")
@@ -57,8 +56,8 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-from .prefilter import should_emit_message
 from .geo_heuristic import channel_geo_reject
+from .prefilter import should_emit_message
 
 
 def emit_line(
@@ -150,7 +149,9 @@ async def fetch_channel_about(client: Any, entity: Any) -> str:
     if not isinstance(entity, Channel):
         return ""
     try:
-        full = await client(GetFullChannelRequest(entity))
+        from .telethon_input import channel_input_peer
+
+        full = await client(GetFullChannelRequest(channel_input_peer(entity)))
         about = getattr(full.full_chat, "about", None)
         if about:
             return str(about)
@@ -198,8 +199,7 @@ async def scrape_chat(
                 username = sender_username(await message.get_sender())
                 emit_line(out, chat, body, username, message.id, channel_about=about_text)
                 emitted += 1
-                if message.id > max_seen:
-                    max_seen = message.id
+                max_seen = max(max_seen, message.id)
             break
         except FloodWaitError as exc:
             LOG.warning(
@@ -226,7 +226,7 @@ async def scrape_chat(
     if cfg.discover.domains_path and texts_for_domains:
         # Register web domains from scrape batch; tgweb Go crawler reads the same JSON file.
         channel_name = (chat.username or chat.name or "").strip().lstrip("@").lower()
-        entries: list[dict[str, str]] = []
+        entries: list[RegistryEntry] = []
         seen_domains: set[str] = set()
         for domain in web_domains("\n".join(texts_for_domains)):
             if domain in seen_domains:
@@ -287,14 +287,17 @@ def describe_sent_code(sent: Any) -> str:
 
 
 def build_telegram_client(cfg: ScraperConfig, api_id: str, api_hash: str) -> Any:
+    from sources.telegram.proxy import telegram_proxy_from_env
     from telethon import TelegramClient
 
-    from sources.telegram.proxy import telegram_proxy_from_env
-
     proxy = telegram_proxy_from_env()
-    client = TelegramClient(cfg.session, int(api_id), api_hash, proxy=proxy)
-    if env_truthy("TELEGRAM_USE_TEST_DC"):
-        client.session.set_dc(2, "149.154.167.40", 443)
+    if proxy is not None:
+        client = TelegramClient(cfg.session, int(api_id), api_hash, proxy=proxy)
+    else:
+        client = TelegramClient(cfg.session, int(api_id), api_hash)
+    session = client.session
+    if env_truthy("TELEGRAM_USE_TEST_DC") and session is not None:
+        session.set_dc(2, "149.154.167.40", 443)
     return client
 
 
@@ -307,7 +310,7 @@ def print_qr_login_help(url: str, session_path: Path) -> None:
         "=== Telegram QR login ===\n"
         "1. On phone: Telegram -> Settings -> Devices -> Link Desktop Device\n"
         "2. Scan the QR below with THAT screen (terminal ASCII or PNG file)\n"
-        f"   PNG on host (after run): data/export/telegram-login-qr.png\n"
+        "   PNG on host (after run): data/export/telegram-login-qr.png\n"
         "3. Or paste the tg:// link into Saved Messages on phone and tap it\n"
         "4. Keep this terminal open until login completes (~3 min)\n"
         "=========================\n"
@@ -321,13 +324,14 @@ def print_qr_login_help(url: str, session_path: Path) -> None:
         qr.add_data(url)
         qr.make(fit=True)
         qr.print_ascii(invert=True)
-        print("", flush=True)
+        print(flush=True)
         try:
             img = qrcode.make(url)
             for png_path in (png_session, png_export):
                 try:
                     png_path.parent.mkdir(parents=True, exist_ok=True)
-                    img.save(png_path)
+                    with png_path.open("wb") as fh:
+                        img.save(fh)
                     LOG.info("QR PNG saved: %s", png_path)
                 except OSError as exc:
                     LOG.warning("could not save QR PNG %s: %s", png_path, exc)
@@ -341,7 +345,7 @@ def print_qr_login_help(url: str, session_path: Path) -> None:
         )
 
     print(url, flush=True)
-    print("", flush=True)
+    print(flush=True)
 
 
 async def login_qr(cfg: ScraperConfig) -> int:
@@ -380,7 +384,7 @@ async def login_qr(cfg: ScraperConfig) -> int:
             await client.disconnect()
             return 1
         await client.sign_in(password=password)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         LOG.error(
             "QR login timed out after %ss; retry parser telegram login --qr", timeout
         )

@@ -131,21 +131,14 @@ func appendForumIdentityKeys(keys []EntityKey, in ResolveInput) []EntityKey {
 }
 
 // EnrichForumIdentity fills forum username and uid from raw crawl fields when absent.
+// Username must be a real forum handle; thread title is not used (Q-ENT-09).
 func EnrichForumIdentity(in ResolveInput, username, title, forumUID string) ResolveInput {
+	_ = title
 	if in.ForumUser == "" {
-		in.ForumUser = firstNonEmpty(strings.TrimSpace(username), strings.TrimSpace(title))
+		in.ForumUser = strings.TrimSpace(username)
 	}
 	if in.ForumUID == "" {
 		in.ForumUID = strings.TrimSpace(forumUID)
 	}
 	return in
-}
-
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }

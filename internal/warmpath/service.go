@@ -2,11 +2,15 @@ package warmpath
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/bidshard/parser/internal/entity"
 	"github.com/bidshard/parser/internal/gemini"
+	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/scoring"
 	"github.com/bidshard/parser/internal/sink"
 	"github.com/bidshard/parser/internal/worker"
@@ -21,33 +25,66 @@ type Config struct {
 	GeoBlockCountries       []string
 	GeoClassifyEnabled      bool // mirrors PARSER_GEO_CLASSIFY; when false warm path skips geo_rejected
 	CRMWebhook              *sink.WebhookClient
-	CRMWebhookAfterAnalysis bool // PARSER_CRM_WEBHOOK_AFTER_ANALYSIS: notify CRM only after analysis_status=done
+	CRMWebhookAfterAnalysis bool          // PARSER_CRM_WEBHOOK_AFTER_ANALYSIS: notify CRM only after analysis_status=done
+	RetryMaxAttempts        int           // WARM_ANALYSIS_RETRY_MAX; Gemini batch retries before DLQ
+	RetryBaseDelay          time.Duration // WARM_ANALYSIS_RETRY_BASE; doubled each retry
+	PendingRescanInterval   time.Duration // WARM_ANALYSIS_PENDING_SCAN_INTERVAL; 0 disables Mongo rescan
+	PendingStaleAge         time.Duration // WARM_ANALYSIS_PENDING_STALE; min age of analysis_status=pending
+	ShutdownDrainTimeout    time.Duration // WARM_ANALYSIS_SHUTDOWN_DRAIN; flush budget after ctx cancel
+	EngageMediumEnabled     bool          // PARSER_GEMINI_ENGAGE_MEDIUM: lite outreach_angle for Medium+warm entity
+}
+
+// ServiceExtras wires optional Mongo pending scan, DLQ, embed prescan, cluster, junk insert.
+type ServiceExtras struct {
+	PendingScanner PendingLeadScanner
+	DLQ            AnalysisDLQWriter
+	Prescan        EmbedPrescanner
+	Cluster        LeadClusterer
+	Junk           WarmJunkInserter
+	EngageMedium   MediumEngager
 }
 
 type Service struct {
-	cfg      Config
-	capturer *Capturer
-	patcher  sink.LeadAnalysisPatcher
-	analyzer LeadBatchAnalyzer
-	registry *scoring.Registry
+	cfg            Config
+	capturer       *Capturer
+	patcher        sink.LeadAnalysisPatcher
+	analyzer       LeadBatchAnalyzer
+	registry       *scoring.Registry
+	pendingScanner PendingLeadScanner
+	dlq            AnalysisDLQWriter
+	prescan        EmbedPrescanner
+	cluster        LeadClusterer
+	junk           WarmJunkInserter
+	engageMedium   MediumEngager
 
 	mu     sync.Mutex
 	buffer []Event
 }
 
-func NewService(cfg Config, capturer *Capturer, patcher sink.LeadAnalysisPatcher, analyzer LeadBatchAnalyzer, reg *scoring.Registry) *Service {
+func NewService(cfg Config, capturer *Capturer, patcher sink.LeadAnalysisPatcher, analyzer LeadBatchAnalyzer, reg *scoring.Registry, extras ServiceExtras) *Service {
 	cfg.AnalyzeInterval = worker.DurationOr(cfg.AnalyzeInterval, 5*time.Minute)
 	cfg.BatchSize = worker.IntOr(cfg.BatchSize, 15)
+	cfg.RetryMaxAttempts = worker.IntOr(cfg.RetryMaxAttempts, 3)
+	cfg.RetryBaseDelay = worker.DurationOr(cfg.RetryBaseDelay, 5*time.Second)
+	cfg.PendingRescanInterval = worker.DurationOr(cfg.PendingRescanInterval, 15*time.Minute)
+	cfg.PendingStaleAge = worker.DurationOr(cfg.PendingStaleAge, time.Hour)
+	cfg.ShutdownDrainTimeout = worker.DurationOr(cfg.ShutdownDrainTimeout, 2*time.Minute)
 	if len(cfg.GeoBlockCountries) == 0 {
 		cfg.GeoBlockCountries = []string{"RU", "BY"}
 	}
 	return &Service{
-		cfg:      cfg,
-		capturer: capturer,
-		patcher:  patcher,
-		analyzer: analyzer,
-		registry: reg,
-		buffer:   make([]Event, 0, cfg.BatchSize*2),
+		cfg:            cfg,
+		capturer:       capturer,
+		patcher:        patcher,
+		analyzer:       analyzer,
+		registry:       reg,
+		pendingScanner: extras.PendingScanner,
+		dlq:            extras.DLQ,
+		prescan:        extras.Prescan,
+		cluster:        extras.Cluster,
+		junk:           extras.Junk,
+		engageMedium:   extras.EngageMedium,
+		buffer:         make([]Event, 0, cfg.BatchSize*2),
 	}
 }
 
@@ -62,6 +99,7 @@ func (s *Service) run(ctx context.Context) {
 	slog.Info("warm path gemini worker started",
 		"analyze_interval", s.cfg.AnalyzeInterval,
 		"batch_size", s.cfg.BatchSize,
+		"retry_max", s.cfg.RetryMaxAttempts,
 	)
 
 	var wg sync.WaitGroup
@@ -83,9 +121,7 @@ func (s *Service) ingestLoop(ctx context.Context) {
 			if !ok {
 				return
 			}
-			s.mu.Lock()
-			s.buffer = append(s.buffer, ev)
-			s.mu.Unlock()
+			s.enqueueDedupe([]Event{ev})
 		}
 	}
 }
@@ -94,24 +130,54 @@ func (s *Service) analyzeLoop(ctx context.Context) {
 	ticker := time.NewTicker(s.cfg.AnalyzeInterval)
 	defer ticker.Stop()
 
+	var rescanTicker *time.Ticker
+	var rescanC <-chan time.Time
+	if s.pendingScanner != nil && s.cfg.PendingRescanInterval > 0 {
+		rescanTicker = time.NewTicker(s.cfg.PendingRescanInterval)
+		defer rescanTicker.Stop()
+		rescanC = rescanTicker.C
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
-			s.flush(ctx)
+			// Parent ctx is cancelled on shutdown; use a fresh timeout so in-flight Gemini batches can finish.
+			drainCtx, cancel := context.WithTimeout(context.Background(), s.cfg.ShutdownDrainTimeout)
+			s.flushAll(drainCtx)
+			cancel()
 			return
 		case <-ticker.C:
 			s.flush(ctx)
+		case <-rescanC:
+			s.rescanPending(ctx)
 		}
 	}
 }
 
 func (s *Service) flush(ctx context.Context) {
-	// takeBatch removes events from the buffer before the Gemini call; failed batches are not re-queued.
 	batch := s.takeBatch()
 	if len(batch) == 0 {
 		return
 	}
+	s.processBatch(ctx, batch)
+}
 
+func (s *Service) flushAll(ctx context.Context) {
+	for {
+		batch := s.takeBatch()
+		if len(batch) == 0 {
+			return
+		}
+		s.processBatch(ctx, batch)
+	}
+}
+
+func (s *Service) processBatch(ctx context.Context, batch []Event) {
+	// Batch is already removed from the in-memory buffer; on shutdown mid-retry we requeue instead of DLQ.
+	batch = s.filterWarmPrescan(ctx, batch)
+	if len(batch) == 0 {
+		return
+	}
 	inputs := make([]gemini.LeadBatchInput, 0, len(batch))
 	byID := make(map[string]Event, len(batch))
 	for _, ev := range batch {
@@ -133,19 +199,77 @@ func (s *Service) flush(ctx context.Context) {
 		})
 	}
 
-	results, err := s.analyzer.AnalyzeLeadBatch(ctx, inputs, s.cfg.GeoClassifyEnabled)
-	if err != nil {
-		slog.Warn("warm path lead batch failed", "count", len(batch), "error", err)
-		return // dropped batch; lead stays analysis_status=pending until next sighting
+	delay := s.cfg.RetryBaseDelay
+	maxAttempts := s.cfg.RetryMaxAttempts
+	if maxAttempts < 1 {
+		maxAttempts = 1 // tests may construct Service without NewService defaults
+	}
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		results, err := s.analyzer.AnalyzeLeadBatch(ctx, inputs, s.cfg.GeoClassifyEnabled)
+		if err == nil {
+			highMin := highMinFromReg(s.registry)
+			for _, res := range results {
+				ev, ok := byID[res.HashID]
+				if !ok {
+					continue
+				}
+				s.applyResult(ctx, ev, res, highMin)
+			}
+			return
+		}
+		lastErr = err
+		if attempt >= maxAttempts {
+			break
+		}
+		slog.Warn("warm path lead batch retry",
+			"count", len(batch),
+			"attempt", attempt,
+			"error", err,
+		)
+		select {
+		case <-ctx.Done():
+			s.requeueFront(batch)
+			return
+		case <-time.After(delay):
+			delay *= 2
+		}
 	}
 
-	highMin := highMinFromReg(s.registry)
-	for _, res := range results {
-		ev, ok := byID[res.HashID]
-		if !ok {
-			continue
+	metrics.RecordWarmAnalysisFailed(len(batch))
+	if s.dlq != nil {
+		if err := s.dlq.InsertWarmAnalysisFailures(ctx, batch, maxAttempts, lastErr); err != nil {
+			slog.Warn("warm path dlq insert failed", "count", len(batch), "error", err)
 		}
-		s.applyResult(ctx, ev, res, highMin)
+	}
+	// Lead documents stay analysis_status=pending; ops replay from warm_analysis_dlq or wait for rescan.
+	slog.Warn("warm path lead batch failed after retries",
+		"count", len(batch),
+		"attempts", maxAttempts,
+		"error", lastErr,
+	)
+}
+
+func (s *Service) rescanPending(ctx context.Context) {
+	if s.pendingScanner == nil {
+		return
+	}
+	if n, err := s.pendingScanner.CountPendingAnalysis(ctx); err == nil {
+		metrics.SetWarmAnalysisPending(n)
+	} else {
+		slog.Debug("warm path pending count failed", "error", err)
+	}
+	events, err := s.pendingScanner.ListStalePendingLeads(ctx, s.cfg.PendingStaleAge, s.cfg.BatchSize)
+	if err != nil {
+		slog.Warn("warm path pending rescan failed", "error", err)
+		return
+	}
+	if len(events) == 0 {
+		return
+	}
+	added := s.enqueueDedupe(events)
+	if added > 0 {
+		slog.Info("warm path re-queued stale pending leads", "count", added)
 	}
 }
 
@@ -162,6 +286,43 @@ func (s *Service) takeBatch() []Event {
 	out := append([]Event(nil), s.buffer[:n]...)
 	s.buffer = append(s.buffer[:0], s.buffer[n:]...)
 	return out
+}
+
+func (s *Service) requeueFront(batch []Event) {
+	if len(batch) == 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.buffer = append(append([]Event(nil), batch...), s.buffer...)
+}
+
+func (s *Service) enqueueDedupe(events []Event) int {
+	// Rescan and hot-path capture can reference the same hash_id in one tick.
+	if len(events) == 0 {
+		return 0
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	existing := make(map[string]struct{}, len(s.buffer))
+	for _, ev := range s.buffer {
+		if ev.HashID != "" {
+			existing[ev.HashID] = struct{}{}
+		}
+	}
+	added := 0
+	for _, ev := range events {
+		if ev.HashID == "" {
+			continue
+		}
+		if _, ok := existing[ev.HashID]; ok {
+			continue
+		}
+		s.buffer = append(s.buffer, ev)
+		existing[ev.HashID] = struct{}{}
+		added++
+	}
+	return added
 }
 
 func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatchResult, highMin int) {
@@ -206,6 +367,12 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 		if res.ICP.Hot && priority == scoring.PriorityMedium {
 			priority = scoring.PriorityHigh
 		}
+		if inline := strings.TrimSpace(ev.InlineICP); inline != "" {
+			warm := strings.TrimSpace(res.ICP.ICP)
+			if warm != "" && !strings.EqualFold(inline, warm) {
+				metrics.RecordICPDrift(ev.Source)
+			}
+		}
 	}
 
 	patch := sink.LeadAnalysisPatch{
@@ -222,6 +389,9 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 		CompanyName:    res.Geo.CompanyName,
 		GeoSignals:     append(append([]string(nil), res.Geo.RegistrationSignals...), res.Geo.RUBYSignals...),
 		GeoWhy:         res.Geo.Why,
+	}
+	if q := scoring.ScoreContactQuality(ev.Contacts); q != "" {
+		patch.ContactQuality = q
 	}
 
 	if s.cfg.PilotTagEnabled && priority == scoring.PriorityHigh {
@@ -241,6 +411,36 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 		patch.GeoConfidence = res.Enrichment.GeoConfidence
 	}
 
+	if s.cfg.EngageMediumEnabled && priority == scoring.PriorityMedium && entity.HeatTierMeetsMin(ev.HeatTier, entity.HeatTierWarm) {
+		if s.engageMedium != nil {
+			engage, err := s.engageMedium.ClassifyEngagement(ctx, gemini.EngagementInput{
+				Text:         ev.Snippet,
+				Stack:        append([]string(nil), ev.Stack...),
+				ContactTypes: append([]string(nil), ev.ContactTypes...),
+			})
+			if err != nil {
+				slog.Debug("warm medium engage failed", "hash_id", ev.HashID, "error", err)
+			} else if angle := engage.OutreachAngle; angle != "" {
+				patch.OutreachAngle = angle
+			}
+		}
+	}
+
+	if s.cluster != nil && scoring.MeetsMinPriority(priority, scoring.PriorityHigh) {
+		if dup, clusterOf, err := s.cluster.CheckDuplicate(ctx, ev.HashID, ev.Snippet); err != nil {
+			slog.Warn("warm lead cluster check failed", "hash_id", ev.HashID, "error", err)
+		} else if dup {
+			patch.AnalysisStatus = "duplicate"
+			patch.Status = "duplicate"
+			patch.DuplicateOf = clusterOf
+			if err := s.patcher.PatchLeadAnalysis(ctx, patch); err != nil {
+				slog.Warn("warm path duplicate patch failed", "hash_id", ev.HashID, "error", err)
+			}
+			slog.Info("warm path semantic duplicate", "hash_id", ev.HashID, "duplicate_of", clusterOf)
+			return
+		}
+	}
+
 	if err := s.patcher.PatchLeadAnalysis(ctx, patch); err != nil {
 		slog.Warn("warm path analysis patch failed", "hash_id", ev.HashID, "error", err)
 		return
@@ -248,6 +448,11 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 	// Defer-mode CRM contract: webhook only after Mongo patch succeeds and lead is not geo/icp rejected.
 	if s.cfg.CRMWebhook != nil && s.cfg.CRMWebhookAfterAnalysis {
 		s.cfg.CRMWebhook.NotifyLead(leadForCRM(ev, patch))
+	}
+	if s.cluster != nil && scoring.MeetsMinPriority(priority, scoring.PriorityHigh) {
+		if err := s.cluster.Record(ctx, ev.HashID, ev.Snippet); err != nil {
+			slog.Debug("warm lead cluster record failed", "hash_id", ev.HashID, "error", err)
+		}
 	}
 	slog.Debug("warm path lead analyzed", "hash_id", ev.HashID, "priority", patch.Priority, "icp", patch.ICP)
 }
@@ -267,3 +472,6 @@ func (s *Service) DeferredCRMWebhook() bool {
 	}
 	return s.cfg.CRMWebhookAfterAnalysis && s.cfg.CRMWebhook != nil
 }
+
+// ErrWarmAnalysisExhausted is returned by test analyzers to simulate batch failure.
+var ErrWarmAnalysisExhausted = errors.New("warm analysis exhausted")

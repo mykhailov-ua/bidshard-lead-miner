@@ -61,8 +61,10 @@ Verify before 24/7:
 
 ```bash
 make proxy-check
-make vps-preflight
+make deploy-preflight
 ```
+
+`deploy-preflight` runs `vps-preflight` then tgweb crawl under the eBPF probe (`parser_bpf_fd_delta`, thread drift). On non-Linux hosts BPF is skipped; run on staging VPS before ship. Skip BPF: `PARSER_BPF_PREFLIGHT=0 make deploy-preflight`.
 
 More proxy modes: [OPS.md#proxy](OPS.md#proxy).
 
@@ -147,7 +149,7 @@ Enable metrics (set in `config/env/.env.vps.example`):
 PARSER_METRICS_ADDR=:9465
 ```
 
-Scrape `http://<vps-host>:9465/metrics`. Example alerts: [prometheus/parser-alerts.example.yml](prometheus/parser-alerts.example.yml).
+Scrape `http://<vps-host>:9465/metrics`. Example alerts: [PROMETHEUS/parser-alerts.example.yml](PROMETHEUS/parser-alerts.example.yml).
 
 Soak / smoke fail flags (`scripts/lib/soak_gate.sh`):
 
@@ -180,7 +182,7 @@ PARSER_SEED_PROFILE=prod go run ./cmd/parser config check
 On staging VPS with creds:
 
 ```bash
-make vps-preflight
+make deploy-preflight
 make tgweb-green-accept
 make forum-live-check
 make prod-source-smoke
@@ -241,7 +243,7 @@ Full guide: [OPS.md#vps-squid-optional](OPS.md#vps-squid-optional). Scripts: [sc
 | Telethon MTProto proxy | `TELEGRAM_PROXY_URL=socks5://user:pass@host:1080` (not `PARSER_PROXY_LIST`) |
 | Playwright in Docker | `make docker-headless-build`; `PARSER_LANDER_HEADLESS=true` |
 | BPF release gate | `PARSER_BPF_GATE=1 make tgweb-crawl-bpf`; `make bpf-release-gate SESSION=var/bpf-session/...` |
-| BPF leak probe | `PARSER_BPF_LEAK_GATE=1` + `make bpf-leak-gate SESSION=...`; scrape `:9464` for `parser_bpf_fd_delta` |
+| BPF leak probe | `make tgweb-bpf-leak-gate` (or `PARSER_BPF_LEAK_GATE=1 make tgweb-crawl-bpf`); `make bpf-leak-gate SESSION=...`; scrape `:9464` for `parser_bpf_fd_delta` |
 | CRM webhook | `PARSER_CRM_WEBHOOK=true`; `PARSER_CRM_WEBHOOK_URL=http://crm-bot:8080/v1/leads`; shared `PARSER_CRM_WEBHOOK_SECRET` / `CRM_WEBHOOK_SECRET`; parser needs `PARSER_LEAD_STATUS_ENABLED=true` for inbox |
 
 ### CRM sidecar (docker compose)

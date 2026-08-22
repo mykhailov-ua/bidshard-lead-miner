@@ -6,13 +6,13 @@ import (
 )
 
 func entityHeatFromConfig(cfg config.Config) entity.HeatConfig {
-	return entity.HeatConfig{
-		Enabled:          cfg.ParserEntityHeatEnabled,
-		BlazingThreshold: cfg.EntityHeatBlazing,
-		HotThreshold:     cfg.EntityHeatHot,
-		WarmThreshold:    cfg.EntityHeatWarm,
-		Decay7D:          cfg.EntityHeatDecay7D,
-		Decay30D:         cfg.EntityHeatDecay30D,
-		Decay90D:         cfg.EntityHeatDecay90D,
-	}
+	return entity.HeatConfigFromThresholds(
+		cfg.ParserEntityHeatEnabled,
+		cfg.EntityHeatBlazing,
+		cfg.EntityHeatHot,
+		cfg.EntityHeatWarm,
+		cfg.EntityHeatDecay7D,
+		cfg.EntityHeatDecay30D,
+		cfg.EntityHeatDecay90D,
+	)
 }

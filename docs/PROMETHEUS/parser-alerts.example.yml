@@ -41,11 +41,29 @@ groups:
           summary: Parser dropped tasks (taskCh full)
           description: Raise PARSER_TASK_BUFFER or PARSER_WORKERS; check soak logs for dropped>0.
 
-      - alert: ParserStatsDropped
-        expr: increase(parser_stats_dropped_total[5m]) > 0
-        for: 2m
+      - alert: ParserWarmAnalysisFailed
+        expr: increase(parser_warm_analysis_failed_total[15m]) > 0
+        for: 5m
         labels:
           severity: warning
         annotations:
-          summary: Parser dropped scan round stats
-          description: Reporter backlog; statsCh buffer too small for concurrent rounds.
+          summary: Warm-path Gemini batch failed after retries
+          description: Check GEMINI_API_KEY quota, warm_analysis_dlq collection, and parser logs.
+
+      - alert: ParserLeadsAnalysisPendingHigh
+        expr: parser_leads_analysis_pending > 50
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: Many leads stuck in analysis_status=pending
+          description: Deferred Gemini backlog; check warm path and GEMINI_API_KEY.
+
+      - alert: ParserWarmAnalysisPendingHigh
+        expr: parser_warm_analysis_pending > 50
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: Many leads stuck in analysis_status=pending
+          description: Warm-path backlog or Gemini outages; verify WARM_ANALYSIS_PENDING_SCAN_INTERVAL.

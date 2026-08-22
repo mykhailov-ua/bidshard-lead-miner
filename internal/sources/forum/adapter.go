@@ -42,7 +42,7 @@ func (a *Adapter) Name() string {
 }
 
 func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
-	urls, err := LoadThreadURLs(a.seedPath)
+	seeds, err := LoadThreadSeeds(a.seedPath)
 	if err != nil {
 		return err
 	}
@@ -51,6 +51,7 @@ func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
 	var (
 		mu      sync.Mutex
 		emitted int
+		skipped int
 		visited = make(map[string]struct{})
 	)
 
@@ -128,8 +129,12 @@ func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
 		})
 	}
 
-	for _, seedURL := range urls {
-		processURL(seedURL, 0)
+	for _, seed := range seeds {
+		if !ShouldCrawlSeed(seed.URL, seed.Notes) {
+			skipped++
+			continue
+		}
+		processURL(seed.URL, 0)
 	}
 
 	if err := g.Wait(); err != nil && err != context.Canceled {
@@ -138,6 +143,7 @@ func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
 
 	slog.Info("forum crawl finished",
 		"threads", len(visited),
+		"skipped_seeds", skipped,
 		"emitted", emitted,
 		"duration_ms", time.Since(start).Milliseconds(),
 	)

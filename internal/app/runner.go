@@ -8,6 +8,7 @@ import (
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/output"
 	"github.com/bidshard/parser/internal/pipeline"
+	"github.com/bidshard/parser/internal/sink"
 	"github.com/bidshard/parser/internal/sources"
 )
 
@@ -57,7 +58,7 @@ func Run(ctx context.Context, cfg config.Config) error {
 	defer deps.flushStore(ctx)
 	defer deps.closeMongo(ctx)
 
-	// coldPath/warmPath goroutines exit on ctx; pending warm batches may be lost if shutdown is abrupt.
+	// coldPath/warmPath goroutines exit on ctx; warm path drains buffer with shutdown timeout.
 
 	if cfg.IngestStdin && cfg.IngestReader != nil {
 		return runIngestOnce(ctx, cfg, deps, cfg.IngestReader)
@@ -77,6 +78,12 @@ func Run(ctx context.Context, cfg config.Config) error {
 	var wg sync.WaitGroup
 	onceDone := make(chan struct{}, 1)
 
+	if deps.mongoClient != nil && cfg.ParserGeminiDefer {
+		if leadMongo, err := sink.NewMongoStoreFromClient(ctx, deps.mongoClient, cfg.MongoDB, cfg.MongoCollection, cfg.WriteSlots); err == nil {
+			startPendingAnalysisMetrics(ctx, &wg, leadMongo, cfg.PollInterval)
+		}
+	}
+
 	if deps.coldPath != nil {
 		deps.coldPath.Run(ctx, &wg)
 	}
@@ -85,6 +92,9 @@ func Run(ctx context.Context, cfg config.Config) error {
 	}
 	if deps.entityClassify != nil {
 		deps.entityClassify.Run(ctx, &wg)
+	}
+	if deps.entityLinkSuggest != nil {
+		deps.entityLinkSuggest.Run(ctx, &wg)
 	}
 
 	startBackgroundWorkers(ctx, cfg, deps, &wg)

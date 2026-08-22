@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -58,6 +59,24 @@ func (s *SourceStatsStore) bump(source string, accepted bool) {
 	)
 }
 
+func (s *SourceStatsStore) ListAll(ctx context.Context) ([]SourceStatsDoc, error) {
+	if s == nil {
+		return nil, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	cur, err := s.coll.Find(ctx, bson.M{}, options.Find().SetLimit(500))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = cur.Close(ctx) }()
+	var docs []SourceStatsDoc
+	return docs, cur.All(ctx, &docs)
+}
+
 func (s *SourceStatsStore) Boost(source string) int {
 	if s == nil {
 		return 0
@@ -87,14 +106,18 @@ func (s *SourceStatsStore) Boost(source string) int {
 }
 
 type CrmBoostDoc struct {
-	TS          time.Time `bson:"ts"`
-	JunkID      string    `bson:"junk_id,omitempty"`
-	Source      string    `bson:"source"`
-	Snippet     string    `bson:"snippet"`
-	ContactHint string    `bson:"contact_hint,omitempty"`
-	Why         string    `bson:"why"`
-	Priority    string    `bson:"priority"` // High
-	Status      string    `bson:"status"`   // pending
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	TS          time.Time          `bson:"ts" json:"ts"`
+	JunkID      string             `bson:"junk_id,omitempty" json:"junk_id,omitempty"`
+	Source      string             `bson:"source" json:"source"`
+	Snippet     string             `bson:"snippet" json:"snippet"`
+	ContactHint string             `bson:"contact_hint,omitempty" json:"contact_hint,omitempty"`
+	Why         string             `bson:"why" json:"why"`
+	Priority    string             `bson:"priority" json:"priority"` // High
+	Status      string             `bson:"status" json:"status"`     // pending|promoted|dismissed|merged
+	LeadHashID  string             `bson:"lead_hash_id,omitempty" json:"lead_hash_id,omitempty"`
+	OutcomeWhy  string             `bson:"outcome_why,omitempty" json:"outcome_why,omitempty"`
+	ResolvedAt  time.Time          `bson:"resolved_at,omitempty" json:"resolved_at,omitempty"`
 }
 
 type CrmBoostStore struct {
@@ -119,7 +142,7 @@ func (s *CrmBoostStore) Insert(ctx context.Context, doc CrmBoostDoc) error {
 		doc.TS = time.Now().UTC()
 	}
 	if doc.Status == "" {
-		doc.Status = "pending"
+		doc.Status = CrmBoostPending
 	}
 	if doc.Priority == "" {
 		doc.Priority = "High"

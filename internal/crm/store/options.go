@@ -2,6 +2,8 @@ package store
 
 import (
 	"time"
+
+	"github.com/bidshard/parser/internal/entity"
 )
 
 const (
@@ -19,7 +21,9 @@ type Options struct {
 	CrmBoostCollection     string
 	LeadNotesCollection    string
 	LeadCrmMetaCollection  string
+	WebhookFeedbackCollection string
 	EntityCollection       string
+	EntityHeatConfig       entity.HeatConfig
 	QueryTimeout           time.Duration
 	WriteTimeout           time.Duration
 	StatsTimeout           time.Duration
@@ -47,4 +51,11 @@ func (o Options) searchMaxRows() int64 {
 		return o.SearchMaxRows
 	}
 	return defaultSearchMaxRows
+}
+
+func (o Options) entityHeatConfig() entity.HeatConfig {
+	if o.EntityHeatConfig == (entity.HeatConfig{}) {
+		return entity.DefaultHeatConfig()
+	}
+	return o.EntityHeatConfig
 }

@@ -78,3 +78,21 @@ bpf_require_privileged_collector() {
   printf '%s: run: sudo make bpf-session-start\n' "$prefix" >&2
   return 1
 }
+
+# Prime interactive sudo once so bpf-collector can launch via sudo -n (deploy preflight, local dev).
+bpf_ensure_sudo_for_collector() {
+  local prefix="${1:-bpf-probe-session}"
+  if bpf_require_privileged_collector "$prefix" 2> /dev/null; then
+    return 0
+  fi
+  if [[ ! -t 0 ]]; then
+    bpf_require_privileged_collector "$prefix"
+    return $?
+  fi
+  printf '%s: BPF attach needs sudo; enter password when prompted\n' "$prefix"
+  if sudo -v; then
+    return 0
+  fi
+  printf '%s: ERROR: sudo authentication failed\n' "$prefix" >&2
+  return 1
+}

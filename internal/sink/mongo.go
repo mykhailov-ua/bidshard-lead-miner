@@ -58,6 +58,11 @@ func ConnectMongo(ctx context.Context, uri, dbName, collection string, writeSlot
 	return store, nil
 }
 
+// NewMongoStoreFromClient wraps an existing client for lead collection access.
+func NewMongoStoreFromClient(ctx context.Context, client *mongo.Client, dbName, collection string, writeSlots int) (*MongoStore, error) {
+	return connectMongoStore(ctx, client, dbName, collection, writeSlots, false)
+}
+
 func newWriteSlots(n int) *semaphore.Weighted {
 	if n <= 0 {
 		n = 8

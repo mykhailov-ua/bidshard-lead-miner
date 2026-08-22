@@ -23,8 +23,7 @@ def geo_heuristic_enabled() -> bool:
 
 def is_blocked_web_tld(host: str) -> bool:
     host = host.lower().strip()
-    if host.startswith("www."):
-        host = host[4:]
+    host = host.removeprefix("www.")
     parts = host.split(".")
     if len(parts) < 2:
         return False
@@ -42,6 +41,4 @@ def channel_geo_reject(texts: list[str]) -> bool:
         return True
     cyr = len(_CYRILLIC_RUN.findall(blob))
     latin = sum(1 for ch in blob if "a" <= ch.lower() <= "z")
-    if cyr >= 2 and latin < 12:
-        return True
-    return False
+    return bool(cyr >= 2 and latin < 12)

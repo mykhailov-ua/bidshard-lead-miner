@@ -89,6 +89,7 @@ type Processor struct {
 	EntityClassify        *warmpath.EntityClassifyCapturer
 	EntityHeatEnabled     bool
 	EntityHeat            entity.HeatConfig
+	HardRejectShadowPct   int
 	hashInflight          sync.Map // hash_id -> struct{}
 }
 
@@ -145,6 +146,9 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			if filter.IsTgWebSource(task.Item.Source) && tgweb.AggressivePrescanFromContact(task.Item.Source, task.Item.Contact) {
 				logTgWebInfo(task, "tgweb hard reject bypassed for site lpr", "phrase", hit.Phrase)
 			} else {
+				if p.HardRejectShadowPct > 0 && ShouldSampleHardRejectShadow(text, p.HardRejectShadowPct) {
+					p.captureJunk(ctx, task, coldpath.ReasonHardRejectShadow, hit.Phrase, 0, nil)
+				}
 				if filter.IsTgWebSource(task.Item.Source) {
 					logTgWebReject(task, "hard reject", []any{"phrase", hit.Phrase})
 				} else {
@@ -554,6 +558,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			EntityID:      lead.EntityID,
 			EntityHeat:    lead.EntityHeat,
 			HeatTier:      lead.HeatTier,
+			InlineICP:     lead.ICP,
 		})
 	}
 	if p.SourceRep != nil {

@@ -1,5 +1,5 @@
 {
-  "include": ["sources"],
+  "include": ["sources", "scripts"],
   "extraPaths": ["."],
   "venvPath": ".",
   "venv": ".venv",

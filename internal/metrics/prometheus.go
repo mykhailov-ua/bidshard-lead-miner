@@ -12,12 +12,17 @@ import (
 var (
 	metricsMu sync.Mutex
 
-	acceptedTotal     = make(map[string]int64)
-	leadsWrittenTotal int64
-	tasksDroppedTotal = make(map[string]int64)
-	statsDroppedTotal int64
-	junkTotal         = make(map[string]int64)
-	geminiWaitSec     float64
+	acceptedTotal           = make(map[string]int64)
+	leadsWrittenTotal       int64
+	tasksDroppedTotal       = make(map[string]int64)
+	statsDroppedTotal       int64
+	junkTotal               = make(map[string]int64)
+	geminiWaitSec           float64
+	warmAnalysisFailedTotal int64
+	warmAnalysisPending     int64
+	leadsAnalysisPending    int64
+	icpDriftTotal           = make(map[string]int64)
+	queueDroppedTotal       = make(map[string]int64)
 )
 
 // RecordAccepted increments the accepted leads counter by source and priority.
@@ -76,6 +81,52 @@ func RecordGeminiWait(d time.Duration) {
 	geminiWaitSec += d.Seconds()
 }
 
+// RecordWarmAnalysisFailed increments leads dropped after warm-path retries.
+func RecordWarmAnalysisFailed(n int) {
+	if n <= 0 {
+		return
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	warmAnalysisFailedTotal += int64(n)
+}
+
+// SetWarmAnalysisPending sets Mongo analysis_status=pending gauge (warm-path rescan tick).
+func SetWarmAnalysisPending(n int64) {
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	warmAnalysisPending = n
+	leadsAnalysisPending = n
+}
+
+// SetLeadsAnalysisPending sets defer backlog gauge (runner poll).
+func SetLeadsAnalysisPending(n int64) {
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	leadsAnalysisPending = n
+	warmAnalysisPending = n
+}
+
+// RecordICPDrift increments when inline tgweb ICP disagrees with warm-path ICP.
+func RecordICPDrift(source string) {
+	if source == "" {
+		source = "unknown"
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	icpDriftTotal[source]++
+}
+
+// RecordQueueDropped increments when a non-blocking capturer queue is full.
+func RecordQueueDropped(queue string) {
+	if queue == "" {
+		queue = "unknown"
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	queueDroppedTotal[queue]++
+}
+
 // Handler returns Prometheus exposition text format.
 func Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -115,6 +166,30 @@ func Handler() http.Handler {
 		_, _ = fmt.Fprintln(w, "# HELP parser_gemini_wait_seconds Total seconds spent waiting on Gemini rate limits")
 		_, _ = fmt.Fprintln(w, "# TYPE parser_gemini_wait_seconds counter")
 		_, _ = fmt.Fprintf(w, "parser_gemini_wait_seconds %.3f\n", geminiWaitSec)
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_warm_analysis_failed_total Warm-path leads dropped after retry exhaustion")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_warm_analysis_failed_total counter")
+		_, _ = fmt.Fprintf(w, "parser_warm_analysis_failed_total %d\n", warmAnalysisFailedTotal)
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_warm_analysis_pending Leads with analysis_status=pending in Mongo")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_warm_analysis_pending gauge")
+		_, _ = fmt.Fprintf(w, "parser_warm_analysis_pending %d\n", warmAnalysisPending)
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_leads_analysis_pending Deferred Gemini backlog (analysis_status=pending)")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_leads_analysis_pending gauge")
+		_, _ = fmt.Fprintf(w, "parser_leads_analysis_pending %d\n", leadsAnalysisPending)
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_icp_drift_total Inline vs warm-path ICP mismatches by source")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_icp_drift_total counter")
+		for source, val := range icpDriftTotal {
+			_, _ = fmt.Fprintf(w, "parser_icp_drift_total{source=\"%s\"} %d\n", source, val)
+		}
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_queue_dropped_total Events dropped when capturer queue was full")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_queue_dropped_total counter")
+		for queue, val := range queueDroppedTotal {
+			_, _ = fmt.Fprintf(w, "parser_queue_dropped_total{queue=\"%s\"} %d\n", queue, val)
+		}
 	})
 }
 

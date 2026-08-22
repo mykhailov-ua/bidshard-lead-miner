@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bidshard/parser/internal/entity"
 	"github.com/bidshard/parser/internal/sink"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -28,12 +29,14 @@ type LeadStore struct {
 	keywordStats  *mongo.Collection
 	crmBoosts     *mongo.Collection
 	leadNotes     *mongo.Collection
-	leadMeta      *mongo.Collection
+	leadMeta          *mongo.Collection
+	webhookFeedback   *mongo.Collection
 	queryTimeout  time.Duration
 	writeTimeout  time.Duration
 	statsTimeout  time.Duration
 	exportMaxRows int64
 	searchMaxRows int64
+	entityHeat    entity.HeatConfig
 }
 
 func New(client *mongo.Client, opts Options) *LeadStore {
@@ -51,6 +54,7 @@ func New(client *mongo.Client, opts Options) *LeadStore {
 		statsTimeout:  opts.statsTimeout(),
 		exportMaxRows: opts.exportMaxRows(),
 		searchMaxRows: opts.searchMaxRows(),
+		entityHeat:    opts.entityHeatConfig(),
 	}
 	if opts.EntityCollection != "" {
 		s.entities = db.Collection(opts.EntityCollection)
@@ -70,7 +74,20 @@ func New(client *mongo.Client, opts Options) *LeadStore {
 	if opts.LeadCrmMetaCollection != "" {
 		s.leadMeta = db.Collection(opts.LeadCrmMetaCollection)
 	}
+	if opts.WebhookFeedbackCollection != "" {
+		s.webhookFeedback = db.Collection(opts.WebhookFeedbackCollection)
+	}
 	return s
+}
+
+func (s *LeadStore) entityHeatConfig() entity.HeatConfig {
+	if s == nil {
+		return entity.DefaultHeatConfig()
+	}
+	if s.entityHeat == (entity.HeatConfig{}) {
+		return entity.DefaultHeatConfig()
+	}
+	return s.entityHeat
 }
 
 func (s *LeadStore) UpdateStatus(ctx context.Context, hashID, status string) error {
@@ -106,6 +123,13 @@ func (s *LeadStore) UpdateStatus(ctx context.Context, hashID, status string) err
 	}
 	if res.MatchedCount == 0 {
 		return ErrNotFound
+	}
+	if normalized == "spam" {
+		if lead, err := s.GetByHashID(ctx, hashID); err == nil {
+			if err := s.RecordWebhookSpamFeedback(ctx, lead); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -262,11 +286,15 @@ func leadCardProjection() bson.M {
 		"outreach_draft":        1,
 		"outreach_channel":      1,
 		"outreach_angle":        1,
+		"entity_proof":          1,
 		"pilot_qualified":       1,
 		"geo_country":           1,
 		"entity_id":             1,
 		"entity_heat":           1,
 		"heat_tier":             1,
+		"contact_quality":       1,
+		"duplicate_suggest":     1,
+		"stale":                 1,
 		"entity_sighting_count": 1,
 		"entity_source_count":   1,
 	}

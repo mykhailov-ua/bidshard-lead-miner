@@ -81,18 +81,12 @@ def is_spam_message(text: str) -> bool:
     body = _lower(text)
     if not body:
         return True
-    for phrase in SPAM_PHRASES:
-        if phrase in body:
-            return True
-    return False
+    return any(phrase in body for phrase in SPAM_PHRASES)
 
 
 def has_pain_signal(text: str) -> bool:
     body = _lower(text)
-    for hint in PAIN_HINTS:
-        if hint in body:
-            return True
-    return False
+    return any(hint in body for hint in PAIN_HINTS)
 
 
 def has_substance(text: str) -> bool:

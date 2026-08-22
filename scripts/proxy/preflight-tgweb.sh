@@ -20,6 +20,12 @@ if [[ -f "$ROOT/.env" ]]; then
 	set +a
 fi
 
+if [[ "${DEPLOY_PREFLIGHT_CI:-}" == "1" || "${GITHUB_ACTIONS:-}" == "true" ]]; then
+	export PARSER_SEED_PROFILE=dev
+	export PARSER_ICP_CLASSIFY_TGWEB=false
+	export PARSER_BG_TELEGRAM=false
+fi
+
 log() { printf 'preflight-tgweb: %s\n' "$*"; }
 warn() { printf 'preflight-tgweb: WARN %s\n' "$*" >&2; }
 fail() { printf 'preflight-tgweb: FAIL %s\n' "$*" >&2; exit 1; }

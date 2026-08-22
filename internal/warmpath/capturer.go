@@ -12,7 +12,7 @@ import (
 type Capturer = queue.Capturer[Event]
 
 func NewCapturer(buffer int) *Capturer {
-	return queue.NewCapturer(buffer, 256, prepareEvent, logDroppedEvent)
+	return queue.NewCapturer("warm", buffer, 256, prepareEvent, logDroppedEvent)
 }
 
 func prepareEvent(ev Event) Event {

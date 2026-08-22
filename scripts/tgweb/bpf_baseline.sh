@@ -68,7 +68,12 @@ tgweb_bpf_baseline_stop() {
 	if [[ -f "$summary" ]]; then
 		tgweb_bpf_baseline_log "summary: $summary"
 		if [[ "${PARSER_BPF_LEAK_GATE:-0}" == "1" ]]; then
-			bash "${TGWEB_BPF_ROOT:-${ROOT:-}}/scripts/lib/bpf_leak_gate.sh" "$session_dir" || tgweb_bpf_baseline_log "WARN: BPF leak gate failed"
+			if ! bash "${TGWEB_BPF_ROOT:-${ROOT:-}}/scripts/lib/bpf_leak_gate.sh" "$session_dir"; then
+				tgweb_bpf_baseline_log "WARN: BPF leak gate failed"
+				if [[ "${PARSER_BPF_LEAK_GATE_STRICT:-0}" == "1" ]]; then
+					exit 1
+				fi
+			fi
 		fi
 		if [[ "${PARSER_BPF_GATE:-0}" == "1" ]]; then
 			bash "${TGWEB_BPF_ROOT:-${ROOT:-}}/scripts/lib/bpf_gate.sh" "$session_dir" || tgweb_bpf_baseline_log "WARN: BPF release gate failed"

@@ -22,5 +22,6 @@ type Event struct {
 	EntityID      string
 	EntityHeat    float64
 	HeatTier      string
-	TS            time.Time
+	InlineICP       string
+	TS              time.Time
 }

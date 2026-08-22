@@ -89,11 +89,11 @@ type Server struct {
 
 // NewMux serves parser webhook ingest and /v1/admin/* CRM API on one listener.
 // Admin routes have no in-process auth; Caddy basicauth sits in front on VPS.
- func NewMux(webhookSecret string, leadStore *store.LeadStore) http.Handler {
+func NewMux(webhookSecret string, leadStore *store.LeadStore, explainer admin.LeadExplainer) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/v1/leads", NewHandler(webhookSecret))
 	if leadStore != nil {
-		mux.Handle("/v1/admin/", admin.NewHandler(leadStore))
+		mux.Handle("/v1/admin/", admin.NewHandler(leadStore, explainer))
 	}
 	return mux
 }

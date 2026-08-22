@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"math"
 	"strings"
 	"time"
 )
@@ -87,10 +88,27 @@ func RecomputeEntityHeat(doc *EntityDoc, cfg HeatConfig, now time.Time) {
 		sum += sightingWeight(s, cfg, now)
 	}
 	doc.HeatScore = sum * diversityBonus(doc.Sightings, cfg, now)
+	doc.HeatScoreRound = RoundHeatScore(doc.HeatScore)
 	doc.HeatTier = classifyHeatTier(doc.HeatScore, *doc, cfg, now)
 	doc.LastHeatAt = now
 
 	promoteCanonicalByHeat(doc, cfg, now)
+}
+
+// RoundHeatScore returns heat as nearest int for CRM/Telegram display (Mongo keeps float).
+func RoundHeatScore(score float64) int {
+	return int(math.Round(score))
+}
+
+// DisplayHeatScore prefers persisted heat_score_round, else rounds float heat_score.
+func DisplayHeatScore(doc EntityDoc) int {
+	if doc.HeatScoreRound > 0 {
+		return doc.HeatScoreRound
+	}
+	if doc.HeatScore > 0 {
+		return RoundHeatScore(doc.HeatScore)
+	}
+	return 0
 }
 
 func normalizeHeatConfig(cfg HeatConfig) HeatConfig {

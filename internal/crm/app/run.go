@@ -7,10 +7,13 @@ import (
 	"sync"
 	"time"
 
+	parsercfg "github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/crm/config"
+	"github.com/bidshard/parser/internal/crm/explain"
 	crmmetrics "github.com/bidshard/parser/internal/crm/metrics"
 	"github.com/bidshard/parser/internal/crm/store"
 	"github.com/bidshard/parser/internal/crm/webhook"
+	"github.com/bidshard/parser/internal/gemini"
 	"github.com/bidshard/parser/internal/sink"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -32,22 +35,33 @@ func NewRuntime(ctx context.Context, cfg config.Config) (*Runtime, error) {
 	}
 
 	leadStore := store.New(client, store.Options{
-		DBName:                 cfg.MongoDB,
-		LeadsCollection:        cfg.MongoCollection,
-		EntityCollection:       cfg.EntityCollection,
-		SourceStatsCollection:  cfg.SourceStatsCollection,
-		KeywordStatsCollection: cfg.KeywordStatsCollection,
-		CrmBoostCollection:     cfg.CrmBoostCollection,
-		LeadNotesCollection:    cfg.LeadNotesCollection,
-		LeadCrmMetaCollection:  cfg.LeadCrmMetaCollection,
-		QueryTimeout:           cfg.QueryTimeout,
-		WriteTimeout:           cfg.WriteTimeout,
-		StatsTimeout:           cfg.StatsTimeout,
-		ExportMaxRows:          int64(cfg.ExportMaxRows),
-		SearchMaxRows:          int64(cfg.SearchMaxRows),
+		DBName:                    cfg.MongoDB,
+		LeadsCollection:           cfg.MongoCollection,
+		EntityCollection:          cfg.EntityCollection,
+		SourceStatsCollection:     cfg.SourceStatsCollection,
+		KeywordStatsCollection:    cfg.KeywordStatsCollection,
+		CrmBoostCollection:        cfg.CrmBoostCollection,
+		LeadNotesCollection:       cfg.LeadNotesCollection,
+		LeadCrmMetaCollection:     cfg.LeadCrmMetaCollection,
+		WebhookFeedbackCollection: cfg.WebhookFeedbackCollection,
+		QueryTimeout:              cfg.QueryTimeout,
+		WriteTimeout:              cfg.WriteTimeout,
+		StatsTimeout:              cfg.StatsTimeout,
+		ExportMaxRows:             int64(cfg.ExportMaxRows),
+		SearchMaxRows:             int64(cfg.SearchMaxRows),
 	})
 
-	httpHandler := webhook.NewMux(cfg.WebhookSecret, leadStore)
+	var explainer *explain.Service
+	if pcfg, err := parsercfg.Load(); err == nil && pcfg.GeminiAPIKey != "" {
+		if geminiClient, err := gemini.NewClient(pcfg.GeminiAPIKey, pcfg.GeminiModel); err == nil {
+			explainer = explain.New(leadStore, geminiClient)
+		}
+	}
+	if explainer == nil {
+		explainer = explain.New(leadStore, nil)
+	}
+
+	httpHandler := webhook.NewMux(cfg.WebhookSecret, leadStore, explainer)
 	httpServer := webhook.NewServer(cfg.WebhookAddr, httpHandler)
 
 	return &Runtime{

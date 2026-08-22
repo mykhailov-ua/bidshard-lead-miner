@@ -169,6 +169,7 @@ type ReportInput struct {
 	PeriodTo    string              `json:"period_to"`
 	TotalJunk   int64               `json:"total_junk"`
 	ReasonStats []sink.ReasonCount  `json:"reason_stats"`
+	SourceStats []sink.SourceCount  `json:"source_stats,omitempty"`
 	Samples     []reportSampleInput `json:"samples"`
 }
 
@@ -231,12 +232,13 @@ func (c *Client) BuildJunkReport(ctx context.Context, in ReportInput) (ReportRes
 	}, nil
 }
 
-func ReportInputFromStore(since, until time.Time, total int64, stats []sink.ReasonCount, samples []sink.JunkDoc) ReportInput {
+func ReportInputFromStore(since, until time.Time, total int64, stats []sink.ReasonCount, sourceStats []sink.SourceCount, samples []sink.JunkDoc) ReportInput {
 	in := ReportInput{
 		PeriodFrom:  since.UTC().Format(time.RFC3339),
 		PeriodTo:    until.UTC().Format(time.RFC3339),
 		TotalJunk:   total,
 		ReasonStats: stats,
+		SourceStats: sourceStats,
 	}
 	for _, s := range samples {
 		item := reportSampleInput{

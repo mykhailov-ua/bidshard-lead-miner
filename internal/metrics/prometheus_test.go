@@ -15,6 +15,10 @@ func TestMetricsExposition(t *testing.T) {
 	RecordStatsDropped()
 	RecordJunk("geo_reject")
 	RecordGeminiWait(500 * time.Millisecond)
+	RecordWarmAnalysisFailed(2)
+	SetLeadsAnalysisPending(7)
+	RecordICPDrift("tgweb")
+	RecordQueueDropped("junk")
 
 	req := httptest.NewRequest("GET", "/metrics", nil)
 	w := httptest.NewRecorder()
@@ -46,5 +50,17 @@ func TestMetricsExposition(t *testing.T) {
 	}
 	if !strings.Contains(content, "parser_stats_dropped_total") {
 		t.Errorf("expected parser_stats_dropped_total metric in output:\n%s", content)
+	}
+	if !strings.Contains(content, "parser_warm_analysis_failed_total 2") {
+		t.Errorf("expected parser_warm_analysis_failed_total metric in output:\n%s", content)
+	}
+	if !strings.Contains(content, "parser_leads_analysis_pending 7") {
+		t.Errorf("expected parser_leads_analysis_pending metric in output:\n%s", content)
+	}
+	if !strings.Contains(content, "parser_icp_drift_total{source=\"tgweb\"}") {
+		t.Errorf("expected parser_icp_drift_total metric in output:\n%s", content)
+	}
+	if !strings.Contains(content, "parser_queue_dropped_total{queue=\"junk\"}") {
+		t.Errorf("expected parser_queue_dropped_total metric in output:\n%s", content)
 	}
 }

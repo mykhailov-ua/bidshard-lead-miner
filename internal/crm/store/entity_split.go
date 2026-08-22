@@ -21,7 +21,7 @@ type EntitySplitResult struct {
 }
 
 // SplitEntityHash detaches one lead hash from an entity graph node (ops only).
-// Not transactional: if lead update fails after insert, ops must delete orphan entity row.
+// Rolls back the new entity row if source update or lead patch fails.
 func (s *LeadStore) SplitEntityHash(ctx context.Context, entityID, rawHash string) (EntitySplitResult, error) {
 	if s == nil || s.entities == nil {
 		return EntitySplitResult{}, fmt.Errorf("entity store not initialized")
@@ -54,8 +54,9 @@ func (s *LeadStore) SplitEntityHash(ctx context.Context, entityID, rawHash strin
 		return EntitySplitResult{}, entity.ErrSplitHashMissing
 	}
 
+	sourceBackup := source
 	splitIn := entity.SightingInputFromLead(leadSightingSourceFromDoc(lead), sight)
-	heat := entity.DefaultHeatConfig()
+	heat := s.entityHeatConfig()
 	splitResult, newDoc, err := entity.SplitHashFromEntity(&source, hashID, splitIn, heat)
 	if err != nil {
 		return EntitySplitResult{}, err
@@ -79,10 +80,12 @@ func (s *LeadStore) SplitEntityHash(ctx context.Context, entityID, rawHash strin
 
 	if splitResult.SourceDeleted {
 		if _, err := s.entities.DeleteOne(writeCtx, bson.M{"entity_id": entityID}); err != nil {
+			s.rollbackSplitEntity(writeCtx, newDoc.EntityID, sourceBackup, splitResult.SourceDeleted)
 			return EntitySplitResult{}, fmt.Errorf("delete empty source entity: %w", err)
 		}
 	} else {
 		if _, err := s.entities.ReplaceOne(writeCtx, bson.M{"entity_id": entityID}, source); err != nil {
+			s.rollbackSplitEntity(writeCtx, newDoc.EntityID, sourceBackup, splitResult.SourceDeleted)
 			return EntitySplitResult{}, fmt.Errorf("update source entity: %w", err)
 		}
 	}
@@ -95,7 +98,17 @@ func (s *LeadStore) SplitEntityHash(ctx context.Context, entityID, rawHash strin
 		"entity_source_count":   newDoc.SourceCount,
 	}
 	if _, err := s.leads.UpdateOne(writeCtx, bson.M{"hash_id": hashID}, bson.M{"$set": leadPatch}); err != nil {
+		s.rollbackSplitEntity(writeCtx, newDoc.EntityID, sourceBackup, splitResult.SourceDeleted)
 		return EntitySplitResult{}, fmt.Errorf("update lead entity_id: %w", err)
+	}
+
+	if err := s.markClassifyForce(writeCtx, newDoc.EntityID); err != nil {
+		return EntitySplitResult{}, fmt.Errorf("flag new entity classify: %w", err)
+	}
+	if !splitResult.SourceDeleted {
+		if err := s.markClassifyForce(writeCtx, entityID); err != nil {
+			return EntitySplitResult{}, fmt.Errorf("flag source entity classify: %w", err)
+		}
 	}
 
 	return EntitySplitResult{
@@ -104,6 +117,30 @@ func (s *LeadStore) SplitEntityHash(ctx context.Context, entityID, rawHash strin
 		HashID:         splitResult.HashID,
 		SourceDeleted:  splitResult.SourceDeleted,
 	}, nil
+}
+
+func (s *LeadStore) rollbackSplitEntity(ctx context.Context, newEntityID string, sourceBackup entity.EntityDoc, sourceDeleted bool) {
+	// Split is insert-then-update-lead; compensate when lead or source entity write fails.
+	if s == nil || s.entities == nil {
+		return
+	}
+	_, _ = s.entities.DeleteOne(ctx, bson.M{"entity_id": newEntityID})
+	if sourceDeleted {
+		_, _ = s.entities.InsertOne(ctx, sourceBackup)
+		return
+	}
+	_, _ = s.entities.ReplaceOne(ctx, bson.M{"entity_id": sourceBackup.EntityID}, sourceBackup)
+}
+
+func (s *LeadStore) markClassifyForce(ctx context.Context, entityID string) error {
+	if s == nil || s.entities == nil || entityID == "" {
+		return nil
+	}
+	_, err := s.entities.UpdateOne(ctx,
+		bson.M{"entity_id": entityID},
+		bson.M{"$set": bson.M{"classify_force": true}},
+	)
+	return err
 }
 
 func (s *LeadStore) getLeadForSplit(ctx context.Context, hashID string) (sink.LeadDoc, error) {

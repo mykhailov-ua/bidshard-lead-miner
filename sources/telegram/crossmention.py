@@ -6,9 +6,8 @@ from typing import Any
 from .config import ChatConfig, CrossMentionConfig
 from .domains import RegistryEntry
 from .invites import discover_invite_hashes
-from .tglinks import extract_from_texts, web_domains
-
 from .prefilter import channel_icp_relevant
+from .tglinks import extract_from_texts, web_domains
 
 LOG = logging.getLogger("telegram.crossmention")
 
@@ -49,7 +48,9 @@ async def collect_seed_content(
 
     if isinstance(entity, Channel):
         try:
-            full = await client(GetFullChannelRequest(entity))
+            from .telethon_input import channel_input_peer
+
+            full = await client(GetFullChannelRequest(channel_input_peer(entity)))
             about = getattr(full.full_chat, "about", None)
             if about:
                 about_text = str(about)
@@ -119,7 +120,8 @@ async def resolve_username_channels(
     known_keys: set[str],
     seed_keys: set[str],
 ) -> list[ChatConfig]:
-    from telethon.tl.types import Channel as ChannelType, Chat, User
+    from telethon.tl.types import Channel as ChannelType
+    from telethon.tl.types import Chat, User
 
     out: list[ChatConfig] = []
     seen: set[str] = set()
@@ -141,10 +143,7 @@ async def resolve_username_channels(
         if not isinstance(entity, (ChannelType, Chat)):
             continue
         pub_username = getattr(entity, "username", None)
-        if pub_username:
-            pub_username = pub_username.lower()
-        else:
-            pub_username = u
+        pub_username = pub_username.lower() if pub_username else u
         title = getattr(entity, "title", pub_username) or pub_username
         if not channel_icp_relevant([title]):
             LOG.debug("cross-mention skip non-icp title=%s", title)

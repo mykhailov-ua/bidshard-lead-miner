@@ -4,7 +4,10 @@ import logging
 import re
 import urllib.error
 import urllib.request
-from typing import Callable
+from collections.abc import Callable
+from contextlib import closing
+from http.client import HTTPResponse
+from typing import cast
 
 LOG = logging.getLogger("telegram.tglinks")
 
@@ -171,8 +174,7 @@ _BARE_HOST = re.compile(
 
 def _normalize_host(host: str) -> str:
     host = host.lower().strip()
-    if host.startswith("www."):
-        host = host[4:]
+    host = host.removeprefix("www.")
     if ":" in host:
         host = host.split(":", 1)[0]
     return host
@@ -180,7 +182,7 @@ def _normalize_host(host: str) -> str:
 
 _FILE_EXT_HOST = re.compile(
     r"\.(jpg|jpeg|png|gif|webp|svg|pdf|txt|html|htm|php|css|js|json|xml|woff2?)$",
-    re.I,
+    re.IGNORECASE,
 )
 _INVALID_TLD = frozenset(
     {
@@ -225,7 +227,7 @@ def is_valid_web_host(host: str) -> bool:
 
 def _blocked_host(host: str) -> bool:
     host = _normalize_host(host)
-    if not host or host.endswith(".bot") or host.endswith(".local"):
+    if not host or host.endswith((".bot", ".local")):
         return True
     if _is_gov_host(host):
         return True
@@ -233,10 +235,7 @@ def _blocked_host(host: str) -> bool:
         return True
     if host in _BLOCKED_WEB_HOSTS:
         return True
-    for blocked in _BLOCKED_WEB_HOSTS:
-        if host.endswith("." + blocked):
-            return True
-    return False
+    return any(host.endswith("." + blocked) for blocked in _BLOCKED_WEB_HOSTS)
 
 
 def _is_gov_host(host: str) -> bool:
@@ -268,14 +267,16 @@ def resolve_redirect_url(
             url,
             headers={"User-Agent": "Mozilla/5.0 (compatible; BidShardParser/1.0)"},
         )
-        if opener is not None:
-            resp = opener(req)
-        else:
-            resp = urllib.request.urlopen(req, timeout=timeout)
-        final = getattr(resp, "url", None) or url
-        if hasattr(resp, "close"):
-            resp.close()
-        return str(final)
+        with closing(
+            cast(
+                HTTPResponse,
+                opener(req)
+                if opener is not None
+                else urllib.request.urlopen(req, timeout=timeout),
+            )
+        ) as resp:
+            final = getattr(resp, "url", None) or url
+            return str(final)
     except (urllib.error.URLError, OSError, ValueError) as exc:
         LOG.debug("short url resolve failed url=%s error=%s", url, exc)
         return None

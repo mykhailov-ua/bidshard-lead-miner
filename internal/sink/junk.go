@@ -44,12 +44,18 @@ type JunkReportDoc struct {
 	FalseNegativeCandidates int                `bson:"false_negative_candidates" json:"false_negative_candidates"`
 	Recommendations         []string           `bson:"recommendations" json:"recommendations"`
 	KeywordSuggestions      []string           `bson:"keyword_suggestions,omitempty" json:"keyword_suggestions,omitempty"`
+	SourceStats             []SourceCount      `bson:"source_stats,omitempty" json:"source_stats,omitempty"`
 }
 
 type ReasonCount struct {
 	Reason string `bson:"reason" json:"reason"`
 	Count  int    `bson:"count" json:"count"`
 	Why    string `bson:"why" json:"why"`
+}
+
+type SourceCount struct {
+	Source string `bson:"source" json:"source"`
+	Count  int    `bson:"count" json:"count"`
 }
 
 type JunkStore struct {
@@ -109,10 +115,22 @@ func (s *JunkStore) InsertMany(ctx context.Context, docs []JunkDoc) error {
 }
 
 func (s *JunkStore) FindPendingAnalysis(ctx context.Context, limit int) ([]JunkDoc, error) {
+	return s.findPendingAnalysis(ctx, limit, "")
+}
+
+func (s *JunkStore) FindPendingAnalysisExcluding(ctx context.Context, excludeReason string, limit int) ([]JunkDoc, error) {
+	return s.findPendingAnalysis(ctx, limit, excludeReason)
+}
+
+func (s *JunkStore) findPendingAnalysis(ctx context.Context, limit int, excludeReason string) ([]JunkDoc, error) {
 	if limit <= 0 {
 		limit = 20
 	}
-	cur, err := s.leads.Find(ctx, bson.M{"analysis": bson.M{"$exists": false}},
+	filter := bson.M{"analysis": bson.M{"$exists": false}}
+	if excludeReason != "" {
+		filter["reason"] = bson.M{"$ne": excludeReason}
+	}
+	cur, err := s.leads.Find(ctx, filter,
 		options.Find().SetSort(bson.D{{Key: "ts", Value: 1}}).SetLimit(int64(limit)))
 	if err != nil {
 		return nil, err
@@ -124,6 +142,35 @@ func (s *JunkStore) FindPendingAnalysis(ctx context.Context, limit int) ([]JunkD
 		return nil, err
 	}
 	return out, nil
+}
+
+func (s *JunkStore) FindPendingByReason(ctx context.Context, reason string, limit int) ([]JunkDoc, error) {
+	if reason == "" {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	cur, err := s.leads.Find(ctx, bson.M{
+		"reason":   reason,
+		"analysis": bson.M{"$exists": false},
+	}, options.Find().SetSort(bson.D{{Key: "ts", Value: 1}}).SetLimit(int64(limit)))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = cur.Close(ctx) }()
+	var out []JunkDoc
+	return out, cur.All(ctx, &out)
+}
+
+func (s *JunkStore) CountAnalyzedByReasonSince(ctx context.Context, reason string, since time.Time) (int64, error) {
+	if reason == "" {
+		return 0, nil
+	}
+	return s.leads.CountDocuments(ctx, bson.M{
+		"reason":               reason,
+		"analysis.analyzed_at": bson.M{"$gte": since},
+	})
 }
 
 func (s *JunkStore) SaveAnalysis(ctx context.Context, id primitive.ObjectID, analysis JunkAnalysis) error {
@@ -189,6 +236,63 @@ func (s *JunkStore) SampleAnalyzed(ctx context.Context, since time.Time, limit i
 		return nil, err
 	}
 	return out, nil
+}
+
+func (s *JunkStore) SourceBreakdown(ctx context.Context, since time.Time, limit int) ([]SourceCount, error) {
+	if s == nil {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	pipe := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"ts": bson.M{"$gte": since}}}},
+		{{Key: "$group", Value: bson.M{
+			"_id":   "$source",
+			"count": bson.M{"$sum": 1},
+		}}},
+		{{Key: "$sort", Value: bson.M{"count": -1}}},
+		{{Key: "$limit", Value: limit}},
+	}
+	cur, err := s.leads.Aggregate(ctx, pipe)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = cur.Close(ctx) }()
+
+	type row struct {
+		ID    string `bson:"_id"`
+		Count int    `bson:"count"`
+	}
+	var rows []row
+	if err := cur.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	out := make([]SourceCount, 0, len(rows))
+	for _, r := range rows {
+		if r.ID == "" {
+			continue
+		}
+		out = append(out, SourceCount{Source: r.ID, Count: r.Count})
+	}
+	return out, nil
+}
+
+func (s *JunkStore) SampleRandom(ctx context.Context, since time.Time, limit int) ([]JunkDoc, error) {
+	if s == nil || limit <= 0 {
+		return nil, nil
+	}
+	pipe := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"ts": bson.M{"$gte": since}}}},
+		{{Key: "$sample", Value: bson.M{"size": limit}}},
+	}
+	cur, err := s.leads.Aggregate(ctx, pipe)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = cur.Close(ctx) }()
+	var out []JunkDoc
+	return out, cur.All(ctx, &out)
 }
 
 func (s *JunkStore) InsertReport(ctx context.Context, doc JunkReportDoc) error {

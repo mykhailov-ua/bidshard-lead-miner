@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import cast
 from urllib.parse import urlparse
 
+from playwright.sync_api import ProxySettings
 
-def first_http_proxy() -> dict[str, str] | None:
+
+def first_http_proxy() -> ProxySettings | None:
     raw = os.environ.get("PARSER_PROXY_LIST", "").strip()
     if not raw:
         return None
@@ -24,18 +27,20 @@ def first_http_proxy() -> dict[str, str] | None:
         proxy["username"] = parsed.username
     if parsed.password:
         proxy["password"] = parsed.password
-    return proxy
+    return cast(ProxySettings, proxy)
 
 
 def fetch_html(url: str, timeout_ms: int = 30000) -> str:
     from playwright.sync_api import sync_playwright
 
-    proxy = first_http_proxy()
+    proxy_settings = first_http_proxy()
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
         try:
             context = (
-                browser.new_context(proxy=proxy) if proxy else browser.new_context()
+                browser.new_context(proxy=proxy_settings)
+                if proxy_settings
+                else browser.new_context()
             )
             page = context.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)

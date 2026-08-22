@@ -40,6 +40,11 @@ if ! parser_go_build -o "$ROOT/bin/bpf-collector" ./cmd/bpf-collector; then
   exit 1
 fi
 
-log "ready: deploy/dev/bpf/parser_probe.o bin/bpf-collector"
+if ! parser_go_build -o "$ROOT/bin/bpf-report" ./cmd/bpf-report; then
+  log "ERROR: bpf-report build failed - set PARSER_GO_BIN=/path/to/go"
+  exit 1
+fi
+
+log "ready: deploy/dev/bpf/parser_probe.o bin/bpf-collector bin/bpf-report"
 log "standalone session: sudo make bpf-session-start"
 log "during tgweb crawl: sudo PARSER_BPF_NATIVE=1 make bpf-session-start && docker compose run ... telegram web"

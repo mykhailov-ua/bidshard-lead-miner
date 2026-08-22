@@ -53,8 +53,14 @@ add_entry() {
 resolve_container() {
   local pattern=$1
   local role=$2
-  local cid name pid
-  cid="$(docker ps --format '{{.ID}} {{.Names}}' | awk -v p="$pattern" '$2 ~ p {print $1; exit}')"
+  local cid name pid match_pat
+  # Anchor bare names so bidshard-parser does not match bidshard-parser-mongo.
+  if [[ "$pattern" == ^* ]]; then
+    match_pat="$pattern"
+  else
+    match_pat="^${pattern}$"
+  fi
+  cid="$(docker ps --format '{{.ID}} {{.Names}}' | awk -v p="$match_pat" '$2 ~ p {print $1; exit}')"
   if [[ -z "$cid" ]]; then
     return 0
   fi

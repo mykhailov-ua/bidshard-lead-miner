@@ -29,6 +29,19 @@ func LoadICP(path string) (ICPConfig, error) {
 	return cfg, nil
 }
 
+// SaveICP writes discover ICP config to path (caller should backup first).
+func SaveICP(path string, cfg ICPConfig) error {
+	if path == "" {
+		path = ICPFile
+	}
+	raw, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	raw = append(raw, '\n')
+	return os.WriteFile(path, raw, 0o644)
+}
+
 // ResolveICPPath finds discover.icp.json from cwd or repo root.
 func ResolveICPPath(start string) string {
 	if start == "" {

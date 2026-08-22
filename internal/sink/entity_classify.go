@@ -36,19 +36,29 @@ func (s *EntityStore) PatchEntityClassification(ctx context.Context, entityID st
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	set := bson.M{
-		"unified_pain":         patch.UnifiedPain,
-		"actor_confidence":     patch.ActorConfidence,
-		"buyer_intent":         patch.BuyerIntent,
-		"needs_review":         patch.NeedsReview,
-		"heat_tier":            patch.HeatTier,
-		"heat_score":           patch.HeatScore,
-		"entity_classified_at": patch.EntityClassifiedAt,
-	}
+	set := classificationPatchBSON(patch)
 	_, err := s.coll.UpdateOne(ctx,
 		bson.M{"entity_id": entityID},
 		bson.M{"$set": set},
 		options.Update(),
 	)
 	return err
+}
+
+func classificationPatchBSON(patch entity.EntityClassificationPatch) bson.M {
+	set := bson.M{
+		"unified_pain":         patch.UnifiedPain,
+		"actor_confidence":     patch.ActorConfidence,
+		"buyer_intent":         patch.BuyerIntent,
+		"needs_review":         patch.NeedsReview,
+		"entity_classified_at": patch.EntityClassifiedAt,
+	}
+	if patch.SemanticCluster != "" {
+		set["semantic_cluster"] = patch.SemanticCluster
+	}
+	// Never copy heat_score from read-time snapshot; only apply explicit hot->warm downgrade.
+	if patch.HeatTierDowngrade != "" {
+		set["heat_tier"] = patch.HeatTierDowngrade
+	}
+	return set
 }
