@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/gemini"
+	"github.com/bidshard/parser/internal/metrics"
 )
 
 const defaultChannelsPath = "data/runtime/discovered_telegram_channels.json"
@@ -135,6 +136,7 @@ func RunChannelTriage(ctx context.Context, cfg ChannelTriageConfig, client *gemi
 		return err
 	}
 	if dropped > 0 {
+		metrics.RecordSourcesTriagedDropped(dropped)
 		slog.Info("channel triage complete", "dropped", dropped, "kept", len(kept))
 	}
 	return nil

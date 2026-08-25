@@ -301,7 +301,7 @@ func TestEntityClassifyServiceSyncsOutreachNarrative(t *testing.T) {
 	capturer := NewEntityClassifyCapturer(8)
 	svc := NewEntityClassifyService(EntityClassifyConfig{
 		AnalyzeInterval:          15 * time.Millisecond,
-		Debounce:               time.Millisecond,
+		Debounce:                 time.Millisecond,
 		OutreachNarrativeEnabled: true,
 	}, capturer, store, store, classifier, EntityClassifyExtras{
 		Outreach: outreach,
@@ -324,5 +324,163 @@ func TestEntityClassifyServiceSyncsOutreachNarrative(t *testing.T) {
 	}
 	if outreach.last.EntityProof == "" {
 		t.Fatal("expected entity_proof")
+	}
+}
+
+type stubContactsSummary struct {
+	summary string
+	last    string
+}
+
+func (s *stubContactsSummary) MaskedContactsSummary(_ context.Context, hashID string) string {
+	s.last = hashID
+	return s.summary
+}
+
+func TestEntityClassifyServicePassesContactsSummary(t *testing.T) {
+	store := entity.NewMemoryStore()
+	now := time.Now().UTC()
+	first, err := store.RecordSighting(t.Context(), entity.SightingInput{
+		ResolveInput: entity.ResolveInput{
+			CompanyName: "Acme",
+			Source:      "forum:affiliatefix.com/a",
+			Contacts:    []extract.Contact{{Type: "email", Value: "ops@acme.com"}},
+		},
+		HashID:   "h1",
+		Matched:  []string{"voluum"},
+		Text:     "voluum pain",
+		PostedAt: now,
+		Score:    80,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.RecordSighting(t.Context(), entity.SightingInput{
+		ResolveInput: entity.ResolveInput{
+			Source:   "reddit:igaming",
+			Contacts: []extract.Contact{{Type: "email", Value: "ops@acme.com"}},
+		},
+		HashID:   "h2",
+		Matched:  []string{"postback"},
+		Text:     "postback issue",
+		PostedAt: now,
+		Score:    80,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var gotSummary string
+	classifier := &stubEntityClassifierWithInput{
+		base: &stubEntityClassifier{
+			result: gemini.EntityClassifyResult{
+				SameActor:       true,
+				ActorConfidence: 0.9,
+				UnifiedPain:     "tracker pain",
+				BuyerIntent:     "hot",
+			},
+		},
+		onCall: func(input gemini.EntityClassifyInput) {
+			if len(input.Sightings) == 0 {
+				t.Fatal("expected sightings")
+			}
+			gotSummary = input.Sightings[0].ContactsSummary
+		},
+	}
+	contacts := &stubContactsSummary{summary: "email: o***@acme.com"}
+	capturer := NewEntityClassifyCapturer(4)
+	svc := NewEntityClassifyService(EntityClassifyConfig{
+		AnalyzeInterval: 10 * time.Millisecond,
+		Debounce:        time.Hour,
+	}, capturer, store, store, classifier, EntityClassifyExtras{Contacts: contacts})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	svc.Run(ctx, &wg)
+	capturer.TryCapture(EntityClassifyEvent{EntityID: first.EntityID, ForceFresh: true})
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	wg.Wait()
+
+	if gotSummary != contacts.summary {
+		t.Fatalf("contacts_summary=%q want %q", gotSummary, contacts.summary)
+	}
+}
+
+type stubEntityClassifierWithInput struct {
+	base   *stubEntityClassifier
+	onCall func(gemini.EntityClassifyInput)
+}
+
+func (s *stubEntityClassifierWithInput) ClassifyEntity(ctx context.Context, input gemini.EntityClassifyInput) (gemini.EntityClassifyResult, error) {
+	if s.onCall != nil {
+		s.onCall(input)
+	}
+	return s.base.ClassifyEntity(ctx, input)
+}
+
+func TestEntityClassifyServicePollsClassifyForce(t *testing.T) {
+	store := entity.NewMemoryStore()
+	now := time.Now().UTC()
+	first, err := store.RecordSighting(t.Context(), entity.SightingInput{
+		ResolveInput: entity.ResolveInput{
+			CompanyName: "Acme",
+			Source:      "forum:affiliatefix.com/a",
+			Contacts:    []extract.Contact{{Type: "email", Value: "ops@acme.com"}},
+		},
+		HashID:   "h1",
+		Matched:  []string{"voluum"},
+		Text:     "voluum pain",
+		PostedAt: now,
+		Score:    80,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.RecordSighting(t.Context(), entity.SightingInput{
+		ResolveInput: entity.ResolveInput{
+			Source:   "reddit:igaming",
+			Contacts: []extract.Contact{{Type: "email", Value: "ops@acme.com"}},
+		},
+		HashID:   "h2",
+		Matched:  []string{"postback"},
+		Text:     "postback issue",
+		PostedAt: now,
+		Score:    80,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkClassifyForce(t.Context(), first.EntityID); err != nil {
+		t.Fatal(err)
+	}
+
+	classifier := &stubEntityClassifier{
+		result: gemini.EntityClassifyResult{
+			SameActor:       true,
+			ActorConfidence: 0.9,
+			UnifiedPain:     "tracker pain",
+			BuyerIntent:     "hot",
+		},
+	}
+	capturer := NewEntityClassifyCapturer(4)
+	svc := NewEntityClassifyService(EntityClassifyConfig{
+		AnalyzeInterval: 10 * time.Millisecond,
+		Debounce:        time.Hour,
+	}, capturer, store, store, classifier, EntityClassifyExtras{Force: store})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	svc.Run(ctx, &wg)
+	time.Sleep(80 * time.Millisecond)
+	cancel()
+	wg.Wait()
+
+	if classifier.calls != 1 {
+		t.Fatalf("classify calls=%d want 1 from classify_force poll", classifier.calls)
+	}
+	doc, ok := store.Get(first.EntityID)
+	if !ok || doc.ClassifyForce {
+		t.Fatalf("classify_force should be cleared, doc=%+v ok=%v", doc, ok)
 	}
 }

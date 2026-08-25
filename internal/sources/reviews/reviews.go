@@ -33,7 +33,7 @@ type Crawler struct {
 
 func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 	if client == nil {
-		client = httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLs)
+		client = httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLsForSource("reviews"), "reviews")
 	}
 	return &Crawler{
 		client:  client,

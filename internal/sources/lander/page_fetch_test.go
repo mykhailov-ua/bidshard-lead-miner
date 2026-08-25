@@ -27,7 +27,7 @@ func TestPageFetcherRSCMerge(t *testing.T) {
 	defer server.Close()
 
 	fetcher := newHTTPFetcher(server.Client(), "")
-	pf := NewPageFetcher(fetcher, DisabledHeadless{}, false)
+	pf := NewPageFetcher(fetcher, DisabledHeadless{}, PageFetchOptions{})
 	html, meta, err := pf.FetchHTML(context.Background(), server.URL+"/affiliate")
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +61,7 @@ func TestPageFetcherHeadlessOnHTTPFailure(t *testing.T) {
 		return "<html><body><footer>partnerships@headless.example.com</footer></body></html>", nil
 	})
 
-	pf := NewPageFetcher(fetcher, pool, true)
+	pf := NewPageFetcher(fetcher, pool, PageFetchOptions{HeadlessEnabled: true})
 	html, meta, err := pf.FetchHTML(context.Background(), server.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +94,7 @@ func TestPageFetcherHeadlessOnEmptyAfterRSC(t *testing.T) {
 		return "<html><body><a href=\"mailto:affiliates@headless.example.com\">contact</a></body></html>", nil
 	})
 
-	pf := NewPageFetcher(fetcher, pool, true)
+	pf := NewPageFetcher(fetcher, pool, PageFetchOptions{HeadlessEnabled: true})
 	html, meta, err := pf.FetchHTML(context.Background(), server.URL)
 	if err != nil {
 		t.Fatal(err)

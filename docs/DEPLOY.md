@@ -21,41 +21,124 @@ Full prod profile: `config/env/.env.vps.example` (`forum,supply,lander,tgweb`, `
 
 ### What to buy (defaults)
 
-Account signup: **email + card**, no passport upload on standard plans. **Not RU providers** (Selectel, Timeweb, RuVDS, ...). Provider policies change - confirm at checkout.
+**Not RU providers** (Selectel, Timeweb, RuVDS, ...). Provider policies change - confirm stock and checkout terms before paying.
 
-| Role | Pick | Plan | Payment | Notes |
-| --- | --- | --- | --- | --- |
-| **VPS** (parser + Mongo) | [Servury](https://servury.com) or [EQVPS](https://eqvps.com) | **4 GB RAM**, 2 vCPU, 40+ GB disk | Visa/Mastercard | Email signup; Servury can use a generated credential |
-| **VPS** (mainstream alt.) | [Hetzner](https://www.hetzner.com/cloud) CPX22 | 4 GB RAM, 2 vCPU, 80 GB NVMe | Card / PayPal | Referenced in [OPS.md](OPS.md); stable 24/7 |
-| **Residential proxy** | [DataImpulse](https://dataimpulse.com) | Pay-as-you-go (~$1/GB) | Card | Primary example in repo; traffic does not expire |
-| **Residential proxy** (alt.) | [IPRoyal](https://iproyal.com/residential-proxies/) | Pay-as-you-go | Card | Also wired in `config/env/.env.residential.example` |
-
-**VPS location:** Germany or Netherlands (EU egress; stable for this stack).
+**VPS location:** Netherlands or Finland (EU egress; stable for this stack).
 
 **Do not use datacenter VPS IP alone** for forum/tgweb on Cloudflare - set `PARSER_PROXY_LIST` to residential. Optional VPS Squid is datacenter egress only ([Appendix A](#appendix-a-vps-squid-datacenter-egress-only)).
+
+### Recommended stack (no passport)
+
+Picks below are for operators who refuse ID upload. All accept crypto or email-only checkout on standard VPS plans (verified against provider sites, 2026-08).
+
+| Role | Pick | Plan (4 GB prod) | Price | Payment | Why |
+| --- | --- | --- | --- | --- | --- |
+| **VPS** | [Mynymbox](https://mynymbox.io/netherlands-vps) VPS NL-4 | 2 vCPU, 4 GB, 50 GB, Amsterdam | EUR 16/mo | BTC / XMR / card via BTCPay | No KYC on site; KVM; NL DC matches geo proxy |
+| **VPS** (cheaper) | [NetherlandsVPS](https://netherlandsvps.com/) NL-4G-VPS | 4 vCPU, 4 GB, 60 GB NVMe, Amsterdam | $14/mo | BTC / USDT / ETH; no KYC for crypto | Best $/GB for no-ID; email only |
+| **VPS** (ToS no-KYC) | [Packetra](https://packetra.com/hosting/cloud-hosting) Cloud VPS #3 | 4 vCPU, 4 GB, 60 GB, Finland | EUR 22.90/mo | BTC / XMR / PayPal | [Terms](https://packetra.com/terms) state no KYC at any stage; 24/7 support |
+| **Residential proxy** | [DataImpulse](https://dataimpulse.com) | PAYG $1/GB, traffic never expires | from $5 trial | Card / BTC / ETH / USDT | No KYC on standard use; primary example in this repo |
+| **Residential** (crypto only) | [Proxies.VISION](https://proxies.vision) | PAYG $1/GB | from $1 | BTC / USDT / card | Email signup; crypto without KYC |
+
+**Do not use for parser VPS:**
+
+| Provider | Why skip |
+| --- | --- |
+| [Njalla](https://njal.la/servers/) | Privacy domains/VPN OK; VPS is EUR 45+ for 4 GB, Ceph latency, mixed uptime reports |
+| Hetzner, DigitalOcean, Scaleway, Vultr | Frequent passport + selfie on new accounts |
+| EQVPS, Servury | No track record; not vetted for 24/7 prod |
+
+**Budget mainstream (conditional KYC):** [Contabo](https://contabo.com) Cloud VPS M (4 vCPU, 8 GB, ~EUR 7/mo) or [OVHcloud](https://www.ovhcloud.com) VPS if you accept risk of [mandatory verification](https://help.contabo.com/en/support/solutions/articles/103000348466-why-do-i-need-to-verify-my-purchase-) (passport + utility bill when antifraud flags the order). Register from home IP, no VPN, real billing address.
 
 ### Monthly budget (full prod, rough)
 
 | Item | Cost |
 | --- | --- |
-| VPS 4 GB | ~$10-15 / EUR 6-7 (Hetzner) |
-| Residential 5-15 GB | ~$5-15 (DataImpulse) |
+| VPS (Mynymbox NL-4 or NetherlandsVPS NL-4G) | EUR 16 or $14 / month |
+| Residential 5-15 GB | $5-15 (DataImpulse) |
 | Gemini API | $0 on free tier (watch RPM/RPD) |
-| **Total** | ~$15-30 / month |
+| **Total** | ~$20-30 / month |
+
+### Budget profile ($30 USD cap)
+
+Hard cap: **VPS + residential <= $30/mo**. Do not run forum/lander/tgweb 24/7 through proxy (that burns 50-150 GB/mo).
+
+| Item | Pick | Cost |
+| --- | --- | --- |
+| VPS | [NetherlandsVPS](https://netherlandsvps.com/) NL-4G-VPS | $14 |
+| Proxy | [DataImpulse](https://dataimpulse.com) top-up | $10-12 (~10 GB/mo cap) |
+| **Total** | | **$24-26** |
+
+**Split traffic (required):**
+
+| Mode | Sources | Proxy | Schedule |
+| --- | --- | --- | --- |
+| 24/7 `parser run` | `reddit,discord,supply` + Telethon bg | **none** (datacenter VPS IP is fine) | `PARSER_POLL_SEC=300` |
+| CF crawl cron | `forum,tgweb,lander` | **residential** | 1-2x/day via `scripts/ops/cf-crawl-cron.sh` |
+
+Setup:
+
+```bash
+cp .env.example .env
+cat config/env/.env.budget.example >> .env
+cp config/env/.env.proxy.local.example config/env/.env.proxy.local
+# edit .env: GEMINI_API_KEY, TELEGRAM_API_*
+# edit config/env/.env.proxy.local: PARSER_PROXY_LIST only
+
+docker compose up -d
+# CF crawl (manual or crontab):
+bash scripts/ops/cf-crawl-cron.sh
+```
+
+Keep `PARSER_PROXY_LIST` out of root `.env` so the 24/7 container does not route Reddit API through residential.
+
+**Expected proxy use:** ~5-10 GB/mo at 2 CF crawls/day on default prod seeds (~$5-10). Remaining budget headroom for extra tgweb runs.
+
+**Realistic volume on $30:** hundreds to low thousands of unique leads/mo (reddit + telegram + periodic forum/tgweb), not 15k without a much larger seed surface and budget.
+
+Profile file: `config/env/.env.budget.example`.
+
+### Fully automated v1 profile
+
+Single env bundle for discover -> triage -> defer -> CRM gate without manual channel lists:
+
+```bash
+cp .env.example .env
+cat config/env/.env.auto.example >> .env
+cat config/env/.env.residential.example >> .env
+# set GEMINI_API_KEY, TELEGRAM_API_*, PARSER_PROXY_LIST
+go run ./cmd/parser config check
+```
+
+Key flags: `PARSER_BG_TELEGRAM=1`, `PARSER_CHANNEL_TRIAGE=true`, `PARSER_GEMINI_DEFER=true`, `PARSER_CRM_WEBHOOK_AFTER_ANALYSIS=true`, `PARSER_PROXY_SOURCES=forum,tgweb,lander` (reddit/serp stay direct while proxy list is set).
+
+Profile file: `config/env/.env.auto.example`.
 
 ### Wire residential proxy into `.env`
 
-DataImpulse (geo/session in username - see provider dashboard):
+**DataImpulse** (primary; card or crypto; no passport on standard account):
+
+1. Register at [dataimpulse.com](https://dataimpulse.com) (email only).
+2. Top up from $5 (card, BTC, ETH, or USDT).
+3. Copy login/password from dashboard -> Proxy Access.
+4. Geo/session in username (provider dashboard):
 
 ```bash
 PARSER_PROXY_LIST=http://user-country-de-session-prod1:PASS@gw.dataimpulse.com:823
 ```
 
-IPRoyal:
+**Proxies.VISION** (crypto only; email signup, no KYC):
+
+1. Register at [proxies.vision/register](https://proxies.vision/register).
+2. Top up from $1 via BTC / USDT / ETH.
+3. Copy credentials from dashboard:
 
 ```bash
-PARSER_PROXY_LIST=http://USER:PASS@geo.iproyal.com:12321
+PARSER_PROXY_LIST=http://USER:PASS@connect.proxies.vision:8080
 ```
+
+Sticky session or country targeting: set in dashboard username format (see provider docs).
+
+**Do not use for residential:** IPRoyal (~$7/GB, card KYC possible on large top-ups), Bright Data / Oxylabs (enterprise, contracts). VPS Squid is datacenter egress only - not a residential replacement.
 
 Verify before 24/7:
 

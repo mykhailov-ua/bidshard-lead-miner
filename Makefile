@@ -121,6 +121,9 @@ prod-source-smoke: build
 docker-headless-build:
 	docker compose -f docker-compose.headless.yaml build
 
+headless-crawl-cron:
+	bash scripts/ops/headless-crawl-cron.sh
+
 bpf-release-gate:
 	@test -n "$(SESSION)" || (echo "usage: make bpf-release-gate SESSION=var/bpf-session/<ts>" && exit 1)
 	bash ./scripts/lib/bpf_gate.sh "$(SESSION)"

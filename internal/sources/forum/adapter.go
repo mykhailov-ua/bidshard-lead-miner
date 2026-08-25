@@ -12,14 +12,17 @@ import (
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/extract"
 	"github.com/bidshard/parser/internal/model"
+	"github.com/bidshard/parser/internal/proxybudget"
 )
 
 type EmitFunc func(ctx context.Context, item model.RawItem) error
 
 type Adapter struct {
-	seedPath string
-	fetcher  *Fetcher
-	workers  int
+	seedPath     string
+	registryPath string
+	fetcher      *Fetcher
+	workers      int
+	usesProxy    bool
 }
 
 func NewAdapter(cfg config.Config, fetcher *Fetcher) *Adapter {
@@ -31,9 +34,11 @@ func NewAdapter(cfg config.Config, fetcher *Fetcher) *Adapter {
 		workers = 10
 	}
 	return &Adapter{
-		seedPath: cfg.ForumSeedPath,
-		fetcher:  fetcher,
-		workers:  workers,
+		seedPath:     cfg.ForumSeedPath,
+		registryPath: cfg.ForumRegistryPath,
+		fetcher:      fetcher,
+		workers:      workers,
+		usesProxy:    len(cfg.ProxyURLsForSource("forum")) > 0,
 	}
 }
 
@@ -42,7 +47,11 @@ func (a *Adapter) Name() string {
 }
 
 func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
-	seeds, err := LoadThreadSeeds(a.seedPath)
+	if skip, reason := proxybudget.ShouldSkipProxySource("forum", a.usesProxy); skip {
+		slog.Info("forum crawl skipped", "reason", reason)
+		return nil
+	}
+	seeds, err := LoadThreadSeedsCombined(a.seedPath, a.registryPath)
 	if err != nil {
 		return err
 	}
@@ -130,8 +139,9 @@ func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
 	}
 
 	for _, seed := range seeds {
-		if !ShouldCrawlSeed(seed.URL, seed.Notes) {
+		if fetch, verdict := TriageThread(seed); !fetch {
 			skipped++
+			slog.Debug("forum thread triage skip", "url", seed.URL, "verdict", verdict)
 			continue
 		}
 		processURL(seed.URL, 0)

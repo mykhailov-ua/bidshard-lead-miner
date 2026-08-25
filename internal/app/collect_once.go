@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/gemini"
 	"github.com/bidshard/parser/internal/model"
 	"github.com/bidshard/parser/internal/pipeline"
 	"github.com/bidshard/parser/internal/sources/lander"
@@ -118,7 +119,15 @@ func runTelegramWebOnce(ctx context.Context, cfg config.Config, deps *runtimeDep
 		// Cap concurrent browser contexts; default pool returns unavailable until Playwright is wired.
 		headless = lander.NewPlaywrightPoolFetcher(2, cfg.HTTPTimeout)
 	}
-	crawler, err := tgweb.NewCrawler(cfg, nil, headless)
+	var ranker lander.PathRanker
+	if cfg.ParserLanderPathGemini && cfg.GeminiAPIKey != "" {
+		if client, err := gemini.NewClient(cfg.GeminiAPIKey, cfg.GeminiModel, gemini.ClientOptionsFrom(cfg)...); err == nil {
+			ranker = client
+		} else {
+			slog.Warn("tgweb lander path gemini disabled", "error", err)
+		}
+	}
+	crawler, err := tgweb.NewCrawler(cfg, nil, headless, ranker)
 	if err != nil {
 		return err
 	}

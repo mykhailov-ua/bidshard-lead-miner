@@ -21,6 +21,14 @@ var (
 	warmAnalysisFailedTotal int64
 	warmAnalysisPending     int64
 	leadsAnalysisPending    int64
+	sourcesDiscoveredTotal  = make(map[string]int64)
+	sourcesTriagedDropped   int64
+	proxyEgressBytesTotal   = make(map[string]int64)
+	proxyBudgetSkippedTotal = make(map[string]int64)
+	proxyBudgetExceeded     int64
+	proxyBudgetDailyBytes   int64
+	headlessQueuedTotal     int64
+	headlessDrainedTotal    int64
 	icpDriftTotal           = make(map[string]int64)
 	queueDroppedTotal       = make(map[string]int64)
 )
@@ -107,7 +115,90 @@ func SetLeadsAnalysisPending(n int64) {
 	warmAnalysisPending = n
 }
 
-// RecordICPDrift increments when inline tgweb ICP disagrees with warm-path ICP.
+// RecordSourcesDiscovered increments registry growth for a source family (serp, telegram, forum, ...).
+func RecordSourcesDiscovered(family string, n int) {
+	if n <= 0 {
+		return
+	}
+	if family == "" {
+		family = "unknown"
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	sourcesDiscoveredTotal[family] += int64(n)
+}
+
+// RecordSourcesTriagedDropped increments sources removed by AI/heuristic triage.
+func RecordSourcesTriagedDropped(n int) {
+	if n <= 0 {
+		return
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	sourcesTriagedDropped += int64(n)
+}
+
+// RecordProxyEgressBytes adds HTTP response bytes for proxy-routed crawls by source id.
+func RecordProxyEgressBytes(source string, n int64) {
+	if n <= 0 {
+		return
+	}
+	if source == "" {
+		source = "unknown"
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	proxyEgressBytesTotal[source] += n
+}
+
+// RecordProxyBudgetSkipped increments when proxy crawl is skipped due to daily cap.
+func RecordProxyBudgetSkipped(source string) {
+	if source == "" {
+		source = "unknown"
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	proxyBudgetSkippedTotal[source]++
+}
+
+// SetProxyBudgetExceeded sets gauge when daily proxy cap is reached (1 or 0).
+func SetProxyBudgetExceeded(exceeded bool) {
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	if exceeded {
+		proxyBudgetExceeded = 1
+		return
+	}
+	proxyBudgetExceeded = 0
+}
+
+// SetProxyBudgetDailyBytes sets today's recorded proxy egress bytes gauge.
+func SetProxyBudgetDailyBytes(n int64) {
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	proxyBudgetDailyBytes = n
+}
+
+// RecordHeadlessQueued increments deferred headless queue enqueue count.
+func RecordHeadlessQueued(n int) {
+	if n <= 0 {
+		return
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	headlessQueuedTotal += int64(n)
+}
+
+// RecordHeadlessDrained increments successful nightly headless drain count.
+func RecordHeadlessDrained(n int) {
+	if n <= 0 {
+		return
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	headlessDrainedTotal += int64(n)
+}
+
 func RecordICPDrift(source string) {
 	if source == "" {
 		source = "unknown"
@@ -178,6 +269,44 @@ func Handler() http.Handler {
 		_, _ = fmt.Fprintln(w, "# HELP parser_leads_analysis_pending Deferred Gemini backlog (analysis_status=pending)")
 		_, _ = fmt.Fprintln(w, "# TYPE parser_leads_analysis_pending gauge")
 		_, _ = fmt.Fprintf(w, "parser_leads_analysis_pending %d\n", leadsAnalysisPending)
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_sources_discovered_total New sources appended to runtime registries")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_sources_discovered_total counter")
+		for family, val := range sourcesDiscoveredTotal {
+			_, _ = fmt.Fprintf(w, "parser_sources_discovered_total{family=\"%s\"} %d\n", family, val)
+		}
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_sources_triaged_dropped_total Sources dropped by triage jobs")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_sources_triaged_dropped_total counter")
+		_, _ = fmt.Fprintf(w, "parser_sources_triaged_dropped_total %d\n", sourcesTriagedDropped)
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_proxy_egress_bytes_total HTTP response bytes via proxy by source")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_proxy_egress_bytes_total counter")
+		for source, val := range proxyEgressBytesTotal {
+			_, _ = fmt.Fprintf(w, "parser_proxy_egress_bytes_total{source=\"%s\"} %d\n", source, val)
+		}
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_proxy_budget_skipped_total Proxy crawl skips when daily cap exceeded")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_proxy_budget_skipped_total counter")
+		for source, val := range proxyBudgetSkippedTotal {
+			_, _ = fmt.Fprintf(w, "parser_proxy_budget_skipped_total{source=\"%s\"} %d\n", source, val)
+		}
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_proxy_budget_exceeded Daily proxy egress cap reached (1=yes)")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_proxy_budget_exceeded gauge")
+		_, _ = fmt.Fprintf(w, "parser_proxy_budget_exceeded %d\n", proxyBudgetExceeded)
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_proxy_budget_daily_bytes Proxy egress bytes recorded today (UTC)")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_proxy_budget_daily_bytes gauge")
+		_, _ = fmt.Fprintf(w, "parser_proxy_budget_daily_bytes %d\n", proxyBudgetDailyBytes)
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_headless_queued_total URLs deferred to nightly headless drain queue")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_headless_queued_total counter")
+		_, _ = fmt.Fprintf(w, "parser_headless_queued_total %d\n", headlessQueuedTotal)
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_headless_drained_total URLs successfully rendered by headless drain")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_headless_drained_total counter")
+		_, _ = fmt.Fprintf(w, "parser_headless_drained_total %d\n", headlessDrainedTotal)
 
 		_, _ = fmt.Fprintln(w, "# HELP parser_icp_drift_total Inline vs warm-path ICP mismatches by source")
 		_, _ = fmt.Fprintln(w, "# TYPE parser_icp_drift_total counter")

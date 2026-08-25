@@ -17,6 +17,9 @@ func TestMetricsExposition(t *testing.T) {
 	RecordGeminiWait(500 * time.Millisecond)
 	RecordWarmAnalysisFailed(2)
 	SetLeadsAnalysisPending(7)
+	RecordSourcesDiscovered("telegram", 3)
+	RecordSourcesTriagedDropped(2)
+	RecordProxyEgressBytes("forum", 4096)
 	RecordICPDrift("tgweb")
 	RecordQueueDropped("junk")
 
@@ -56,6 +59,15 @@ func TestMetricsExposition(t *testing.T) {
 	}
 	if !strings.Contains(content, "parser_leads_analysis_pending 7") {
 		t.Errorf("expected parser_leads_analysis_pending metric in output:\n%s", content)
+	}
+	if !strings.Contains(content, "parser_sources_discovered_total{family=\"telegram\"} 3") {
+		t.Errorf("expected parser_sources_discovered_total metric in output:\n%s", content)
+	}
+	if !strings.Contains(content, "parser_sources_triaged_dropped_total 2") {
+		t.Errorf("expected parser_sources_triaged_dropped_total metric in output:\n%s", content)
+	}
+	if !strings.Contains(content, "parser_proxy_egress_bytes_total{source=\"forum\"} 4096") {
+		t.Errorf("expected parser_proxy_egress_bytes_total metric in output:\n%s", content)
 	}
 	if !strings.Contains(content, "parser_icp_drift_total{source=\"tgweb\"}") {
 		t.Errorf("expected parser_icp_drift_total metric in output:\n%s", content)

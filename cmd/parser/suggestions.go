@@ -20,7 +20,7 @@ Examples:
   parser suggestions list
   parser suggestions preview --file data/suggestions/keywords_pending_abc.json
   parser suggestions apply --file data/suggestions/keywords_pending_abc.json --dry-run
-  parser suggestions apply --file data/suggestions/keywords_pending_abc.json
+  parser suggestions apply --file data/suggestions/discover_icp_pending_abc.json --auto
   parser suggestions reject --file data/suggestions/keywords_pending_abc.json`,
 	}
 	cmd.AddCommand(
@@ -107,7 +107,7 @@ func newSuggestionsPreviewCmd() *cobra.Command {
 
 func newSuggestionsApplyCmd() *cobra.Command {
 	var file, keywordsPath, icpPath string
-	var dryRun bool
+	var dryRun, autoApply bool
 	c := &cobra.Command{
 		Use:   "apply",
 		Short: "Apply one pending suggestion file",
@@ -125,6 +125,20 @@ func newSuggestionsApplyCmd() *cobra.Command {
 				if keywordsPath == "" {
 					keywordsPath = defaultKeywordsPath()
 				}
+				if autoApply {
+					cfg, err := config.Load()
+					if err != nil {
+						return err
+					}
+					summary, err := suggestions.ApplyKeywordsAuto(file, keywordsPath, suggestions.KeywordAutoApplyOptions{
+						MaxPerWeek: cfg.DiscoverAutoApplyMaxWeek,
+					}, dryRun)
+					if err != nil {
+						return err
+					}
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "ok %s\n", summary)
+					return nil
+				}
 				summary, err := suggestions.ApplyKeywords(file, keywordsPath, dryRun)
 				if err != nil {
 					return err
@@ -134,6 +148,20 @@ func newSuggestionsApplyCmd() *cobra.Command {
 			case suggestions.KindDiscover:
 				if icpPath == "" {
 					icpPath = discover.ResolveICPPath("")
+				}
+				if autoApply {
+					cfg, err := config.Load()
+					if err != nil {
+						return err
+					}
+					summary, err := suggestions.ApplyDiscoverAuto(file, icpPath, suggestions.DiscoverAutoApplyOptions{
+						MaxPerWeek: cfg.DiscoverAutoApplyMaxWeek,
+					}, dryRun)
+					if err != nil {
+						return err
+					}
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "ok %s\n", summary)
+					return nil
 				}
 				summary, err := suggestions.ApplyDiscover(file, icpPath, dryRun)
 				if err != nil {
@@ -150,6 +178,7 @@ func newSuggestionsApplyCmd() *cobra.Command {
 	c.Flags().StringVar(&keywordsPath, "keywords", "", "keywords.json path")
 	c.Flags().StringVar(&icpPath, "icp", "", "discover.icp.json path")
 	c.Flags().BoolVar(&dryRun, "dry-run", false, "preview merge without writing")
+	c.Flags().BoolVar(&autoApply, "auto", false, "apply with denylist and weekly cap (discover + keywords)")
 	return c
 }
 

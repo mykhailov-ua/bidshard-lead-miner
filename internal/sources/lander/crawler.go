@@ -10,6 +10,7 @@ import (
 	"github.com/bidshard/parser/internal/diag"
 	"github.com/bidshard/parser/internal/extract"
 	"github.com/bidshard/parser/internal/model"
+	"github.com/bidshard/parser/internal/proxybudget"
 )
 
 type EmitFunc func(ctx context.Context, item model.RawItem) error
@@ -19,11 +20,17 @@ type Crawler struct {
 	http            *HTTPFetcher
 	headless        HeadlessFetcher
 	headlessEnabled bool
+	fetchOpts       PageFetchOptions
+	usesProxy       bool
 }
 
 func NewCrawler(cfg config.Config, httpFetcher *HTTPFetcher, headless HeadlessFetcher) *Crawler {
 	if httpFetcher == nil {
-		httpFetcher = NewHTTPFetcher(cfg.HTTPTimeout, cfg.LanderBaseURL)
+		var err error
+		httpFetcher, err = NewHTTPFetcherFromConfig(cfg)
+		if err != nil {
+			httpFetcher = NewHTTPFetcher(cfg.HTTPTimeout, cfg.LanderBaseURL)
+		}
 	}
 	if headless == nil {
 		headless = DisabledHeadless{}
@@ -33,6 +40,8 @@ func NewCrawler(cfg config.Config, httpFetcher *HTTPFetcher, headless HeadlessFe
 		http:            httpFetcher,
 		headless:        headless,
 		headlessEnabled: cfg.LanderHeadless,
+		fetchOpts:       PageFetchOptsFromConfig(cfg, "lander"),
+		usesProxy:       len(cfg.ProxyURLsForSource("lander")) > 0,
 	}
 }
 
@@ -41,6 +50,10 @@ func (c *Crawler) Name() string {
 }
 
 func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
+	if skip, reason := proxybudget.ShouldSkipProxySource("lander", c.usesProxy); skip {
+		slog.Info("lander crawl skipped", "reason", reason)
+		return nil
+	}
 	urls, err := LoadURLs(c.seedPath)
 	if err != nil {
 		slog.Error("lander seed load failed", "path", c.seedPath, "error", err)
@@ -150,7 +163,7 @@ type fetchMeta struct {
 }
 
 func (c *Crawler) fetchHTML(ctx context.Context, pageURL string) (string, fetchMeta, error) {
-	pf := NewPageFetcher(c.http, c.headless, c.headlessEnabled)
+	pf := NewPageFetcher(c.http, c.headless, c.fetchOpts)
 	html, meta, err := pf.FetchHTML(ctx, pageURL)
 	return html, fetchMeta{
 		stage:      meta.Stage,

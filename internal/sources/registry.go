@@ -6,6 +6,7 @@ import (
 
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/model"
+	"github.com/bidshard/parser/internal/sourcedisable"
 	"github.com/bidshard/parser/internal/sources/ct"
 	"github.com/bidshard/parser/internal/sources/discord"
 	"github.com/bidshard/parser/internal/sources/forum"
@@ -26,6 +27,9 @@ func Build(cfg config.Config) []Source {
 
 	var out []Source
 	for _, name := range names {
+		if sourcedisable.IsDisabled(cfg.DisabledSourcesPath, name) {
+			continue
+		}
 		if src, ok := buildOne(cfg, name); ok {
 			out = append(out, src)
 		}

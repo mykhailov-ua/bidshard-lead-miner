@@ -32,7 +32,7 @@ func NewFetcher(timeout time.Duration, baseURL string) *Fetcher {
 
 func NewFetcherWithConfig(cfg config.Config) *Fetcher {
 	return &Fetcher{
-		client:   httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLs),
+		client:   httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLsForSource("forum"), "forum"),
 		limiters: limit.NewHostLimiters(0.5, 1),
 		breaker:  breaker.NewSourceBreaker(),
 		baseURL:  strings.TrimSuffix(cfg.ForumBaseURL, "/"),

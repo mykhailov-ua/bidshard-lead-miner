@@ -26,14 +26,20 @@ func NewHTTPFetcher(timeout time.Duration, baseURL string) *HTTPFetcher {
 	return newHTTPFetcher(httpclient.Shared(timeout), baseURL)
 }
 
-// NewHTTPFetcherFromConfig builds an HTTP fetcher; uses PARSER_PROXY_LIST when set, else Shared().
+// NewHTTPFetcherFromConfig builds an HTTP fetcher for the lander source family.
 func NewHTTPFetcherFromConfig(cfg config.Config) (*HTTPFetcher, error) {
-	if len(cfg.ProxyURLs) > 0 {
-		client, err := httpclient.NewClientWithProxies(cfg.HTTPTimeout, cfg.ProxyURLs)
+	return NewHTTPFetcherForSource(cfg, "lander")
+}
+
+// NewHTTPFetcherForSource builds an HTTP fetcher with per-source proxy routing.
+func NewHTTPFetcherForSource(cfg config.Config, sourceID string) (*HTTPFetcher, error) {
+	proxyURLs := cfg.ProxyURLsForSource(sourceID)
+	if len(proxyURLs) > 0 {
+		client, err := httpclient.NewClientWithProxies(cfg.HTTPTimeout, proxyURLs, sourceID)
 		if err != nil {
 			return nil, err
 		}
-		slog.Info("lander http fetcher using proxy rotation", "proxies", len(cfg.ProxyURLs))
+		slog.Info("lander http fetcher using proxy rotation", "source", sourceID, "proxies", len(proxyURLs))
 		return newHTTPFetcher(client, cfg.LanderBaseURL), nil
 	}
 	return NewHTTPFetcher(cfg.HTTPTimeout, cfg.LanderBaseURL), nil

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/extract"
+	"github.com/bidshard/parser/internal/metrics"
 )
 
 const defaultTGChannelsPath = "data/runtime/discovered_telegram_channels.json"
@@ -52,6 +53,7 @@ func appendTelegramChannelDiscoveries(path string, dork string, results []SERPRe
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
+	added := 0
 	for _, u := range handles {
 		u = strings.ToLower(strings.TrimPrefix(u, "@"))
 		if _, ok := seenUser[u]; ok {
@@ -64,6 +66,7 @@ func appendTelegramChannelDiscoveries(path string, dork string, results []SERPRe
 			Query:    dork,
 			At:       now,
 		})
+		added++
 	}
 	for _, h := range invites {
 		if _, ok := seenInvite[h]; ok {
@@ -76,6 +79,10 @@ func appendTelegramChannelDiscoveries(path string, dork string, results []SERPRe
 			Query:      dork,
 			At:         now,
 		})
+		added++
+	}
+	if added > 0 {
+		metrics.RecordSourcesDiscovered("telegram", added)
 	}
 
 	return writeTGChannelFile(path, existing)

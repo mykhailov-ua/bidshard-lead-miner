@@ -137,6 +137,58 @@ func TestSplitHashFromEntityMissingHash(t *testing.T) {
 	}
 }
 
+func TestSplitHashFromEntityPreservesRestorableSourceBackup(t *testing.T) {
+	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+	heat := DefaultHeatConfig()
+	domainKeys := []EntityKey{{Kind: KindDomain, Value: "acme.com"}}
+	sourceID := EntityID(domainKeys)
+
+	doc := NewDocWithHeat(sourceID, domainKeys[0], domainKeys, SightingInput{
+		ResolveInput: ResolveInput{Source: "forum:affiliatefix.com/thread-a"},
+		HashID:       "hash-a",
+		Matched:      []string{"voluum"},
+		Text:         "voluum bill too high",
+		Score:        60,
+		PostedAt:     now.Add(-24 * time.Hour),
+		SeenAt:       now,
+	}, heat, now)
+	_ = MergeSightingWithHeat(&doc, domainKeys, SightingInput{
+		ResolveInput: ResolveInput{Source: "tgweb:@ch:acme.com"},
+		HashID:       "hash-b",
+		Matched:      []string{"tracker"},
+		Text:         "need better tracker",
+		Score:        55,
+		PostedAt:     now.Add(-48 * time.Hour),
+		SeenAt:       now,
+	}, heat, now)
+
+	sourceBackup := doc
+	sightB, ok := findSighting(doc, "hash-b")
+	if !ok {
+		t.Fatal("hash-b sighting missing")
+	}
+	splitIn := SightingInputFromLead(LeadSightingSource{
+		Source:  "tgweb:@ch:acme.com",
+		Snippet: "need better tracker",
+		Matched: []string{"tracker"},
+		Score:   55,
+	}, sightB)
+
+	_, newDoc, err := SplitHashFromEntity(&doc, "hash-b", splitIn, heat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sourceBackup.HashIDs) != 2 {
+		t.Fatalf("backup hash count=%d want 2 before split mutation", len(sourceBackup.HashIDs))
+	}
+	if len(doc.HashIDs) != 1 || doc.HashIDs[0] != "hash-a" {
+		t.Fatalf("mutated source hashes=%v", doc.HashIDs)
+	}
+	if newDoc.EntityID == sourceBackup.EntityID {
+		t.Fatal("expected forked entity id")
+	}
+}
+
 func findSighting(doc EntityDoc, hashID string) (EntitySighting, bool) {
 	for _, s := range doc.Sightings {
 		if s.HashID == hashID {

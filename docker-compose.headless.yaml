@@ -1,10 +1,12 @@
 # Optional headless lander/tgweb image (Playwright + Chromium).
 # Usage:
 #   docker compose -f docker-compose.headless.yaml build
-#   docker compose -f docker-compose.headless.yaml run --rm parser-headless scan --source=lander
+#   docker compose -f docker-compose.headless.yaml --profile headless run --rm parser-headless headless drain
+#   bash scripts/ops/headless-crawl-cron.sh
 #
 services:
   parser-headless:
+    profiles: ["headless"]
     build:
       context: .
       dockerfile: Dockerfile.playwright
@@ -17,7 +19,11 @@ services:
       - ./data:/app/data
       - parser_runtime:/app/data/runtime
       - ./config:/app/config:ro
-    command: ["scan", "--source=lander"]
+    command: ["headless", "drain"]
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
 
 volumes:
   parser_runtime:

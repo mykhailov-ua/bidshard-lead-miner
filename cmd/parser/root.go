@@ -245,5 +245,7 @@ func init() {
 		newConfigCmd(),
 		newSuggestionsCmd(),
 		newColdCmd(),
+		newHeadlessCmd(),
+		newAutoCmd(),
 	)
 }

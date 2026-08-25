@@ -12,7 +12,9 @@ import (
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/seedcheck"
 	"github.com/bidshard/parser/internal/sink"
+	"github.com/bidshard/parser/internal/sourceregistry"
 	"github.com/bidshard/parser/internal/sources"
+	"github.com/bidshard/parser/internal/sources/forum"
 	"github.com/bidshard/parser/internal/telethon"
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -204,12 +206,34 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 	}
 	warnings = append(warnings, config.GeoComplianceWarnings(cfg)...)
 	errors = append(errors, config.GeoComplianceErrors(cfg, seedcheck.Profile() == seedcheck.ProfileProd)...)
+	errors = append(errors, config.AutoCRMBundleErrors(cfg, seedcheck.Profile() == seedcheck.ProfileProd)...)
+	if config.AutoCRMBundleOK(cfg) {
+		_, _ = fmt.Fprintln(out, "ok  auto-crm bundle (defer + after-analysis webhook + geo)")
+	} else if cfg.ParserGeminiDefer && cfg.CRMWebhookEnabled {
+		for _, miss := range config.AutoCRMBundleMissing(cfg) {
+			warnings = append(warnings, "auto-crm bundle missing: "+miss)
+		}
+	}
 	if config.SyncGeoGateConfigured(cfg) {
 		_, _ = fmt.Fprintln(out, "ok  sync geo gate configured (inline before Mongo write)")
 	}
 	if seedcheck.Profile() == seedcheck.ProfileProd {
-		if len(cfg.ProxyURLs) == 0 && (containsSource(active, "forum") || containsSource(active, "tgweb")) {
-			warnings = append(warnings, "prod profile: PARSER_PROXY_LIST empty - forum/tgweb may fail on datacenter VPS")
+		for _, src := range []string{"forum", "tgweb", "lander"} {
+			if !containsSource(active, src) {
+				continue
+			}
+			if len(cfg.ProxyURLs) == 0 && cfg.ProxyEnabledForSource(src) {
+				warnings = append(warnings, fmt.Sprintf("prod profile: PARSER_PROXY_LIST empty - %s may fail on datacenter VPS", src))
+			}
+		}
+		if len(cfg.ProxyURLs) > 0 && len(cfg.ProxySources) > 0 {
+			_, _ = fmt.Fprintln(out, "ok  proxy scoped via PARSER_PROXY_SOURCES")
+		}
+		if len(cfg.ProxyURLs) > 0 && cfg.ProxyDailyMBCap <= 0 {
+			warnings = append(warnings, "prod profile: PARSER_PROXY_LIST set but PARSER_PROXY_DAILY_MB_CAP=0 (no egress cap)")
+		}
+		if cfg.ProxyDailyMBCap > 0 {
+			_, _ = fmt.Fprintf(out, "ok  proxy daily budget cap: %d MB\n", cfg.ProxyDailyMBCap)
 		}
 		for src, path := range map[string]string{
 			"forum":  cfg.ForumSeedPath,
@@ -239,6 +263,24 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 		} {
 			if !containsSource(active, src) {
 				continue
+			}
+			if cfg.ParserAutoDiscover {
+				switch src {
+				case "forum":
+					if reg, err := forum.LoadThreadRegistry(cfg.ForumRegistryPath); err == nil {
+						if ok, msg := config.AutoDiscoverRegistryOK(cfg, src, len(reg.Threads)); ok {
+							_, _ = fmt.Fprintln(out, "ok  "+msg)
+							continue
+						}
+					}
+				case "supply":
+					if n, err := sourceregistry.CountByType(cfg.SourceRegistryPath, sourceregistry.TypeSupply); err == nil {
+						if ok, msg := config.AutoDiscoverRegistryOK(cfg, src, n); ok {
+							_, _ = fmt.Fprintln(out, "ok  "+msg)
+							continue
+						}
+					}
+				}
 			}
 			n, err := seedcheck.CountDataRows(path)
 			if err != nil {

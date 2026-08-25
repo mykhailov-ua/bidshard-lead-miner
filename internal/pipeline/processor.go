@@ -19,6 +19,7 @@ import (
 	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/model"
 	"github.com/bidshard/parser/internal/scoring"
+	"github.com/bidshard/parser/internal/seedfeedback"
 	"github.com/bidshard/parser/internal/sink"
 	"github.com/bidshard/parser/internal/sources/tgweb"
 	"github.com/bidshard/parser/internal/validate"
@@ -90,6 +91,8 @@ type Processor struct {
 	EntityHeatEnabled     bool
 	EntityHeat            entity.HeatConfig
 	HardRejectShadowPct   int
+	SeedFeedback          *seedfeedback.Recorder
+	TelegramThread        *entity.ThreadBuffer
 	hashInflight          sync.Map // hash_id -> struct{}
 }
 
@@ -294,7 +297,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		return out
 	}
 	if p.Seen != nil && p.Seen.Seen(hashID) {
-		result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
+		result := p.recordEntitySighting(ctx, p.entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
 		p.maybePatchCanonicalLead(ctx, hashID, result)
 		out.Dedup = true
 		slog.Debug("seen cache hit", "round_id", task.RoundID, "hash_id", hashID)
@@ -303,7 +306,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 
 	if !p.acquireHash(hashID) {
 		// Another worker is already past Seen/Exists for this hash_id; skip duplicate Gemini/Mongo work.
-		result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
+		result := p.recordEntitySighting(ctx, p.entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
 		p.maybePatchCanonicalLead(ctx, hashID, result)
 		out.Dedup = true
 		slog.Debug("hash inflight dedup", "round_id", task.RoundID, "hash_id", hashID)
@@ -318,7 +321,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			return out
 		}
 		if exists {
-			result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
+			result := p.recordEntitySighting(ctx, p.entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
 			p.maybePatchCanonicalLead(ctx, hashID, result)
 			out.Dedup = true
 			if p.Seen != nil {
@@ -338,7 +341,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		if dup, clusterOf, err := p.LeadCluster.CheckDuplicate(ctx, hashID, text); err != nil {
 			slog.Warn("lead cluster check failed", "round_id", task.RoundID, "hash_id", hashID, "error", err)
 		} else if dup {
-			result := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
+			result := p.recordEntitySighting(ctx, p.entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
 			p.maybePatchCanonicalLead(ctx, hashID, result)
 			out.Dedup = true
 			slog.Debug("semantic lead dedup", "round_id", task.RoundID, "hash_id", hashID, "cluster_of", clusterOf)
@@ -455,7 +458,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		lead.Tags = entity.AppendUniqueTag(lead.Tags, scoring.TagPublisherSurface)
 	}
 
-	entityResult := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{
+	entityResult := p.recordEntitySighting(ctx, p.entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{
 		CompanyName:  lead.CompanyName,
 		DisplayName:  lead.DisplayName,
 		GravatarName: lead.GravatarName,
@@ -497,7 +500,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	if p.Store != nil {
 		if err := p.Store.Upsert(ctx, lead); err != nil {
 			if sink.IsDuplicateKey(err) {
-				dupResult := p.recordEntitySighting(ctx, entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{
+				dupResult := p.recordEntitySighting(ctx, p.entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{
 					CompanyName:  lead.CompanyName,
 					DisplayName:  lead.DisplayName,
 					GravatarName: lead.GravatarName,
@@ -563,6 +566,19 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	}
 	if p.SourceRep != nil {
 		p.SourceRep.RecordAccepted(task.Item.Source)
+	}
+	if p.SeedFeedback != nil {
+		if added := p.SeedFeedback.RecordAccepted(seedfeedback.AcceptInput{
+			Lead:         lead,
+			Snippet:      text,
+			Contacts:     contacts.Contacts,
+			EnrichDomain: enrichResult.Domain,
+			Username:     task.Item.Username,
+			Title:        task.Item.Title,
+			ForumUserID:  task.Item.ForumUserID,
+		}); added > 0 {
+			slog.Debug("seed feedback enqueued domains", "count", added, "hash_id", hashID)
+		}
 	}
 	metrics.RecordAccepted(task.Item.Source, string(priority))
 	p.recordKeywordOutcomes(ctx, leadText.Matched, false)
@@ -829,7 +845,7 @@ func (p *Processor) icpClassifierEnabled(source string) bool {
 	return p.ICPTgWebEnabled && filter.IsTgWebSource(source)
 }
 
-func entitySightingInput(task Task, contacts []extract.Contact, hashID string, matched, stack []string, text string, score int, resolve entity.ResolveInput) entity.SightingInput {
+func (p *Processor) entitySightingInput(task Task, contacts []extract.Contact, hashID string, matched, stack []string, text string, score int, resolve entity.ResolveInput) entity.SightingInput {
 	if resolve.Source == "" {
 		resolve.Source = task.Item.Source
 	}
@@ -840,11 +856,28 @@ func entitySightingInput(task Task, contacts []extract.Contact, hashID string, m
 		HashID:       hashID,
 		Matched:      matched,
 		Stack:        stack,
-		Text:         text,
+		Text:         p.telegramThreadText(task, text),
 		Score:        score,
 		PostedAt:     task.Item.PostedAt,
 		SeenAt:       time.Now().UTC(),
 	}
+}
+
+func (p *Processor) telegramThreadText(task Task, text string) string {
+	if p == nil || p.TelegramThread == nil || !filter.IsTelegramSource(task.Item.Source) {
+		return text
+	}
+	// Entity classify reads sighting text, not per-message Gemini on the hot path.
+	author := strings.TrimSpace(task.Item.Username)
+	if author == "" {
+		author = strings.TrimPrefix(strings.TrimSpace(task.Item.ContactTelegram()), "telegram:")
+		author = strings.TrimPrefix(author, "@")
+	}
+	win := p.TelegramThread.Add(task.Item.Source, author, text)
+	if bundled := entity.BundleThreadMessages(win, 0); bundled != "" {
+		return bundled
+	}
+	return text
 }
 
 func (p *Processor) recordEntitySighting(ctx context.Context, in entity.SightingInput) entity.RecordResult {

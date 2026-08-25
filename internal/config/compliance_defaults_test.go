@@ -3,7 +3,16 @@ package config
 import "testing"
 
 func TestApplyComplianceDefaultsCRMWebhook(t *testing.T) {
-	t.Parallel()
+	// Force "unset" for applyComplianceDefaults (empty string counts as unset in envUnset).
+	for _, key := range []string{
+		"PARSER_GEO_CLASSIFY",
+		"PARSER_CRM_WEBHOOK_AFTER_ANALYSIS",
+		"PARSER_LEAD_STATUS_ENABLED",
+		"PARSER_GEMINI_SYNC_GEO",
+		"PARSER_CRM_WEBHOOK_HEAT_MIN",
+	} {
+		t.Setenv(key, "")
+	}
 
 	cfg := Config{
 		CRMWebhookEnabled: true,

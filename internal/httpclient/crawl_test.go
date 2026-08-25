@@ -11,7 +11,7 @@ import (
 func TestCrawlClientFallsBackToShared(t *testing.T) {
 	httpclientReset(t)
 
-	client := CrawlClient(5*time.Second, []string{"://bad"})
+	client := CrawlClient(5*time.Second, []string{"://bad"}, "test")
 	shared := Shared(5 * time.Second)
 	if client != shared {
 		t.Fatal("expected shared fallback on invalid proxy list")

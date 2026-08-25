@@ -27,3 +27,52 @@ func (s *MemoryStore) PatchEntityClassification(_ context.Context, entityID stri
 	}
 	return nil
 }
+
+func (s *MemoryStore) MarkClassifyForce(_ context.Context, entityID string) error {
+	if s == nil || entityID == "" {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	doc, ok := s.docs[entityID]
+	if !ok || doc == nil {
+		return nil
+	}
+	doc.ClassifyForce = true
+	return nil
+}
+
+func (s *MemoryStore) ListClassifyForce(_ context.Context, limit int) ([]string, error) {
+	if s == nil {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 32
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var ids []string
+	for id, doc := range s.docs {
+		if doc != nil && doc.ClassifyForce {
+			ids = append(ids, id)
+			if len(ids) >= limit {
+				break
+			}
+		}
+	}
+	return ids, nil
+}
+
+func (s *MemoryStore) ClearClassifyForce(_ context.Context, entityID string) error {
+	if s == nil || entityID == "" {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	doc, ok := s.docs[entityID]
+	if !ok || doc == nil {
+		return nil
+	}
+	doc.ClassifyForce = false
+	return nil
+}

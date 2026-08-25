@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/discover"
 	"github.com/bidshard/parser/internal/extract"
 	"github.com/bidshard/parser/internal/httpclient"
 	"github.com/bidshard/parser/internal/model"
@@ -44,6 +45,11 @@ type Crawler struct {
 
 func NewCrawler(cfg config.Config) *Crawler {
 	queries := cfg.GitHubSearchQueries
+	if cfg.GitHubRotateEnabled {
+		if rotated, err := RotateQueriesFromICP(discover.ResolveICPPath(""), cfg.GitHubRotateStatePath, 2); err == nil && len(rotated) > 0 {
+			queries = rotated
+		}
+	}
 	if len(queries) == 0 {
 		queries = []string{
 			"tracker alternative",
@@ -54,7 +60,7 @@ func NewCrawler(cfg config.Config) *Crawler {
 			"self-hosted tracker",
 		}
 	}
-	client := httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLs)
+	client := httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLsForSource("github"), "github")
 	return &Crawler{
 		token:   cfg.GitHubToken,
 		queries: queries,

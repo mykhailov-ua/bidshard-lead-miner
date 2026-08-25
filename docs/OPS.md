@@ -225,7 +225,7 @@ False merge repair: `crm-bot db entity-split --id ENTITY_ID --hash HASH --yes` (
 
 ### Proxy egress for global SERP/tgweb
 
-On datacenter VPS, use residential proxy with geo session in username (provider-specific):
+On datacenter VPS, use residential proxy with geo session in username (provider-specific). Provider picks: [DEPLOY.md#recommended-stack-no-passport](DEPLOY.md#recommended-stack-no-passport).
 
 ```env
 PARSER_PROXY_LIST=http://user-country-us-session-abc:pass@gw.dataimpulse.com:823
@@ -246,7 +246,7 @@ Chain: `PARSER_PROXY_LIST` -> `internal/httpclient` (uTLS + Chrome fingerprint) 
 | Mode | Cloudflare (igaming) | Use when |
 |------|----------------------|----------|
 | Empty `PARSER_PROXY_LIST` (direct) | Often works | Dev on home IP |
-| Residential (DataImpulse, IPRoyal, ...) | Primary path | Parser on server/cloud |
+| Residential (DataImpulse, Proxies.VISION, IPRoyal, ...) | Primary path | Parser on server/cloud |
 | Your VPS Squid | Poor | Non-CF egress isolation only - see [VPS Squid](#vps-squid-optional) |
 
 Cloudflare treats home IPs differently from datacenter IPs. VPS Squid is still a datacenter IP.
@@ -257,11 +257,15 @@ Cloudflare treats home IPs differently from datacenter IPs. VPS Squid is still a
 PARSER_PROXY_LIST=http://user:pass@host:port
 # DataImpulse (~$1/GB PAYG):
 PARSER_PROXY_LIST=http://USER:PASS@gw.dataimpulse.com:823
+# Proxies.VISION ($1/GB, crypto or card; host/port from dashboard):
+PARSER_PROXY_LIST=http://USER:PASS@connect.proxies.vision:8080
 # IPRoyal:
 PARSER_PROXY_LIST=http://USER:PASS@geo.iproyal.com:12321
 ```
 
 Geo/session often goes in the **username** (provider dashboard). Multiple URLs -> round-robin; 403/503 with `CF-Ray` -> 10 min cooldown per URL.
+
+Residential signup without passport: DataImpulse (card or crypto) or Proxies.VISION (crypto). See [DEPLOY.md#recommended-stack-no-passport](DEPLOY.md#recommended-stack-no-passport).
 
 ### Verify
 
@@ -290,7 +294,7 @@ Datacenter Squid does **not** replace residential for Cloudflare igaming. Use it
 
 | | |
 |---|---|
-| VPS | Hetzner CX22, DO, Vultr - EU or US, ~$4-6/mo |
+| VPS | Spare Ubuntu host on parser VPS or cheapest NL plan (~EUR 16/mo) |
 | OS | Ubuntu 22.04 / 24.04 |
 | Port | **3128** (Squid) |
 

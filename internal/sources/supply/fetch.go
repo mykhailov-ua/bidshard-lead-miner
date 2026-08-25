@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/breaker"
+	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/httpclient"
 	"github.com/bidshard/parser/internal/limit"
 )
@@ -28,6 +29,23 @@ func NewFetcher(timeout time.Duration, hostRPS float64, baseURL string) *Fetcher
 		BaseURL:  strings.TrimSuffix(baseURL, "/"),
 		Source:   "supply",
 	}
+}
+
+func NewFetcherFromConfig(cfg config.Config) *Fetcher {
+	proxyURLs := cfg.ProxyURLsForSource("supply")
+	if len(proxyURLs) > 0 {
+		client, err := httpclient.NewClientWithProxies(cfg.HTTPTimeout, proxyURLs, "supply")
+		if err == nil {
+			return &Fetcher{
+				Client:   client,
+				Limiters: limit.NewHostLimiters(cfg.SupplyHostRPS, 4),
+				Breaker:  breaker.NewSourceBreaker(),
+				BaseURL:  strings.TrimSuffix(cfg.SupplyBaseURL, "/"),
+				Source:   "supply",
+			}
+		}
+	}
+	return NewFetcher(cfg.HTTPTimeout, cfg.SupplyHostRPS, cfg.SupplyBaseURL)
 }
 
 func (f *Fetcher) Get(ctx context.Context, domain, path string) ([]byte, int, error) {

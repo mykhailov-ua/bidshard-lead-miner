@@ -320,7 +320,8 @@ func (s *EntityClassifyService) syncEntityOutreach(ctx context.Context, doc enti
 	if !s.cfg.OutreachNarrativeEnabled || s.outreach == nil {
 		return
 	}
-	if !entity.HeatTierMeetsMin(doc.HeatTier, entity.HeatTierWarm) {
+	if !entity.HeatTierMeetsMin(doc.HeatTier, entity.HeatTierHot) {
+		// Outreach narrative is sales-facing; skip warm/cold to limit Gemini spend.
 		return
 	}
 	pain := strings.TrimSpace(res.UnifiedPain)

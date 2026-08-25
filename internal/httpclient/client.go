@@ -15,7 +15,25 @@ import (
 
 	utls "github.com/refraction-networking/utls"
 	"golang.org/x/net/http2"
+
+	"github.com/bidshard/parser/internal/metrics"
 )
+
+// ProxyBudget gates proxy egress when daily cap is exceeded.
+type ProxyBudget interface {
+	Allow() bool
+	Record(n int64)
+}
+
+var budgetGovernor ProxyBudget
+
+// ErrProxyBudgetExceeded is returned when PARSER_PROXY_DAILY_MB_CAP is reached.
+var ErrProxyBudgetExceeded = fmt.Errorf("proxy daily budget exceeded")
+
+// SetProxyBudget wires the process-wide proxy egress governor (nil disables gating).
+func SetProxyBudget(g ProxyBudget) {
+	budgetGovernor = g
+}
 
 var (
 	sharedOnce sync.Once
@@ -34,9 +52,14 @@ type RotatingProxyTransport struct {
 	currentProxy atomic.Pointer[url.URL]
 	cooldowns    map[string]time.Time
 	coolMu       sync.Mutex
+	sourceID     string
 }
 
 func NewRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper) (*RotatingProxyTransport, error) {
+	return newRotatingProxyTransport(proxyURLs, baseTrans, "")
+}
+
+func newRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper, sourceID string) (*RotatingProxyTransport, error) {
 	if baseTrans == nil {
 		tTrans := &http.Transport{
 			MaxIdleConns:        100,
@@ -88,6 +111,7 @@ func NewRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper) 
 		proxies:   parsed,
 		baseTrans: baseTrans,
 		cooldowns: make(map[string]time.Time),
+		sourceID:  strings.TrimSpace(sourceID),
 	}
 	if tTrans, ok := baseTrans.(*http.Transport); ok {
 		cloned := tTrans.Clone()
@@ -107,6 +131,10 @@ func (t *RotatingProxyTransport) proxyFunc(req *http.Request) (*url.URL, error) 
 }
 
 func (t *RotatingProxyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if len(t.proxies) > 0 && budgetGovernor != nil && !budgetGovernor.Allow() {
+		metrics.RecordProxyBudgetSkipped(t.sourceID)
+		return nil, ErrProxyBudgetExceeded
+	}
 	cloned := req.Clone(req.Context())
 	applyBrowserHeaders(cloned)
 
@@ -114,10 +142,25 @@ func (t *RotatingProxyTransport) RoundTrip(req *http.Request) (*http.Response, e
 		resp, err := t.transport.RoundTrip(cloned)
 		proxy := t.currentProxy.Load()
 		t.checkCloudflareCooldown(proxy, resp)
+		t.recordEgress(resp)
 		return resp, err
 	}
 
-	return t.baseTrans.RoundTrip(cloned)
+	resp, err := t.baseTrans.RoundTrip(cloned)
+	t.recordEgress(resp)
+	return resp, err
+}
+
+func (t *RotatingProxyTransport) recordEgress(resp *http.Response) {
+	if resp == nil || t.sourceID == "" {
+		return
+	}
+	if resp.ContentLength > 0 {
+		if budgetGovernor != nil {
+			budgetGovernor.Record(resp.ContentLength)
+		}
+		metrics.RecordProxyEgressBytes(t.sourceID, resp.ContentLength)
+	}
 }
 
 func (t *RotatingProxyTransport) selectActiveProxy() *url.URL {
@@ -230,8 +273,8 @@ func ClientWithSharedTransport(requestTimeout time.Duration) *http.Client {
 	}
 }
 
-func NewClientWithProxies(timeout time.Duration, proxies []string) (*http.Client, error) {
-	trans, err := NewRotatingProxyTransport(proxies, nil)
+func NewClientWithProxies(timeout time.Duration, proxies []string, sourceID string) (*http.Client, error) {
+	trans, err := newRotatingProxyTransport(proxies, nil, sourceID)
 	if err != nil {
 		return nil, err
 	}

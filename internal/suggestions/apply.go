@@ -147,12 +147,85 @@ func PreviewDiscover(pendingPath, icpPath string) (string, error) {
 
 // ApplyDiscover merges pending diff into discover.icp.json.
 func ApplyDiscover(pendingPath, icpPath string, dryRun bool) (string, error) {
+	return applyDiscover(pendingPath, icpPath, dryRun, nil)
+}
+
+// DiscoverAutoApplyOptions guardrails for auto-apply without operator review.
+type DiscoverAutoApplyOptions struct {
+	MaxPerWeek int
+	StatePath  string
+	Now        time.Time
+}
+
+// ApplyDiscoverAuto merges pending discover diff with denylist and weekly cap.
+func ApplyDiscoverAuto(pendingPath, icpPath string, opts DiscoverAutoApplyOptions, dryRun bool) (string, error) {
+	return applyDiscover(pendingPath, icpPath, dryRun, &opts)
+}
+
+func applyDiscover(pendingPath, icpPath string, dryRun bool, auto *DiscoverAutoApplyOptions) (string, error) {
 	diff, base, err := loadDiscoverPending(pendingPath, icpPath)
 	if err != nil {
 		return "", err
 	}
-	merged := discover.MergeSuggestions(base, diff.AddTelegramSearch, diff.AddSerpDorks)
-	summary := fmt.Sprintf("telegram_search=%d serp_dorks=%d", len(merged.TelegramSearch), len(merged.SerpDorks))
+
+	addTG := append([]string(nil), diff.AddTelegramSearch...)
+	addSerp := append([]string(nil), diff.AddSerpDorks...)
+	var blocked map[string]string
+	if auto != nil {
+		addTG, addSerp, blocked = discover.FilterDiscoverAdditions(addTG, addSerp)
+		newTG, newSerp := discover.NewDiscoverAdditions(base, addTG, addSerp)
+		now := auto.Now
+		if now.IsZero() {
+			now = time.Now().UTC()
+		}
+		maxWeek := auto.MaxPerWeek
+		if maxWeek <= 0 {
+			maxWeek = discover.DefaultAutoApplyMaxPerWeek
+		}
+		statePath := auto.StatePath
+		if statePath == "" {
+			statePath = discover.DefaultAutoApplyStatePath
+		}
+		state := discover.LoadAutoApplyState(statePath, now)
+		quota := discover.RemainingWeeklyQuota(state, now, maxWeek)
+		appliedTG, appliedSerp, deferred := discover.TrimDiscoverQuota(newTG, newSerp, quota)
+		if len(appliedTG) == 0 && len(appliedSerp) == 0 {
+			if len(blocked) > 0 || len(deferred) > 0 {
+				return "", fmt.Errorf("auto-apply: nothing eligible (blocked=%d deferred=%d)", len(blocked), len(deferred))
+			}
+			return "", fmt.Errorf("auto-apply: no new discover queries")
+		}
+		addTG, addSerp = appliedTG, appliedSerp
+		diff.AddTelegramSearch = subtractDiscoverQueries(diff.AddTelegramSearch, appliedTG)
+		diff.AddSerpDorks = subtractDiscoverQueries(diff.AddSerpDorks, appliedSerp)
+		for q := range blocked {
+			if discoverQueryIn(diff.AddTelegramSearch, q) || discoverQueryIn(diff.AddSerpDorks, q) {
+				continue
+			}
+			if strings.Contains(strings.ToLower(q), "site:") {
+				diff.AddSerpDorks = append(diff.AddSerpDorks, q)
+			} else {
+				diff.AddTelegramSearch = append(diff.AddTelegramSearch, q)
+			}
+		}
+		for _, q := range deferred {
+			if discoverQueryIn(diff.AddTelegramSearch, q) || discoverQueryIn(diff.AddSerpDorks, q) {
+				continue
+			}
+			if strings.Contains(strings.ToLower(q), "site:") {
+				diff.AddSerpDorks = append(diff.AddSerpDorks, q)
+			} else {
+				diff.AddTelegramSearch = append(diff.AddTelegramSearch, q)
+			}
+		}
+	}
+
+	merged := discover.MergeSuggestions(base, addTG, addSerp)
+	appliedNew := len(merged.TelegramSearch) - len(base.TelegramSearch) + len(merged.SerpDorks) - len(base.SerpDorks)
+	summary := fmt.Sprintf("telegram_search=%d serp_dorks=%d applied_new=%d", len(merged.TelegramSearch), len(merged.SerpDorks), appliedNew)
+	if auto != nil && len(blocked) > 0 {
+		summary += fmt.Sprintf(" blocked=%d", len(blocked))
+	}
 	if dryRun {
 		return summary + " (dry-run)", nil
 	}
@@ -162,11 +235,58 @@ func ApplyDiscover(pendingPath, icpPath string, dryRun bool) (string, error) {
 	if err := discover.SaveICP(icpPath, merged); err != nil {
 		return "", err
 	}
-	diff.Status = "applied"
+	if auto != nil && appliedNew > 0 {
+		now := auto.Now
+		if now.IsZero() {
+			now = time.Now().UTC()
+		}
+		statePath := auto.StatePath
+		if statePath == "" {
+			statePath = discover.DefaultAutoApplyStatePath
+		}
+		state := discover.LoadAutoApplyState(statePath, now)
+		state.Applied += appliedNew
+		if err := discover.SaveAutoApplyState(statePath, state); err != nil {
+			return "", err
+		}
+	}
+	if len(diff.AddTelegramSearch) == 0 && len(diff.AddSerpDorks) == 0 {
+		diff.Status = "applied"
+	} else {
+		diff.Status = "pending"
+	}
 	if err := writeJSON(pendingPath, diff); err != nil {
 		return "", err
 	}
 	return summary, nil
+}
+
+func subtractDiscoverQueries(original, applied []string) []string {
+	if len(applied) == 0 {
+		return original
+	}
+	remove := make(map[string]struct{}, len(applied))
+	for _, q := range applied {
+		remove[strings.ToLower(strings.TrimSpace(q))] = struct{}{}
+	}
+	out := make([]string, 0, len(original))
+	for _, q := range original {
+		if _, ok := remove[strings.ToLower(strings.TrimSpace(q))]; ok {
+			continue
+		}
+		out = append(out, q)
+	}
+	return out
+}
+
+func discoverQueryIn(list []string, q string) bool {
+	key := strings.ToLower(strings.TrimSpace(q))
+	for _, s := range list {
+		if strings.ToLower(strings.TrimSpace(s)) == key {
+			return true
+		}
+	}
+	return false
 }
 
 // RejectPending marks a pending file rejected without merging.

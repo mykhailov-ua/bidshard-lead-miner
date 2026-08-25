@@ -3,6 +3,8 @@ package supply
 import (
 	"os"
 	"testing"
+
+	"github.com/bidshard/parser/internal/sourceregistry"
 )
 
 func TestParseAdsTxtLine(t *testing.T) {
@@ -58,6 +60,28 @@ func TestLoadSeedDomains(t *testing.T) {
 	}
 	if len(domains) < 20 {
 		t.Fatalf("domains=%d want >=20", len(domains))
+	}
+}
+
+func TestLoadSeedDomainsCombinedUsesRegistry(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	regPath := dir + "/source_registry.json"
+	if _, err := sourceregistry.Upsert(regPath, sourceregistry.Entry{
+		Domain:       "registry-only.example",
+		Types:        []string{sourceregistry.TypeSupply},
+		DiscoveredBy: "telegram",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	domains, err := LoadSeedDomainsCombined("", regPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(domains) != 1 || domains[0] != "registry-only.example" {
+		t.Fatalf("domains=%v", domains)
 	}
 }
 

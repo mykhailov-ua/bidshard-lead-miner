@@ -50,7 +50,7 @@ func NewCrawler(cfg config.Config) *Crawler {
 	if maxResults <= 0 {
 		maxResults = 25
 	}
-	client := httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLs)
+	client := httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLsForSource("reddit"), "reddit")
 	return &Crawler{
 		subreddits: subs,
 		queries:    queries,

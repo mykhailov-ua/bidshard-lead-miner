@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-// CrawlClient returns a proxy-aware client when PARSER_PROXY_LIST is set, else Shared().
-func CrawlClient(timeout time.Duration, proxyURLs []string) *http.Client {
-	client, err := NewClientWithProxies(timeout, proxyURLs)
+// CrawlClient returns a proxy-aware client when proxyURLs is non-empty, else Shared().
+func CrawlClient(timeout time.Duration, proxyURLs []string, sourceID string) *http.Client {
+	client, err := NewClientWithProxies(timeout, proxyURLs, sourceID)
 	if err != nil {
 		return Shared(timeout)
 	}

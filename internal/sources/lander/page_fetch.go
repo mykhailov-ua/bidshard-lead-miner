@@ -15,6 +15,17 @@ type PageFetcher struct {
 	HTTP            *HTTPFetcher
 	Headless        HeadlessFetcher
 	HeadlessEnabled bool
+	HeadlessDefer   bool
+	QueuePath       string
+	SourceFamily    string
+}
+
+// PageFetchOptions configures HTTP/RSC/headless/defer-queue behavior.
+type PageFetchOptions struct {
+	HeadlessEnabled bool
+	HeadlessDefer   bool
+	QueuePath       string
+	SourceFamily    string
 }
 
 // PageFetchMeta describes how page HTML was obtained.
@@ -24,14 +35,17 @@ type PageFetchMeta struct {
 	RSCBytes   int
 }
 
-func NewPageFetcher(http *HTTPFetcher, headless HeadlessFetcher, headlessEnabled bool) *PageFetcher {
+func NewPageFetcher(http *HTTPFetcher, headless HeadlessFetcher, opts PageFetchOptions) *PageFetcher {
 	if headless == nil {
 		headless = DisabledHeadless{}
 	}
 	return &PageFetcher{
 		HTTP:            http,
 		Headless:        headless,
-		HeadlessEnabled: headlessEnabled,
+		HeadlessEnabled: opts.HeadlessEnabled,
+		HeadlessDefer:   opts.HeadlessDefer,
+		QueuePath:       opts.QueuePath,
+		SourceFamily:    opts.SourceFamily,
 	}
 }
 
@@ -45,7 +59,9 @@ func (p *PageFetcher) FetchHTML(ctx context.Context, pageURL string) (string, Pa
 		if headlessHTML, ok := p.tryHeadless(ctx, pageURL, &meta, "headless_fallback"); ok {
 			return headlessHTML, meta, nil
 		}
-		meta.Stage = "http_get_failed"
+		if !strings.HasSuffix(meta.Stage, "_queued") {
+			meta.Stage = "http_get_failed"
+		}
 		return "", meta, err
 	}
 
@@ -91,7 +107,7 @@ func (p *PageFetcher) mergeRSC(ctx context.Context, pageURL, html string, meta *
 }
 
 func (p *PageFetcher) headlessForEmptyText(ctx context.Context, pageURL, html string, meta *PageFetchMeta) (string, bool) {
-	if !p.HeadlessEnabled {
+	if !p.HeadlessEnabled && !p.HeadlessDefer {
 		return "", false
 	}
 	// Skip headless when HTTP+RSC already yields extractable contacts.
@@ -120,7 +136,9 @@ func (p *PageFetcher) FetchForCrawl(ctx context.Context, pageURL string, logHTTP
 		if headlessHTML, ok := p.tryHeadless(ctx, pageURL, &meta, "headless_fallback"); ok {
 			return headlessHTML, meta, http.StatusOK, nil
 		}
-		meta.Stage = "http_get_failed"
+		if !strings.HasSuffix(meta.Stage, "_queued") {
+			meta.Stage = "http_get_failed"
+		}
 		return "", meta, 0, err
 	}
 
@@ -137,6 +155,19 @@ func (p *PageFetcher) FetchForCrawl(ctx context.Context, pageURL string, logHTTP
 }
 
 func (p *PageFetcher) tryHeadless(ctx context.Context, pageURL string, meta *PageFetchMeta, stage string) (string, bool) {
+	if p.HeadlessDefer {
+		if err := EnqueueHeadless(p.QueuePath, HeadlessQueueItem{
+			URL:          pageURL,
+			SourceFamily: p.SourceFamily,
+			Reason:       stage,
+		}); err != nil {
+			slog.Warn("headless defer enqueue failed", "url", pageURL, "error", err)
+		} else {
+			slog.Debug("headless deferred to queue", "url", pageURL, "reason", stage)
+			meta.Stage = stage + "_queued"
+		}
+		return "", false
+	}
 	if !p.HeadlessEnabled {
 		return "", false
 	}

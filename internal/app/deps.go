@@ -20,7 +20,9 @@ import (
 	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/output"
 	"github.com/bidshard/parser/internal/pipeline"
+	"github.com/bidshard/parser/internal/proxybudget"
 	"github.com/bidshard/parser/internal/scoring"
+	"github.com/bidshard/parser/internal/seedfeedback"
 	"github.com/bidshard/parser/internal/sink"
 	"github.com/bidshard/parser/internal/telethon"
 	"github.com/bidshard/parser/internal/validate"
@@ -36,6 +38,7 @@ type runtimeDeps struct {
 	entityClassify    *warmpath.EntityClassifyService
 	entityLinkSuggest *warmpath.EntityLinkSuggestService
 	mongoClient       *mongo.Client
+	sourceStats       *sink.SourceStatsStore
 }
 
 func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
@@ -62,6 +65,11 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 	}
 
 	_ = httpclient.Shared(cfg.HTTPTimeout) // warm default client for supply/enrich; HTTP crawlers use NewClientWithProxies when configured
+	gov := proxybudget.Configure(cfg.ProxyDailyMBCap, cfg.ProxyBudgetStatePath)
+	httpclient.SetProxyBudget(gov)
+	if gov.Enabled() {
+		slog.Info("proxy daily budget enabled", "cap_mb", cfg.ProxyDailyMBCap, "state", cfg.ProxyBudgetStatePath)
+	}
 
 	mx := validate.MXValidator(validate.StubMX{OK: true})
 	if cfg.MXCheck {
@@ -106,6 +114,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 			sourceStats = connectOptional("source stats store", func() (*sink.SourceStatsStore, error) {
 				return sink.ConnectSourceStats(ctx, client, cfg.MongoDB, cfg.SourceStatsCollection)
 			}, nil)
+			deps.sourceStats = sourceStats
 			keywordStats = connectOptional("keyword stats store", func() (*sink.KeywordStatsStore, error) {
 				return sink.ConnectKeywordStats(ctx, client, cfg.MongoDB, cfg.KeywordStatsCollection)
 			}, func(v *sink.KeywordStatsStore) {
@@ -466,6 +475,12 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		EntityHeatEnabled:     cfg.ParserEntityHeatEnabled && cfg.ParserEntitySightings && entityRecorder != nil,
 		EntityHeat:            entityHeatFromConfig(cfg),
 		HardRejectShadowPct:   cfg.HardRejectShadowPct,
+		SeedFeedback: seedfeedback.NewRecorder(seedfeedback.Config{
+			Enabled:      cfg.ParserSeedFeedback,
+			RegistryPath: cfg.SourceRegistryPath,
+			MinHeatTier:  cfg.ParserSeedFeedbackMinHeat,
+		}),
+		TelegramThread: entity.NewThreadBuffer(entity.DefaultTelegramThreadWindow),
 	}
 
 	if cfg.MetricsAddr != "" {

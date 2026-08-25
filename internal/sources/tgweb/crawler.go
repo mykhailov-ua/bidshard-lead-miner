@@ -9,7 +9,10 @@ import (
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/diag"
 	"github.com/bidshard/parser/internal/extract"
+	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/model"
+	"github.com/bidshard/parser/internal/proxybudget"
+	"github.com/bidshard/parser/internal/sourceregistry"
 	"github.com/bidshard/parser/internal/sources/lander"
 )
 
@@ -17,18 +20,23 @@ type EmitFunc func(ctx context.Context, item model.RawItem) error
 
 type Crawler struct {
 	domainsPath  string
+	registryPath string
+	domainTriage bool
 	maxDomains   int
 	rescanDays   int
 	domainFilter []string // non-empty = allowlist mode; ignores crawled_at
+	usesProxy    bool
+	pathDiscover lander.PathDiscoverConfig
 	fetch        *lander.PageFetcher
 }
 
 // NewCrawler wires HTTP via NewHTTPFetcherFromConfig when httpFetcher is nil,
 // so PARSER_PROXY_LIST applies to tgweb without changing global httpclient.Shared.
-func NewCrawler(cfg config.Config, httpFetcher *lander.HTTPFetcher, headless lander.HeadlessFetcher) (*Crawler, error) {
+// ranker is optional Gemini path ranking when PARSER_LANDER_PATH_GEMINI=true.
+func NewCrawler(cfg config.Config, httpFetcher *lander.HTTPFetcher, headless lander.HeadlessFetcher, ranker lander.PathRanker) (*Crawler, error) {
 	if httpFetcher == nil {
 		var err error
-		httpFetcher, err = lander.NewHTTPFetcherFromConfig(cfg)
+		httpFetcher, err = lander.NewHTTPFetcherForSource(cfg, "tgweb")
 		if err != nil {
 			return nil, err
 		}
@@ -38,10 +46,18 @@ func NewCrawler(cfg config.Config, httpFetcher *lander.HTTPFetcher, headless lan
 	}
 	return &Crawler{
 		domainsPath:  cfg.TelegramDomainsPath,
+		registryPath: cfg.SourceRegistryPath,
+		domainTriage: cfg.ParserDomainTriage,
 		maxDomains:   cfg.TelegramWebMaxDomains,
 		rescanDays:   cfg.TelegramWebRescanDays,
 		domainFilter: append([]string(nil), cfg.TelegramWebDomains...),
-		fetch:        lander.NewPageFetcher(httpFetcher, headless, cfg.LanderHeadless),
+		usesProxy:    len(cfg.ProxyURLsForSource("tgweb")) > 0,
+		pathDiscover: lander.PathDiscoverConfig{
+			Enabled:   cfg.ParserLanderPathDiscover,
+			CachePath: cfg.LanderPathsCachePath,
+			Ranker:    ranker,
+		},
+		fetch: lander.NewPageFetcher(httpFetcher, headless, lander.PageFetchOptsFromConfig(cfg, "tgweb")),
 	}, nil
 }
 
@@ -50,6 +66,10 @@ func (c *Crawler) Name() string {
 }
 
 func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
+	if skip, reason := proxybudget.ShouldSkipProxySource("tgweb", c.usesProxy); skip {
+		slog.Info("tgweb crawl skipped", "reason", reason)
+		return nil
+	}
 	file, err := LoadDomains(c.domainsPath)
 	if err != nil {
 		return err
@@ -63,6 +83,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 	start := time.Now()
 	var stats crawlRunStats
 	skippedInvalid := 0
+	skippedTriage := 0
 
 	slog.Info("tgweb crawl started", "domains", len(pending), "path", c.domainsPath, "only", c.domainFilter)
 
@@ -71,6 +92,23 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+		}
+
+		meta := sourceregistry.DomainMeta{
+			Domain:       entry.Domain,
+			Channel:      entry.Channel,
+			Source:       entry.Source,
+			DiscoveredBy: entry.Source,
+			Kind:         entry.Kind,
+		}
+		if skip, reason := sourceregistry.ShouldSkipCrawl(c.registryPath, c.domainTriage, meta); skip {
+			skippedTriage++
+			if strings.HasPrefix(reason, "heuristic:") {
+				metrics.RecordSourcesTriagedDropped(1)
+				_ = sourceregistry.SetTriageStatus(c.registryPath, entry.Domain, "drop")
+			}
+			slog.Debug("tgweb domain skipped triage", "domain", entry.Domain, "reason", reason)
+			continue
 		}
 
 		if !IsValidCrawlDomain(entry.Domain) {
@@ -106,6 +144,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		"no_contacts", stats.noContacts,
 		"spa404_stopped", stats.spa404Stop,
 		"skipped_invalid", skippedInvalid,
+		"skipped_triage", skippedTriage,
 		"deferred_retry", stats.hardFail+stats.noContacts,
 		"duration_ms", time.Since(start).Milliseconds(),
 	)
@@ -116,7 +155,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 // Stop early on SPA soft-404 shells to avoid downloading the same HTML for every path.
 func (c *Crawler) crawlDomain(ctx context.Context, entry DomainEntry, emit EmitFunc, stats *crawlRunStats) (int, domainCrawlOutcome) {
 	domain := entry.Domain
-	paths := lander.NetworkLandingPaths()
+	paths := c.landingPaths(ctx, domain)
 	emitted := 0
 
 	var spa404FP string
@@ -239,6 +278,14 @@ func (c *Crawler) crawlDomain(ctx context.Context, entry DomainEntry, emit EmitF
 
 	slog.Debug("tgweb domain no contacts", "domain", domain, "hint", "will retry on next run")
 	return emitted, crawlOutcomeNoContacts
+}
+
+func (c *Crawler) landingPaths(ctx context.Context, domain string) []string {
+	if c == nil || !c.pathDiscover.Enabled || c.fetch == nil || c.fetch.HTTP == nil {
+		return lander.NetworkLandingPaths()
+	}
+	d := lander.NewPathDiscoverer(lander.HTTPPathFetcher{HTTP: c.fetch.HTTP}, c.pathDiscover)
+	return d.PathsForDomain(ctx, domain)
 }
 
 func (c *Crawler) fetchPage(ctx context.Context, pageURL string, logHTTPNonOK bool) (string, lander.PageFetchMeta, int, error) {

@@ -9,25 +9,34 @@ import (
 
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/geo"
+	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/model"
+	"github.com/bidshard/parser/internal/proxybudget"
+	"github.com/bidshard/parser/internal/sourceregistry"
 )
 
 type EmitFunc func(ctx context.Context, item model.RawItem) error
 
 type Crawler struct {
-	seedPath string
-	maxHosts int
-	fetcher  *Fetcher
+	seedPath     string
+	registryPath string
+	domainTriage bool
+	maxHosts     int
+	usesProxy    bool
+	fetcher      *Fetcher
 }
 
 func NewCrawler(cfg config.Config, fetcher *Fetcher) *Crawler {
 	if fetcher == nil {
-		fetcher = NewFetcher(cfg.HTTPTimeout, cfg.SupplyHostRPS, cfg.SupplyBaseURL)
+		fetcher = NewFetcherFromConfig(cfg)
 	}
 	return &Crawler{
-		seedPath: cfg.SupplySeedPath,
-		maxHosts: cfg.SupplyMaxDomains,
-		fetcher:  fetcher,
+		seedPath:     cfg.SupplySeedPath,
+		registryPath: cfg.SourceRegistryPath,
+		domainTriage: cfg.ParserDomainTriage,
+		maxHosts:     cfg.SupplyMaxDomains,
+		usesProxy:    len(cfg.ProxyURLsForSource("supply")) > 0,
+		fetcher:      fetcher,
 	}
 }
 
@@ -36,7 +45,11 @@ func (c *Crawler) Name() string {
 }
 
 func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
-	domains, err := LoadSeedDomains(c.seedPath)
+	if skip, reason := proxybudget.ShouldSkipProxySource("supply", c.usesProxy); skip {
+		slog.Info("supply crawl skipped", "reason", reason)
+		return nil
+	}
+	domains, err := LoadSeedDomainsCombined(c.seedPath, c.registryPath)
 	if err != nil {
 		return err
 	}
@@ -46,12 +59,24 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 
 	start := time.Now()
 	emitted := 0
+	skippedTriage := 0
 
 	for _, domain := range domains {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+		}
+
+		meta := sourceregistry.DomainMeta{Domain: domain}
+		if skip, reason := sourceregistry.ShouldSkipCrawl(c.registryPath, c.domainTriage, meta); skip {
+			skippedTriage++
+			if strings.HasPrefix(reason, "heuristic:") {
+				metrics.RecordSourcesTriagedDropped(1)
+				_ = sourceregistry.SetTriageStatus(c.registryPath, domain, "drop")
+			}
+			slog.Debug("supply domain skipped triage", "domain", domain, "reason", reason)
+			continue
 		}
 
 		count, err := c.crawlDomain(ctx, domain, emit)
@@ -65,6 +90,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 	slog.Info("supply crawl finished",
 		"domains", len(domains),
 		"emitted", emitted,
+		"skipped_triage", skippedTriage,
 		"duration_ms", time.Since(start).Milliseconds(),
 	)
 	return nil

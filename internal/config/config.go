@@ -10,47 +10,54 @@ import (
 )
 
 type Config struct {
-	PollInterval          time.Duration
-	WorkerCount           int
-	TaskBuffer            int
-	SourceConcurrency     int
-	ScanTimeout           time.Duration
-	HTTPTimeout           time.Duration
-	ShutdownTimeout       time.Duration
-	CollectDrainTimeout   time.Duration
-	LogFormat             string
-	LogLevel              string
-	Output                string
-	WriteSlots            int
-	ScanOnce              bool
-	IngestStdin           bool
-	IngestReader          io.Reader
-	TelegramSidecar       bool
-	TelegramDryRun        bool
-	TelegramConfigPath    string
-	TelethonPython        string
-	Source                string
-	SupplySeedPath        string
-	SupplyHostRPS         float64
-	SupplyMaxDomains      int
-	SupplyBaseURL         string
-	ForumSeedPath         string
-	ForumBaseURL          string
-	LanderSeedPath        string
-	LanderBaseURL         string
-	LanderHeadless        bool
-	TelegramAPIID         int
-	TelegramAPIHash       string
-	MongoURI              string
-	MongoDB               string
-	MongoCollection       string
-	ExportJSONPath        string
-	ExportJSONFormat      string
-	MXCheck               bool
-	KeywordsJSONPath      string
-	KeywordsGrayPath      string
-	GeoBlockCountries     []string
-	DisposableDomainsPath string
+	PollInterval              time.Duration
+	WorkerCount               int
+	TaskBuffer                int
+	SourceConcurrency         int
+	ScanTimeout               time.Duration
+	HTTPTimeout               time.Duration
+	ShutdownTimeout           time.Duration
+	CollectDrainTimeout       time.Duration
+	LogFormat                 string
+	LogLevel                  string
+	Output                    string
+	WriteSlots                int
+	ScanOnce                  bool
+	IngestStdin               bool
+	IngestReader              io.Reader
+	TelegramSidecar           bool
+	TelegramDryRun            bool
+	TelegramConfigPath        string
+	TelethonPython            string
+	Source                    string
+	SupplySeedPath            string
+	SupplyHostRPS             float64
+	SupplyMaxDomains          int
+	SupplyBaseURL             string
+	SourceRegistryPath        string
+	ForumSeedPath             string
+	ForumRegistryPath         string
+	ForumBaseURL              string
+	LanderSeedPath            string
+	LanderBaseURL             string
+	LanderHeadless            bool
+	LanderHeadlessDefer       bool
+	LanderHeadlessQueuePath   string
+	LanderHeadlessQueueMax    int
+	LanderHeadlessDrainLimit  int
+	LanderHeadlessMaxBrowsers int
+	TelegramAPIID             int
+	TelegramAPIHash           string
+	MongoURI                  string
+	MongoDB                   string
+	MongoCollection           string
+	ExportJSONPath            string
+	ExportJSONFormat          string
+	MXCheck                   bool
+	KeywordsJSONPath          string
+	KeywordsGrayPath          string
+	GeoBlockCountries         []string
+	DisposableDomainsPath     string
 
 	GeminiAPIKey          string
 	GeminiModel           string
@@ -90,6 +97,12 @@ type Config struct {
 	WebhookFeedbackCollection       string
 	ParserChannelTriage             bool
 	BGChannelTriageInterval         time.Duration
+	ParserDomainTriage              bool
+	ParserLanderPathDiscover        bool
+	ParserLanderPathGemini          bool
+	LanderPathsCachePath            string
+	BGDomainTriageInterval          time.Duration
+	DomainTriageCachePath           string
 	TelegramChannelsPath            string
 	GeminiEmbedPainMin              float64
 	GeminiEmbedSpamMin              float64
@@ -118,6 +131,7 @@ type Config struct {
 	DiscordBotToken                 string
 	DiscordChannelIDs               []string
 	DiscordMaxMessages              int
+	DiscordRegistryPath             string
 	SourceStatsCollection           string
 	CrmBoostCollection              string
 	EmbeddingCollection             string
@@ -142,6 +156,8 @@ type Config struct {
 	CTMaxResults                      int
 	GitHubToken                       string
 	GitHubSearchQueries               []string
+	GitHubRotateEnabled               bool
+	GitHubRotateStatePath             string
 	MetricsAddr                       string
 	CRMWebhookURL                     string
 	CRMWebhookSecret                  string
@@ -172,13 +188,29 @@ type Config struct {
 	EntityLinkSuggestInterval         time.Duration
 	HTTPWorkers                       int
 	ProxyURLs                         []string // PARSER_PROXY_LIST; HTTP crawlers only (not Mongo/Gemini)
-	TelegramProxyURL                  string   // TELEGRAM_PROXY_URL; MTProto sidecar only (socks5/http)
+	ProxySources                      []string // PARSER_PROXY_SOURCES; empty = all crawlers may use proxy
+	ProxyDailyMBCap                   int      // PARSER_PROXY_DAILY_MB_CAP; 0 = no cap
+	ProxyBudgetStatePath              string
+	TelegramProxyURL                  string // TELEGRAM_PROXY_URL; MTProto sidecar only (socks5/http)
 	BGWorkerEnabled                   bool
 	BGTelegramEnabled                 bool
 	BGSerpTelegramInterval            time.Duration
 	BGTelegramDiscoverInterval        time.Duration
 	BGTelegramScrapeInterval          time.Duration
 	BGTelegramWebInterval             time.Duration
+	BGForumDiscoverInterval           time.Duration
+	BGSourceRegistrySyncInterval      time.Duration
+	BGAutoReportInterval              time.Duration
+	BGDiscordDiscoverInterval         time.Duration
+	BGSourceDisableInterval           time.Duration
+	AutoReportPath                    string
+	DisabledSourcesPath               string
+	SourceDisableMinRaw               int
+	ParserSourceDisableGovernor       bool
+	ParserAutoDiscover                bool
+	ParserSeedFeedback                bool
+	ParserSeedFeedbackMinHeat         string
+	DiscoverAutoApplyMaxWeek          int
 	TelegramDomainsPath               string
 	TelegramWebMaxDomains             int
 	TelegramWebRescanDays             int
@@ -201,6 +233,9 @@ func Load() (Config, error) {
 		CollectDrainTimeout:               envDuration("PARSER_COLLECT_DRAIN_TIMEOUT", 120*time.Second),
 		HTTPWorkers:                       envInt("PARSER_HTTP_WORKERS", 10),
 		ProxyURLs:                         parseCSV(env("PARSER_PROXY_LIST", "")),
+		ProxySources:                      parseCSV(strings.ToLower(env("PARSER_PROXY_SOURCES", ""))),
+		ProxyDailyMBCap:                   envInt("PARSER_PROXY_DAILY_MB_CAP", 0),
+		ProxyBudgetStatePath:              env("PARSER_PROXY_BUDGET_STATE_PATH", "data/runtime/proxy_budget.json"),
 		LogFormat:                         env("PARSER_LOG_FORMAT", "auto"),
 		LogLevel:                          env("PARSER_LOG_LEVEL", "info"),
 		Output:                            env("PARSER_OUTPUT", "auto"),
@@ -222,11 +257,18 @@ func Load() (Config, error) {
 		SupplySeedPath:                    env("SUPPLY_SEED_PATH", "data/seeds/domains.csv"),
 		SupplyHostRPS:                     envFloat("SUPPLY_HOST_RPS", 2),
 		SupplyBaseURL:                     env("SUPPLY_BASE_URL", ""),
+		SourceRegistryPath:                env("SOURCE_REGISTRY_PATH", "data/runtime/source_registry.json"),
 		ForumSeedPath:                     env("FORUM_SEED_PATH", "data/seeds/forum_threads.csv"),
+		ForumRegistryPath:                 env("FORUM_REGISTRY_PATH", "data/runtime/discovered_forum_threads.json"),
 		ForumBaseURL:                      env("FORUM_BASE_URL", ""),
 		LanderSeedPath:                    env("LANDER_SEED_PATH", "data/seeds/lander_urls.csv"),
 		LanderBaseURL:                     env("LANDER_BASE_URL", ""),
 		LanderHeadless:                    envBool("PARSER_LANDER_HEADLESS", false),
+		LanderHeadlessDefer:               envBool("PARSER_LANDER_HEADLESS_DEFER", false),
+		LanderHeadlessQueuePath:           env("PARSER_LANDER_HEADLESS_QUEUE_PATH", "data/runtime/headless_queue.json"),
+		LanderHeadlessQueueMax:            envInt("PARSER_LANDER_HEADLESS_QUEUE_MAX", 200),
+		LanderHeadlessDrainLimit:          envInt("PARSER_LANDER_HEADLESS_DRAIN_LIMIT", 25),
+		LanderHeadlessMaxBrowsers:         envInt("PARSER_LANDER_HEADLESS_MAX_BROWSERS", 2),
 		GeminiAPIKey:                      env("GEMINI_API_KEY", ""),
 		GeminiModel:                       env("GEMINI_MODEL", "gemini-2.5-flash"),
 		GeminiAnalyzeInterval:             envDuration("GEMINI_ANALYZE_INTERVAL", 15*time.Minute),
@@ -263,6 +305,12 @@ func Load() (Config, error) {
 		WebhookFeedbackCollection:         env("PARSER_WEBHOOK_FEEDBACK_COLLECTION", "webhook_feedback"),
 		ParserChannelTriage:               envBool("PARSER_CHANNEL_TRIAGE", false),
 		BGChannelTriageInterval:           envDuration("PARSER_BG_CHANNEL_TRIAGE_INTERVAL", 6*time.Hour),
+		ParserDomainTriage:                envBool("PARSER_DOMAIN_TRIAGE", false),
+		ParserLanderPathDiscover:          envBool("PARSER_LANDER_PATH_DISCOVER", true),
+		ParserLanderPathGemini:            envBool("PARSER_LANDER_PATH_GEMINI", false),
+		LanderPathsCachePath:              env("LANDER_PATHS_CACHE_PATH", "data/runtime/lander_paths.json"),
+		BGDomainTriageInterval:            envDuration("PARSER_BG_DOMAIN_TRIAGE_INTERVAL", 6*time.Hour),
+		DomainTriageCachePath:             env("DOMAIN_TRIAGE_CACHE_PATH", "data/runtime/domain_triage_cache.json"),
 		TelegramChannelsPath:              env("TELEGRAM_CHANNELS_PATH", "data/runtime/discovered_telegram_channels.json"),
 		GeminiEmbedPainMin:                envFloat("GEMINI_EMBED_PAIN_MIN", 0.78),
 		GeminiEmbedSpamMin:                envFloat("GEMINI_EMBED_SPAM_MIN", 0.82),
@@ -291,6 +339,7 @@ func Load() (Config, error) {
 		DiscordBotToken:                   env("DISCORD_BOT_TOKEN", ""),
 		DiscordChannelIDs:                 parseCSV(env("DISCORD_CHANNEL_IDS", "")),
 		DiscordMaxMessages:                envInt("DISCORD_MAX_MESSAGES", 50),
+		DiscordRegistryPath:               env("DISCORD_REGISTRY_PATH", "data/runtime/discovered_discord_invites.json"),
 		SourceStatsCollection:             env("SOURCE_STATS_COLLECTION", "source_stats"),
 		CrmBoostCollection:                env("CRM_BOOST_COLLECTION", "crm_boosts"),
 		EmbeddingCollection:               env("EMBEDDING_COLLECTION", "snippet_embeddings"),
@@ -314,6 +363,8 @@ func Load() (Config, error) {
 		CTMaxResults:                      envInt("CT_MAX_RESULTS", 100),
 		GitHubToken:                       env("GITHUB_TOKEN", ""),
 		GitHubSearchQueries:               parseSemicolonCSV(env("GITHUB_SEARCH_QUERIES", "voluum alternative;self-hosted tracker;keitaro docker")),
+		GitHubRotateEnabled:               envBool("PARSER_GITHUB_ROTATE", false),
+		GitHubRotateStatePath:             env("GITHUB_ROTATE_STATE_PATH", "data/runtime/github_query_rotate.json"),
 		MetricsAddr:                       env("PARSER_METRICS_ADDR", ""),
 		CRMWebhookURL:                     env("PARSER_CRM_WEBHOOK_URL", ""),
 		CRMWebhookSecret:                  env("PARSER_CRM_WEBHOOK_SECRET", ""),
@@ -327,6 +378,19 @@ func Load() (Config, error) {
 		BGTelegramDiscoverInterval:        time.Duration(envInt("PARSER_BG_TELEGRAM_DISCOVER_MIN", 360)) * time.Minute,
 		BGTelegramScrapeInterval:          time.Duration(envInt("PARSER_BG_TELEGRAM_SCRAPE_MIN", 30)) * time.Minute,
 		BGTelegramWebInterval:             time.Duration(envInt("PARSER_BG_TELEGRAM_WEB_MIN", 120)) * time.Minute,
+		BGForumDiscoverInterval:           envDuration("PARSER_BG_FORUM_DISCOVER_INTERVAL", 12*time.Hour),
+		BGSourceRegistrySyncInterval:      time.Duration(envInt("PARSER_BG_SOURCE_REGISTRY_SYNC_MIN", 30)) * time.Minute,
+		BGAutoReportInterval:              envDuration("PARSER_BG_AUTO_REPORT_INTERVAL", 7*24*time.Hour),
+		BGDiscordDiscoverInterval:         envDuration("PARSER_BG_DISCORD_DISCOVER_INTERVAL", 24*time.Hour),
+		BGSourceDisableInterval:           envDuration("PARSER_BG_SOURCE_DISABLE_INTERVAL", 24*time.Hour),
+		AutoReportPath:                    env("PARSER_AUTO_REPORT_PATH", "data/runtime/auto_report.jsonl"),
+		DisabledSourcesPath:               env("PARSER_DISABLED_SOURCES_PATH", "data/runtime/disabled_sources.json"),
+		SourceDisableMinRaw:               envInt("PARSER_SOURCE_DISABLE_MIN_RAW", 100),
+		ParserSourceDisableGovernor:       envBool("PARSER_SOURCE_DISABLE_GOVERNOR", false),
+		ParserAutoDiscover:                envBool("PARSER_AUTO_DISCOVER", false),
+		ParserSeedFeedback:                envBool("PARSER_SEED_FEEDBACK", false),
+		ParserSeedFeedbackMinHeat:         env("PARSER_SEED_FEEDBACK_MIN_HEAT", "hot"),
+		DiscoverAutoApplyMaxWeek:          envInt("PARSER_DISCOVER_AUTO_APPLY_MAX_WEEK", 30),
 		TelegramDomainsPath:               env("TELEGRAM_DOMAINS_PATH", "data/runtime/discovered_telegram_domains.json"),
 		TelegramWebMaxDomains:             envInt("TELEGRAM_WEB_MAX_DOMAINS", 25),
 		TelegramWebRescanDays:             envInt("TELEGRAM_WEB_RESCAN_DAYS", 30),

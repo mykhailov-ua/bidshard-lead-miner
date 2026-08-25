@@ -59,6 +59,15 @@ groups:
           summary: Many leads stuck in analysis_status=pending
           description: Deferred Gemini backlog; check warm path and GEMINI_API_KEY.
 
+      - alert: ParserLeadsAnalysisPending24h
+        expr: parser_leads_analysis_pending > 0
+        for: 24h
+        labels:
+          severity: warning
+        annotations:
+          summary: Leads pending deferred analysis for 24h
+          description: Warm-path backlog or Gemini outages; check WARM_ANALYSIS_PENDING_SCAN_INTERVAL and GEMINI_API_KEY.
+
       - alert: ParserWarmAnalysisPendingHigh
         expr: parser_warm_analysis_pending > 50
         for: 30m
@@ -67,3 +76,12 @@ groups:
         annotations:
           summary: Many leads stuck in analysis_status=pending
           description: Warm-path backlog or Gemini outages; verify WARM_ANALYSIS_PENDING_SCAN_INTERVAL.
+
+      - alert: ParserProxyBudgetExceeded
+        expr: parser_proxy_budget_exceeded == 1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Daily proxy egress cap reached
+          description: CF proxy sources skipped until UTC midnight; raise PARSER_PROXY_DAILY_MB_CAP or wait for reset.

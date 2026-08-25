@@ -2,15 +2,63 @@ package supply
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/bidshard/parser/internal/geo"
 	"github.com/bidshard/parser/internal/seedcsv"
+	"github.com/bidshard/parser/internal/sourceregistry"
 )
 
-func LoadSeedDomains(path string) ([]string, error) {
+func LoadSeedDomainsCombined(csvPath, registryPath string) ([]string, error) {
+	seen := map[string]struct{}{}
+	var domains []string
+
+	appendDomain := func(domain string) {
+		domain = strings.TrimSpace(domain)
+		if domain == "" {
+			return
+		}
+		if _, ok := seen[domain]; ok {
+			return
+		}
+		seen[domain] = struct{}{}
+		domains = append(domains, domain)
+	}
+
+	if registryPath != "" {
+		regDomains, err := sourceregistry.ListDomainsByType(registryPath, sourceregistry.TypeSupply)
+		if err != nil {
+			return nil, err
+		}
+		for _, d := range regDomains {
+			appendDomain(d)
+		}
+	}
+
+	csvDomains, err := LoadSeedDomainsOptional(csvPath)
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range csvDomains {
+		appendDomain(d)
+	}
+	if len(domains) == 0 {
+		return nil, fmt.Errorf("no domains loaded (csv=%s registry=%s)", csvPath, registryPath)
+	}
+	return domains, nil
+}
+
+// LoadSeedDomainsOptional reads CSV seeds; missing or empty file returns nil without error.
+func LoadSeedDomainsOptional(path string) ([]string, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, nil
+	}
 	records, err := seedcsv.ReadRecords(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
@@ -50,6 +98,14 @@ func LoadSeedDomains(path string) ([]string, error) {
 		}
 		seen[domain] = struct{}{}
 		domains = append(domains, domain)
+	}
+	return domains, nil
+}
+
+func LoadSeedDomains(path string) ([]string, error) {
+	domains, err := LoadSeedDomainsOptional(path)
+	if err != nil {
+		return nil, err
 	}
 	if len(domains) == 0 {
 		return nil, fmt.Errorf("no domains loaded from %s", path)
