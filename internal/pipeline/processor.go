@@ -22,6 +22,7 @@ import (
 	"github.com/bidshard/parser/internal/seedfeedback"
 	"github.com/bidshard/parser/internal/sink"
 	"github.com/bidshard/parser/internal/sources/tgweb"
+	"github.com/bidshard/parser/internal/sources/webpain"
 	"github.com/bidshard/parser/internal/validate"
 	"github.com/bidshard/parser/internal/warmpath"
 )
@@ -36,6 +37,10 @@ type GeoClassifier interface {
 
 type EngagementClassifier interface {
 	ClassifyEngagement(ctx context.Context, in gemini.EngagementInput) (gemini.EngagementResult, error)
+}
+
+type IntentClassifier interface {
+	ClassifyIntent(ctx context.Context, text string) (gemini.IntentResult, error)
 }
 
 type LeadClusterer interface {
@@ -69,11 +74,16 @@ type Processor struct {
 	GeoBlockCountries     []string
 	Engage                EngagementClassifier
 	EngageEnabled         bool
+	Intent                IntentClassifier
+	IntentEnabled         bool
+	IntentMinConfidence   float64
+	LanderOutreachEnabled bool
 	Prescan               EmbedPrescanner
 	PrescanEnabled        bool
 	LeadCluster           LeadClusterer
 	LeadClusterEnabled    bool
 	Enricher              *enrich.Enricher
+	ProfileEnricher       *enrich.ProfileEnricher
 	EnrichSynth           EnrichSynthesizer
 	EnrichSynthEnabled    bool
 	TimeDecayEnabled      bool
@@ -109,7 +119,11 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	task.Item.CrawlHTML = model.LimitCrawlHTML(task.Item.CrawlHTML)
 	text := task.Item.Text()
 	out := ProcessOutcome{}
-	stack := scoring.DetectCompetitorStack(task.Item.CrawlHTML)
+	stack, structuredStack := scoring.CollectStack(task.Item.CrawlHTML)
+	if filter.IsLanderSource(task.Item.Source) {
+		stack = nil
+		structuredStack = false
+	}
 
 	if strings.HasPrefix(task.Item.Source, "fixture:") {
 		slog.Debug("fixture skip", "round_id", task.RoundID, "source", task.Item.Source)
@@ -141,6 +155,40 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		slog.Debug("lang reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
 		p.captureJunk(ctx, task, coldpath.ReasonLangReject, reason, 0, nil)
 		return out
+	}
+
+	if filter.IsLanderSource(task.Item.Source) && filter.LanderBlacklistedSource(task.Item.Source) {
+		slog.Debug("lander blacklist reject", "round_id", task.RoundID, "source", task.Item.Source)
+		p.captureJunk(ctx, task, coldpath.ReasonBlacklist, "competitor lander domain", 0, nil)
+		return out
+	}
+
+	if filter.IsIntelOnlySource(task.Item.Source, p.LanderOutreachEnabled) {
+		slog.Debug("lander intel only", "round_id", task.RoundID, "source", task.Item.Source)
+		p.captureJunk(ctx, task, coldpath.ReasonIntentReject, "lander intel only", 0, nil)
+		return out
+	}
+
+	if filter.IsLanderSource(task.Item.Source) || filter.IsWebPainSource(task.Item.Source) {
+		if reject, reason := filter.RejectHTMLBoilerplate(text); reject {
+			slog.Debug("web crawl boilerplate reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
+			p.captureJunk(ctx, task, coldpath.ReasonLangReject, reason, 0, nil)
+			return out
+		}
+	}
+
+	if drop, reason := filter.RejectNonBuyerContext(task.Item.Source, text, task.Item.Title); drop {
+		slog.Debug("context drop", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
+		p.captureJunk(ctx, task, coldpath.ReasonContextDrop, reason, 0, nil)
+		return out
+	}
+
+	if filter.IsTelegramSource(task.Item.Source) {
+		if filter.TelegramChannelBroadcastReject(task.Item.Source, task.Item.ChatType, task.Item.ReplyToMessageID, text) {
+			slog.Debug("telegram channel broadcast", "round_id", task.RoundID, "source", task.Item.Source)
+			p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, "channel broadcast", 0, nil)
+			return out
+		}
 	}
 
 	if p.Registry != nil {
@@ -211,9 +259,44 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	}
 
 	contacts := extract.Extract(text, task.Item.Contact, task.Item.ContactTelegram())
+	if p.ProfileEnricher != nil {
+		contacts.Contacts = p.ProfileEnricher.MergeContacts(ctx, task.Item.Source, contacts.Contacts, task.Item.Username, task.Item.ForumUserID)
+	}
+	contacts.Contacts = extract.FilterJunkContacts(contacts.Contacts)
+
+	if filter.IsTelegramSource(task.Item.Source) {
+		if filter.TelegramInviteWithoutBuyerIntent(task.Item.Source, text) {
+			slog.Debug("telegram invite broadcast", "round_id", task.RoundID, "source", task.Item.Source)
+			p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, "invite broadcast", 0, nil)
+			return out
+		}
+		if filter.TelegramChannelSelfBroadcast(task.Item.Source, contacts.Contacts) {
+			slog.Debug("telegram channel self broadcast", "round_id", task.RoundID, "source", task.Item.Source)
+			p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, "channel self broadcast", 0, nil)
+			return out
+		}
+	}
+	if filter.IsLanderSource(task.Item.Source) && !filter.LanderRequiresEmailOrSkype(contacts.Contacts) {
+		slog.Debug("lander contact reject", "round_id", task.RoundID, "source", task.Item.Source)
+		p.captureJunk(ctx, task, coldpath.ReasonContactReject, "lander: email or skype required", 0, nil)
+		return out
+	}
+	if filter.IsLanderSource(task.Item.Source) && !filter.LanderRequiresBuyerSignal(text) {
+		slog.Debug("lander buyer signal reject", "round_id", task.RoundID, "source", task.Item.Source)
+		p.captureJunk(ctx, task, coldpath.ReasonKeywordPrescan, "lander: no buyer signal", 0, nil)
+		return out
+	}
+	if !filter.GitHubRequiresPainContext(task.Item.Source, text) {
+		slog.Debug("github pain prescan miss", "round_id", task.RoundID, "source", task.Item.Source)
+		p.captureJunk(ctx, task, coldpath.ReasonKeywordPrescan, "github: no pain context", 0, nil)
+		return out
+	}
 	if filter.IsTgWebSource(task.Item.Source) {
 		// Collapse to one on-domain LPR; drop channel telegram and role emails.
 		contacts.Contacts = tgweb.FilterPipelineContacts(task.Item.Source, task.Item.Contact, contacts.Contacts)
+	}
+	if filter.IsWebPainSource(task.Item.Source) {
+		contacts.Contacts = webpain.FilterPipelineContacts(task.Item.Source, task.Item.Contact, contacts.Contacts)
 	}
 	if contacts.Rejected {
 		slog.Debug("contact reject", "round_id", task.RoundID, "reason", contacts.Reason)
@@ -223,6 +306,8 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	if len(contacts.Contacts) == 0 {
 		if filter.IsTgWebSource(task.Item.Source) {
 			logTgWebReject(task, "no contacts after tgweb filter", nil)
+		} else if filter.IsWebPainSource(task.Item.Source) {
+			slog.Debug("webpain no on-domain lpr", "round_id", task.RoundID, "source", task.Item.Source)
 		} else {
 			slog.Debug("no contacts", "round_id", task.RoundID, "source", task.Item.Source)
 		}
@@ -272,8 +357,9 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 
 	leadText := &scoring.LeadText{Context: text, Title: task.Item.Title}
 	priority := scoring.ScoreWithBoosts(p.Registry, leadText, task.Item.Source, stack, p.SourceRep, scoring.ScoreOpts{
-		PostedAt:  task.Item.PostedAt,
-		TimeDecay: p.TimeDecayEnabled,
+		PostedAt:        task.Item.PostedAt,
+		TimeDecay:       p.TimeDecayEnabled,
+		StructuredStack: structuredStack,
 	})
 	if priority == scoring.PriorityLow && p.TgWebPrescanMode.Aggressive() && filter.IsTgWebSource(task.Item.Source) && tgweb.HasSiteLPRContact(task.Item.Source, contacts.Contacts) {
 		// Lift site LPR leads only when text has tracker pain, not generic affiliate HTML.
@@ -394,6 +480,21 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		}
 	}
 
+	if p.IntentEnabled && p.Intent != nil && filter.SourceRequiresIntentGate(task.Item.Source, task.Item.ChatType) && scoring.MeetsMinPriority(priority, scoring.PriorityMedium) {
+		if res, err := p.Intent.ClassifyIntent(ctx, text); err != nil {
+			slog.Warn("intent classify failed", "round_id", task.RoundID, "error", err)
+		} else if !res.Accept(p.IntentMinConfidence) {
+			slog.Debug("intent reject",
+				"round_id", task.RoundID,
+				"source", task.Item.Source,
+				"intent", res.Intent,
+				"confidence", res.Confidence,
+			)
+			p.captureJunk(ctx, task, coldpath.ReasonIntentReject, res.Intent, leadText.Score, leadText.Matched)
+			return out
+		}
+	}
+
 	if scoring.MeetsMinPriority(priority, scoring.PriorityMedium) {
 		if email := primaryEmail(contacts.Contacts); email != "" && p.MX != nil {
 			ok, err := p.MX.HasMX(ctx, email)
@@ -407,46 +508,55 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	}
 
 	lead := model.Lead{
-		TS:             time.Now().UTC(),
-		RoundID:        task.RoundID,
-		HashID:         hashID,
-		Priority:       string(priority),
-		Score:          leadText.Score,
-		Source:         task.Item.Source,
-		Title:          task.Item.Title,
-		Contacts:       extract.FormatAll(contacts.Contacts),
-		Matched:        leadText.Matched,
-		Snippet:        text,
-		ICP:            icpResult.ICP,
-		Hot:            icpResult.Hot,
-		SpendTier:      icpResult.SpendTier,
-		ICPWhy:         icpResult.Why,
-		GeoCountry:     geoResult.PersonCountry,
-		CompanyCountry: geoResult.CompanyCountry,
-		CompanyName:    geoResult.CompanyName,
-		GeoSignals:     append(append([]string(nil), geoResult.RegistrationSignals...), geoResult.RUBYSignals...),
-		GeoWhy:         geoResult.Why,
-		WhoisCountry:   enrichResult.RDAPCountry,
-		DomainAgeDays:  enrichResult.DomainAgeDays,
-		DisplayName:    enrichResult.DisplayName,
-		GravatarName:   enrichResult.GravatarName,
-		EmailVerified:  enrichResult.SMTPValid,
-		PostedAt:       task.Item.PostedAt,
-		Stack:          stack,
-		Lang:           filter.DetectLanguage(text),
+		TS:               time.Now().UTC(),
+		RoundID:          task.RoundID,
+		HashID:           hashID,
+		Priority:         string(priority),
+		Score:            leadText.Score,
+		Source:           task.Item.Source,
+		Title:            task.Item.Title,
+		Contacts:         extract.FormatAll(contacts.Contacts),
+		Matched:          leadText.Matched,
+		Snippet:          text,
+		ICP:              icpResult.ICP,
+		Hot:              icpResult.Hot,
+		SpendTier:        icpResult.SpendTier,
+		ICPWhy:           icpResult.Why,
+		GeoCountry:       geoResult.PersonCountry,
+		CompanyCountry:   geoResult.CompanyCountry,
+		CompanyName:      geoResult.CompanyName,
+		GeoSignals:       append(append([]string(nil), geoResult.RegistrationSignals...), geoResult.RUBYSignals...),
+		GeoWhy:           geoResult.Why,
+		WhoisCountry:     enrichResult.RDAPCountry,
+		DomainAgeDays:    enrichResult.DomainAgeDays,
+		DisplayName:      enrichResult.DisplayName,
+		GravatarName:     enrichResult.GravatarName,
+		EmailVerified:    enrichResult.SMTPValid,
+		PostedAt:         task.Item.PostedAt,
+		Stack:            stack,
+		DisplacementTier: string(leadText.DisplacementTier),
+		Lang:             filter.DetectLanguage(text),
+	}
+	if tag := scoring.DisplacementTag(leadText.DisplacementTier); tag != "" {
+		lead.Tags = append(lead.Tags, tag)
 	}
 
 	if p.PilotTagEnabled && !p.GeminiDefer {
 		p.applyPilotAndOutreach(ctx, &lead, priority, text, stack, icpResult, contacts.Contacts)
 	} else if p.PilotTagEnabled {
-		// Defer mode: rule-based pilot tags only; LLM engage runs in warm path.
-		qualified, pilotTags := scoring.PilotQualified("", stack, text)
-		lead.PilotQualified = qualified
-		lead.Tags = append(lead.Tags, pilotTags...)
+		// Defer: signal tags only; pilot_qualified set after warm engage analysis.
+		_, pilotTags := scoring.PilotQualified("", stack, text)
+		for _, tag := range pilotTags {
+			if tag == "pilot-qualified" {
+				continue
+			}
+			lead.Tags = append(lead.Tags, tag)
+		}
 	}
 	if !p.GeminiDefer {
 		p.applyEnrichSynth(ctx, &lead, priority, text, task.Item.Source, enrichResult, geoResult, icpResult)
 	}
+	applyOutreachQueue(&lead)
 	if p.LeadStatusEnabled {
 		lead.Status = "new"
 	}
@@ -496,6 +606,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			"priority", lead.Priority,
 		)
 	}
+	applyOutreachQueue(&lead)
 
 	if p.Store != nil {
 		if err := p.Store.Upsert(ctx, lead); err != nil {
@@ -543,25 +654,28 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	if p.GeminiDefer && p.WarmPath != nil {
 		// Queue for warm-path Gemini after Mongo upsert; lead already stored with analysis_status=pending.
 		p.WarmPath.TryCapture(warmpath.Event{
-			HashID:        hashID,
-			RoundID:       task.RoundID,
-			Source:        task.Item.Source,
-			Title:         task.Item.Title,
-			Snippet:       text,
-			Contacts:      extract.FormatAll(contacts.Contacts),
-			ContactTypes:  contactTypes(contacts.Contacts),
-			Stack:         append([]string(nil), stack...),
-			Score:         leadText.Score,
-			Priority:      string(priority),
-			Matched:       append([]string(nil), leadText.Matched...),
-			Domain:        enrichResult.Domain,
-			RDAPCountry:   enrichResult.RDAPCountry,
-			DomainAgeDays: enrichResult.DomainAgeDays,
-			DisplayName:   enrichResult.DisplayName,
-			EntityID:      lead.EntityID,
-			EntityHeat:    lead.EntityHeat,
-			HeatTier:      lead.HeatTier,
-			InlineICP:     lead.ICP,
+			HashID:           hashID,
+			RoundID:          task.RoundID,
+			Source:           task.Item.Source,
+			Title:            task.Item.Title,
+			Snippet:          text,
+			Contacts:         extract.FormatAll(contacts.Contacts),
+			ContactTypes:     contactTypes(contacts.Contacts),
+			Stack:            append([]string(nil), stack...),
+			Score:            leadText.Score,
+			Priority:         string(priority),
+			Matched:          append([]string(nil), leadText.Matched...),
+			Domain:           enrichResult.Domain,
+			RDAPCountry:      enrichResult.RDAPCountry,
+			DomainAgeDays:    enrichResult.DomainAgeDays,
+			DisplayName:      enrichResult.DisplayName,
+			EntityID:         lead.EntityID,
+			EntityHeat:       lead.EntityHeat,
+			HeatTier:         lead.HeatTier,
+			InlineICP:        lead.ICP,
+			PostedAt:         task.Item.PostedAt,
+			DisplacementTier: lead.DisplacementTier,
+			EngagePriority:   lead.EngagePriority,
 		})
 	}
 	if p.SourceRep != nil {
@@ -651,6 +765,7 @@ func (p *Processor) applyPilotAndOutreach(
 			lead.PilotWhy = res.PilotWhy
 			lead.Tags = append(lead.Tags, pilotTags...)
 			lead.OutreachChannel = res.OutreachChannel
+			lead.OutreachSubject = res.OutreachSubject
 			lead.OutreachAngle = res.OutreachAngle
 			lead.OutreachDraft = res.OutreachDraft
 			return
@@ -660,6 +775,29 @@ func (p *Processor) applyPilotAndOutreach(
 	qualified, pilotTags := scoring.PilotQualified(icpResult.SpendTier, stack, text)
 	lead.PilotQualified = qualified
 	lead.Tags = append(lead.Tags, pilotTags...)
+}
+
+func applyOutreachQueue(lead *model.Lead) {
+	if lead == nil {
+		return
+	}
+	ch, action := scoring.AssignOutreachQueue(lead.Contacts, lead.OutreachChannel)
+	lead.ContactChannel = ch
+	lead.NextAction = action
+	if q := scoring.ScoreContactQuality(lead.Contacts); q != "" {
+		lead.ContactQuality = q
+	}
+	lead.EngagePriority = scoring.ComputeEngagePriority(scoring.EngagePriorityInput{
+		Priority:         scoring.Priority(lead.Priority),
+		Score:            lead.Score,
+		DisplacementTier: scoring.DisplacementTier(lead.DisplacementTier),
+		PilotQualified:   lead.PilotQualified,
+		Stack:            lead.Stack,
+		EntityHeat:       lead.EntityHeat,
+		ContactQuality:   lead.ContactQuality,
+		HasEngageDraft:   strings.TrimSpace(lead.OutreachDraft) != "",
+		SourceFamily:     lead.Source,
+	})
 }
 
 func (p *Processor) applyEnrichSynth(

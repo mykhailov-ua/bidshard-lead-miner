@@ -10,6 +10,9 @@ import (
 // tgweb leads from affiliate network sites may lack forum-style pain phrases in page copy;
 // allow pain-context hints and affiliate-vertical signals from our crawl prefix.
 func PrescanPasses(source string, reg *Registry, text string) bool {
+	if validate.HasCommercialPainIntent(text) || validate.HasBuyerQuestionPattern(text) {
+		return true
+	}
 	if reg != nil && reg.Prescan(text) {
 		return true
 	}

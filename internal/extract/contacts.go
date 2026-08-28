@@ -61,10 +61,18 @@ func Extract(text string, hints ...string) Result {
 	}
 
 	for _, m := range telegramRe.FindAllStringSubmatch(scratch, -1) {
-		add("telegram", "@"+m[1])
+		handle := "@" + m[1]
+		if IsFalseTelegramHandle(handle) || IsJunkTelegramHandle(handle) {
+			continue
+		}
+		add("telegram", handle)
 	}
 	for _, m := range tmeRe.FindAllStringSubmatch(scratch, -1) {
-		add("telegram", "@"+m[1])
+		handle := "@" + m[1]
+		if IsFalseTelegramHandle(handle) || IsJunkTelegramHandle(handle) {
+			continue
+		}
+		add("telegram", handle)
 	}
 	for _, m := range skypeRe.FindAllStringSubmatch(scratch, -1) {
 		add("skype", strings.ToLower(m[1]))
@@ -103,6 +111,20 @@ func Extract(text string, hints ...string) Result {
 			}
 			continue
 		}
+		if strings.HasPrefix(strings.ToLower(hint), "forum:user/") {
+			value := strings.TrimSpace(hint[len("forum:user/"):])
+			if value != "" {
+				add("forum_user", value)
+			}
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(hint), "warrior:user/") {
+			value := strings.TrimSpace(hint[len("warrior:user/"):])
+			if value != "" {
+				add("forum_user", value)
+			}
+			continue
+		}
 		if strings.HasPrefix(strings.ToLower(hint), "review:") {
 			value := strings.TrimSpace(hint[len("review:"):])
 			if value != "" {
@@ -111,7 +133,10 @@ func Extract(text string, hints ...string) Result {
 			continue
 		}
 		if strings.HasPrefix(strings.ToLower(hint), "telegram:") {
-			add("telegram", strings.TrimPrefix(hint, "telegram:"))
+			val := strings.TrimPrefix(hint, "telegram:")
+			if !IsJunkTelegramHandle(val) && !IsFalseTelegramHandle(val) {
+				add("telegram", val)
+			}
 			continue
 		}
 		if strings.HasPrefix(strings.ToLower(hint), "skype:") {
@@ -171,6 +196,12 @@ func FormatAll(contacts []Contact) []string {
 			out = append(out, "github:"+value)
 			continue
 		}
+		if c.Type == "forum_user" {
+			value := strings.TrimPrefix(c.Value, "forum:user/")
+			value = strings.TrimPrefix(value, "warrior:user/")
+			out = append(out, "forum:user/"+value)
+			continue
+		}
 		if c.Type == "review" {
 			value := strings.TrimPrefix(c.Value, "review:")
 			out = append(out, "review:"+value)
@@ -198,4 +229,43 @@ func OnlyRoleEmails(contacts []Contact) bool {
 		}
 	}
 	return hasEmail
+}
+
+// HasReachableContact reports email, telegram, or skype suitable for outreach.
+func HasReachableContact(contacts []Contact) bool {
+	for _, c := range contacts {
+		switch c.Type {
+		case "email", "telegram", "skype":
+			if strings.TrimSpace(c.Value) != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// MergeContacts dedupes by type:value, preserving order of base then append.
+func MergeContacts(base, add []Contact) []Contact {
+	if len(add) == 0 {
+		return base
+	}
+	seen := make(map[string]struct{}, len(base)+len(add))
+	out := make([]Contact, 0, len(base)+len(add))
+	for _, c := range base {
+		key := c.Type + ":" + strings.ToLower(strings.TrimSpace(c.Value))
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, c)
+	}
+	for _, c := range add {
+		key := c.Type + ":" + strings.ToLower(strings.TrimSpace(c.Value))
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, c)
+	}
+	return out
 }

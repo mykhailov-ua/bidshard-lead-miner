@@ -1,0 +1,9 @@
+{
+  "updated": "2026-01-01T00:00:00Z",
+  "sources": [],
+  "audit": [
+    "copy to data/runtime/disabled_sources.json",
+    "governor auto-appends families with raw>=PARSER_SOURCE_DISABLE_MIN_RAW and accepted=0",
+    "manual ops: add exact keys or prefixes, e.g. telegram:invite:HASH or lander"
+  ]
+}

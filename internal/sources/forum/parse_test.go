@@ -2,7 +2,9 @@ package forum
 
 import (
 	"os"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseXenForoHTML(t *testing.T) {
@@ -20,8 +22,8 @@ func TestParseXenForoHTML(t *testing.T) {
 	if posts[0].Author != "media_buyer_mx" {
 		t.Fatalf("author=%q want media_buyer_mx", posts[0].Author)
 	}
-	if !HasPainSignal(posts[0].Body) {
-		t.Fatal("expected pain signal in xenforo post")
+	if !strings.Contains(strings.ToLower(posts[0].Body), "voluum alternative") {
+		t.Fatalf("expected pain phrase in fixture body: %q", posts[0].Body)
 	}
 }
 
@@ -41,7 +43,7 @@ func TestParsePostsFromHTML(t *testing.T) {
 	foundPain := false
 	foundContact := false
 	for _, post := range posts {
-		if HasPainSignal(post.Body) {
+		if strings.Contains(strings.ToLower(post.Body), "voluum alternative") {
 			foundPain = true
 		}
 		if contains(post.Body, "ops@igaming-team.com") || contains(post.Body, "@buyer_mx") {
@@ -53,6 +55,30 @@ func TestParsePostsFromHTML(t *testing.T) {
 	}
 	if !foundContact {
 		t.Fatal("expected contact hints in posts")
+	}
+}
+
+func TestParseWarriorPostContentHTML(t *testing.T) {
+	t.Parallel()
+
+	html := `<html><body>
+	<time datetime="2025-06-01T12:00:00Z"></time>
+	<div class="post-container">
+		<a class="username">BuyerJohn</a>
+		<div class="post-content">Looking for voluum alternative, contact me telegram:@buyerjohn</div>
+	</div>
+	</body></html>`
+
+	posts := ParsePostsFromHTML(html)
+	if len(posts) != 1 {
+		t.Fatalf("posts=%d want 1", len(posts))
+	}
+	if posts[0].Author != "BuyerJohn" {
+		t.Fatalf("author=%q", posts[0].Author)
+	}
+	want := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
+	if !posts[0].PostedAt.Equal(want) {
+		t.Fatalf("posted_at=%v want %v", posts[0].PostedAt, want)
 	}
 }
 

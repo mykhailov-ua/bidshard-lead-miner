@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/bidshard/parser/internal/app"
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/pretty"
 	"github.com/spf13/cobra"
 )
 
@@ -30,9 +28,8 @@ func newColdReportCmd() *cobra.Command {
 			if err := app.RunColdReport(cmd.Context(), cfg); err != nil {
 				return err
 			}
-			if _, err := fmt.Fprintln(os.Stdout, "cold report complete"); err != nil {
-				return err
-			}
+			out := cmd.OutOrStdout()
+			pretty.StatusOK(out, cliColor(out), "cold report complete")
 			return nil
 		},
 	}

@@ -23,20 +23,20 @@ const (
 var ErrNotFound = errors.New("lead not found")
 
 type LeadStore struct {
-	leads         *mongo.Collection
-	entities      *mongo.Collection
-	sourceStats   *mongo.Collection
-	keywordStats  *mongo.Collection
-	crmBoosts     *mongo.Collection
-	leadNotes     *mongo.Collection
-	leadMeta          *mongo.Collection
-	webhookFeedback   *mongo.Collection
-	queryTimeout  time.Duration
-	writeTimeout  time.Duration
-	statsTimeout  time.Duration
-	exportMaxRows int64
-	searchMaxRows int64
-	entityHeat    entity.HeatConfig
+	leads           *mongo.Collection
+	entities        *mongo.Collection
+	sourceStats     *mongo.Collection
+	keywordStats    *mongo.Collection
+	crmBoosts       *mongo.Collection
+	leadNotes       *mongo.Collection
+	leadMeta        *mongo.Collection
+	webhookFeedback *mongo.Collection
+	queryTimeout    time.Duration
+	writeTimeout    time.Duration
+	statsTimeout    time.Duration
+	exportMaxRows   int64
+	searchMaxRows   int64
+	entityHeat      entity.HeatConfig
 }
 
 func New(client *mongo.Client, opts Options) *LeadStore {
@@ -135,13 +135,17 @@ func (s *LeadStore) UpdateStatus(ctx context.Context, hashID, status string) err
 }
 
 type ListFilter struct {
-	Status       string
-	SourcePrefix string
-	ScoreMax     int
-	Limit        int64
-	Cursor       *ListCursor
-	InboxOnly    bool   // exclude pending analysis and parser geo/icp rejects
-	Sort         string // heat (default inbox) or score
+	Status            string
+	SourcePrefix      string
+	ContactChannel    string
+	NextAction        string
+	Outcome           string
+	ScoreMax          int
+	MinEngagePriority int
+	Limit             int64
+	Cursor            *ListCursor
+	InboxOnly         bool   // exclude pending analysis and parser geo/icp rejects
+	Sort              string // engage, heat, score
 }
 
 type ListCursor struct {
@@ -166,16 +170,39 @@ func (f ListFilter) clampLimit() int64 {
 }
 
 func (f ListFilter) sortSpec() bson.D {
-	if strings.EqualFold(strings.TrimSpace(f.Sort), "score") {
+	switch strings.ToLower(strings.TrimSpace(f.Sort)) {
+	case "score":
 		return bson.D{
 			{Key: "score", Value: -1},
 			{Key: "hash_id", Value: 1},
 		}
-	}
-	return bson.D{
-		{Key: "entity_heat", Value: -1},
-		{Key: "score", Value: -1},
-		{Key: "hash_id", Value: 1},
+	case "heat":
+		return bson.D{
+			{Key: "entity_heat", Value: -1},
+			{Key: "score", Value: -1},
+			{Key: "hash_id", Value: 1},
+		}
+	case "engage":
+		return bson.D{
+			{Key: "engage_priority", Value: -1},
+			{Key: "entity_heat", Value: -1},
+			{Key: "score", Value: -1},
+			{Key: "hash_id", Value: 1},
+		}
+	default:
+		if f.InboxOnly {
+			return bson.D{
+				{Key: "engage_priority", Value: -1},
+				{Key: "entity_heat", Value: -1},
+				{Key: "score", Value: -1},
+				{Key: "hash_id", Value: 1},
+			}
+		}
+		return bson.D{
+			{Key: "entity_heat", Value: -1},
+			{Key: "score", Value: -1},
+			{Key: "hash_id", Value: 1},
+		}
 	}
 }
 
@@ -191,6 +218,22 @@ func (f ListFilter) matchQuery() bson.M {
 	}
 	if f.ScoreMax > 0 {
 		q["score"] = bson.M{"$lte": f.ScoreMax}
+	}
+	if ch := strings.TrimSpace(f.ContactChannel); ch != "" {
+		q["contact_channel"] = ch
+	}
+	if action := strings.TrimSpace(f.NextAction); action != "" {
+		q["next_action"] = action
+	}
+	if outcome := strings.TrimSpace(f.Outcome); outcome != "" {
+		if normalized, err := NormalizeOutcome(outcome); err == nil {
+			q["outcome"] = normalized
+		} else {
+			q["outcome"] = outcome
+		}
+	}
+	if f.MinEngagePriority > 0 {
+		q["engage_priority"] = bson.M{"$gte": f.MinEngagePriority}
 	}
 	if f.Cursor != nil {
 		score := f.Cursor.Score
@@ -283,8 +326,11 @@ func leadCardProjection() bson.M {
 		"snippet":               1,
 		"status":                1,
 		"status_at":             1,
+		"outcome":               1,
+		"outcome_at":            1,
 		"outreach_draft":        1,
 		"outreach_channel":      1,
+		"outreach_subject":      1,
 		"outreach_angle":        1,
 		"entity_proof":          1,
 		"pilot_qualified":       1,
@@ -293,6 +339,8 @@ func leadCardProjection() bson.M {
 		"entity_heat":           1,
 		"heat_tier":             1,
 		"contact_quality":       1,
+		"contact_channel":       1,
+		"next_action":           1,
 		"duplicate_suggest":     1,
 		"stale":                 1,
 		"entity_sighting_count": 1,

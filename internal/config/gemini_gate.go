@@ -13,6 +13,7 @@ func EnabledGeminiFlags(cfg Config) []GeminiFlag {
 	flags := []GeminiFlag{
 		{"PARSER_ICP_CLASSIFY", cfg.ParserICPClassify},
 		{"PARSER_ICP_CLASSIFY_TGWEB", cfg.ParserICPClassifyTgWeb},
+		{"PARSER_INTENT_CLASSIFY", cfg.ParserIntentClassify},
 		{"PARSER_GEO_CLASSIFY", cfg.ParserGeoClassify},
 		{"PARSER_GEMINI_ENGAGE", cfg.ParserGeminiEngage},
 		{"PARSER_EMBED_PRESCAN", cfg.ParserEmbedPrescan},

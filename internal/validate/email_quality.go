@@ -27,8 +27,29 @@ var executiveLocalParts = map[string]struct{}{
 	"owner":   {},
 }
 
+// affiliateB2BLocalParts are partnership-facing mailboxes we accept for cold outreach.
+// Aligned with tgweb preferredLPRLocals; not generic support/info role rejects.
+var affiliateB2BLocalParts = map[string]struct{}{
+	"ads":          {},
+	"partners":     {},
+	"partnerships": {},
+	"partner":      {},
+	"affiliate":    {},
+	"affiliates":   {},
+	"bizdev":       {},
+	"business":     {},
+	"bd":           {},
+	"growth":       {},
+	"media":        {},
+	"mediation":    {},
+	"publisher":    {},
+	"publishers":   {},
+	"advertisers":  {},
+	"advertising":  {},
+	"programmatic": {},
+}
+
 var roleLocalParts = map[string]struct{}{
-	"ads":              {},
 	"support":          {},
 	"info":             {},
 	"contact":          {},
@@ -125,6 +146,9 @@ func IsRoleEmail(email string) bool {
 		local = local[:idx]
 	}
 	if _, ok := executiveLocalParts[local]; ok {
+		return false
+	}
+	if _, ok := affiliateB2BLocalParts[local]; ok {
 		return false
 	}
 	if _, ok := roleLocalParts[local]; ok {

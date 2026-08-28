@@ -11,9 +11,11 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from .config import ChatConfig, ScraperConfig, load_config
+from .connect import connect_telegram_client
 from .cursor import CursorStore
 from .discover import chats_for_scrape, run_discover
 from .domains import RegistryEntry, append_domains
+from .session_lock import session_exclusive_lock
 from .tglinks import web_domains
 
 LOG = logging.getLogger("telegram.scraper")
@@ -67,6 +69,8 @@ def emit_line(
     username: str,
     message_id: int,
     channel_about: str = "",
+    reply_to_message_id: int = 0,
+    chat_type: str = "",
 ) -> None:
     # Drop spam/empty before NDJSON; Go pipeline never sees filtered messages.
     if not should_emit_message(text):
@@ -83,6 +87,10 @@ def emit_line(
         "username": username,
         "message_id": message_id,
     }
+    if reply_to_message_id > 0:
+        payload["reply_to_message_id"] = reply_to_message_id
+    if chat_type:
+        payload["chat_type"] = chat_type
     if channel_about:
         payload["channel_about"] = channel_about
     out.write(json.dumps(payload, ensure_ascii=False) + "\n")
@@ -120,6 +128,16 @@ def sender_username(sender: Any) -> str:
 
     if isinstance(sender, User) and sender.username:
         return sender.username
+    return ""
+
+
+def entity_chat_type(entity: Any) -> str:
+    from telethon.tl.types import Channel, Chat
+
+    if isinstance(entity, Channel):
+        return "supergroup" if entity.megagroup else "channel"
+    if isinstance(entity, Chat):
+        return "group"
     return ""
 
 
@@ -181,6 +199,13 @@ async def scrape_chat(
         LOG.info("skip chat geo heuristic chat=%s", chat_key)
         return 0
 
+    full_entity = entity
+    try:
+        full_entity = await client.get_entity(entity)
+    except Exception:
+        pass
+    chat_kind = entity_chat_type(full_entity)
+
     last_id = store.get_last_message_id(chat_key)
     max_seen = last_id
     emitted = 0
@@ -197,7 +222,19 @@ async def scrape_chat(
                 body = str(message.message)
                 texts_for_domains.append(body)
                 username = sender_username(await message.get_sender())
-                emit_line(out, chat, body, username, message.id, channel_about=about_text)
+                reply_to = 0
+                if message.reply_to and getattr(message.reply_to, "reply_to_msg_id", None):
+                    reply_to = int(message.reply_to.reply_to_msg_id)
+                emit_line(
+                    out,
+                    chat,
+                    body,
+                    username,
+                    message.id,
+                    channel_about=about_text,
+                    reply_to_message_id=reply_to,
+                    chat_type=chat_kind,
+                )
                 emitted += 1
                 max_seen = max(max_seen, message.id)
             break
@@ -364,37 +401,38 @@ async def login_qr(cfg: ScraperConfig) -> int:
         wipe_session_files(session_path)
 
     LOG.info("session file: %s", session_path)
-    client = build_telegram_client(cfg, api_id, api_hash)
-    await client.connect()
-    if await client.is_user_authorized():
-        me = await client.get_me()
-        LOG.info("already authorized user=%s", me.username or me.id)
-        await client.disconnect()
-        return 0
+    with session_exclusive_lock(session_path):
+        client = build_telegram_client(cfg, api_id, api_hash)
+        await connect_telegram_client(client)
+        if await client.is_user_authorized():
+            me = await client.get_me()
+            LOG.info("already authorized user=%s", me.username or me.id)
+            await client.disconnect()
+            return 0
 
-    qr = await client.qr_login()
-    timeout = float(os.environ.get("TELEGRAM_QR_TIMEOUT_SEC", "180"))
-    print_qr_login_help(qr.url, session_path)
+        qr = await client.qr_login()
+        timeout = float(os.environ.get("TELEGRAM_QR_TIMEOUT_SEC", "180"))
+        print_qr_login_help(qr.url, session_path)
 
-    try:
-        await qr.wait(timeout=timeout)
-    except SessionPasswordNeededError:
-        if not password:
-            LOG.error("2FA enabled; set TELEGRAM_PASSWORD")
+        try:
+            await qr.wait(timeout=timeout)
+        except SessionPasswordNeededError:
+            if not password:
+                LOG.error("2FA enabled; set TELEGRAM_PASSWORD")
+                await client.disconnect()
+                return 1
+            await client.sign_in(password=password)
+        except TimeoutError:
+            LOG.error(
+                "QR login timed out after %ss; retry parser telegram login --qr", timeout
+            )
             await client.disconnect()
             return 1
-        await client.sign_in(password=password)
-    except TimeoutError:
-        LOG.error(
-            "QR login timed out after %ss; retry parser telegram login --qr", timeout
-        )
-        await client.disconnect()
-        return 1
 
-    me = await client.get_me()
-    LOG.info("login ok user=%s session=%s", me.username or me.id, session_path)
-    login_pending_path(session_path).unlink(missing_ok=True)
-    await client.disconnect()
+        me = await client.get_me()
+        LOG.info("login ok user=%s session=%s", me.username or me.id, session_path)
+        login_pending_path(session_path).unlink(missing_ok=True)
+        await client.disconnect()
     return 0
 
 
@@ -417,71 +455,72 @@ async def login(cfg: ScraperConfig) -> int:
         wipe_session_files(session_path)
 
     LOG.info("session file: %s", session_path)
-    client = build_telegram_client(cfg, api_id, api_hash)
-    await client.connect()
-    if await client.is_user_authorized():
-        me = await client.get_me()
-        LOG.info("already authorized user=%s", me.username or me.id)
-        await client.disconnect()
-        return 0
+    with session_exclusive_lock(session_path):
+        client = build_telegram_client(cfg, api_id, api_hash)
+        await connect_telegram_client(client)
+        if await client.is_user_authorized():
+            me = await client.get_me()
+            LOG.info("already authorized user=%s", me.username or me.id)
+            await client.disconnect()
+            return 0
 
-    if not phone:
-        LOG.error("TELEGRAM_PHONE required for login (e.g. +380631517317)")
-        await client.disconnect()
-        return 1
-
-    pending_path = login_pending_path(session_path)
-
-    if not code:
-        sent = await client.send_code_request(phone)
-        pending = {"phone": phone, "phone_code_hash": sent.phone_code_hash}
-        pending_path.write_text(json.dumps(pending), encoding="utf-8")
-        LOG.info(describe_sent_code(sent))
-        LOG.error(
-            "step 1 done for %s; when code appears, retry with TELEGRAM_CODE=xxxxx "
-            "(or use: parser telegram login --qr)",
-            phone,
-        )
-        await client.disconnect()
-        return 2
-
-    if not pending_path.exists():
-        LOG.error(
-            "no pending login for this session; run step 1 without TELEGRAM_CODE "
-            "(or parser telegram login --qr)"
-        )
-        await client.disconnect()
-        return 1
-
-    pending = json.loads(pending_path.read_text(encoding="utf-8"))
-    pending_phone = pending.get("phone", "")
-    phone_hash = pending.get("phone_code_hash", "")
-    if pending_phone != phone:
-        LOG.error(
-            "TELEGRAM_PHONE mismatch (pending %s); use --login-fresh or same phone",
-            pending_phone,
-        )
-        await client.disconnect()
-        return 1
-
-    try:
-        await client.sign_in(phone, code, phone_code_hash=phone_hash)
-    except SessionPasswordNeededError:
-        if not password:
-            LOG.error("2FA enabled; set TELEGRAM_PASSWORD")
+        if not phone:
+            LOG.error("TELEGRAM_PHONE required for login (e.g. +380631517317)")
             await client.disconnect()
             return 1
-        await client.sign_in(password=password)
-    except Exception as exc:
-        LOG.error("login failed: %s (use fresh code; try login --qr)", exc)
-        await client.disconnect()
-        return 1
 
-    me = await client.get_me()
-    label = me.username or str(me.id)
-    LOG.info("login ok user=%s session=%s", label, session_path)
-    pending_path.unlink(missing_ok=True)
-    await client.disconnect()
+        pending_path = login_pending_path(session_path)
+
+        if not code:
+            sent = await client.send_code_request(phone)
+            pending = {"phone": phone, "phone_code_hash": sent.phone_code_hash}
+            pending_path.write_text(json.dumps(pending), encoding="utf-8")
+            LOG.info(describe_sent_code(sent))
+            LOG.error(
+                "step 1 done for %s; when code appears, retry with TELEGRAM_CODE=xxxxx "
+                "(or use: parser telegram login --qr)",
+                phone,
+            )
+            await client.disconnect()
+            return 2
+
+        if not pending_path.exists():
+            LOG.error(
+                "no pending login for this session; run step 1 without TELEGRAM_CODE "
+                "(or parser telegram login --qr)"
+            )
+            await client.disconnect()
+            return 1
+
+        pending = json.loads(pending_path.read_text(encoding="utf-8"))
+        pending_phone = pending.get("phone", "")
+        phone_hash = pending.get("phone_code_hash", "")
+        if pending_phone != phone:
+            LOG.error(
+                "TELEGRAM_PHONE mismatch (pending %s); use --login-fresh or same phone",
+                pending_phone,
+            )
+            await client.disconnect()
+            return 1
+
+        try:
+            await client.sign_in(phone, code, phone_code_hash=phone_hash)
+        except SessionPasswordNeededError:
+            if not password:
+                LOG.error("2FA enabled; set TELEGRAM_PASSWORD")
+                await client.disconnect()
+                return 1
+            await client.sign_in(password=password)
+        except Exception as exc:
+            LOG.error("login failed: %s (use fresh code; try login --qr)", exc)
+            await client.disconnect()
+            return 1
+
+        me = await client.get_me()
+        label = me.username or str(me.id)
+        LOG.info("login ok user=%s session=%s", label, session_path)
+        pending_path.unlink(missing_ok=True)
+        await client.disconnect()
     return 0
 
 
@@ -492,20 +531,22 @@ async def discover_only(cfg: ScraperConfig) -> int:
         LOG.error("TELEGRAM_API_ID and TELEGRAM_API_HASH required")
         return 1
 
-    store = CursorStore(cfg.cursor_db)
-    client = build_telegram_client(cfg, api_id, api_hash)
-    await client.connect()
-    if not await client.is_user_authorized():
-        LOG.error("telethon session not authorized; run: parser telegram login")
-        await client.disconnect()
-        store.close()
-        return 1
+    session_path = Path(cfg.session)
+    with session_exclusive_lock(session_path):
+        store = CursorStore(cfg.cursor_db)
+        client = build_telegram_client(cfg, api_id, api_hash)
+        await connect_telegram_client(client)
+        if not await client.is_user_authorized():
+            LOG.error("telethon session not authorized; run: parser telegram login")
+            await client.disconnect()
+            store.close()
+            return 1
 
-    try:
-        total = await run_discover(client, cfg.chats, cfg.discover, store)
-    finally:
-        await client.disconnect()
-        store.close()
+        try:
+            total = await run_discover(client, cfg.chats, cfg.discover, store)
+        finally:
+            await client.disconnect()
+            store.close()
 
     if total == 0:
         LOG.warning("telegram discover found no channels")
@@ -519,34 +560,36 @@ async def scrape(cfg: ScraperConfig, out: TextIO) -> int:
         LOG.error("TELEGRAM_API_ID and TELEGRAM_API_HASH required")
         return 1
 
-    store = CursorStore(cfg.cursor_db)
-    client = build_telegram_client(cfg, api_id, api_hash)
-    await client.connect()
-    if not await client.is_user_authorized():
-        LOG.error("telethon session not authorized; run: parser telegram login")
-        await client.disconnect()
-        store.close()
-        return 1
+    session_path = Path(cfg.session)
+    with session_exclusive_lock(session_path):
+        store = CursorStore(cfg.cursor_db)
+        client = build_telegram_client(cfg, api_id, api_hash)
+        await connect_telegram_client(client)
+        if not await client.is_user_authorized():
+            LOG.error("telethon session not authorized; run: parser telegram login")
+            await client.disconnect()
+            store.close()
+            return 1
 
-    chats = chats_for_scrape(cfg.chats, store)
-    if not chats:
-        LOG.error(
-            "no telegram channels in registry; wait for background discover or run parser telegram discover"
-        )
-        await client.disconnect()
-        store.close()
-        return 1
+        chats = chats_for_scrape(cfg.chats, store)
+        if not chats:
+            LOG.error(
+                "no telegram channels in registry; wait for background discover or run parser telegram discover"
+            )
+            await client.disconnect()
+            store.close()
+            return 1
 
-    total = 0
-    try:
-        for chat in chats:
-            total += await scrape_chat(client, chat, store, cfg, out)
-            await asyncio.sleep(cfg.poll_delay_sec)
-    finally:
-        await client.disconnect()
-        store.close()
+        total = 0
+        try:
+            for chat in chats:
+                total += await scrape_chat(client, chat, store, cfg, out)
+                await asyncio.sleep(cfg.poll_delay_sec)
+        finally:
+            await client.disconnect()
+            store.close()
 
-    LOG.info("telegram scrape done chats=%d emitted=%d", len(chats), total)
+        LOG.info("telegram scrape done chats=%d emitted=%d", len(chats), total)
     return 0
 
 

@@ -96,6 +96,27 @@ func (s *KeywordStatsStore) RecordOutcome(ctx context.Context, keywordID string,
 	return err
 }
 
+func (s *KeywordStatsStore) ListAll(ctx context.Context, limit int) ([]KeywordStatDoc, error) {
+	if s == nil {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 500
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	cur, err := s.coll.Find(ctx, bson.M{}, options.Find().SetLimit(int64(limit)))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = cur.Close(ctx) }()
+	var docs []KeywordStatDoc
+	return docs, cur.All(ctx, &docs)
+}
+
 func (s *KeywordStatsStore) GetStats(ctx context.Context, keywordID string) (KeywordStatDoc, error) {
 	var doc KeywordStatDoc
 	err := s.coll.FindOne(ctx, bson.M{"keyword_id": keywordID}).Decode(&doc)

@@ -48,6 +48,10 @@ func matchWeighted(text string, rules []keywordRule) MatchResult {
 			}
 			absStart := start + idx
 			absEnd := absStart + len(phrase)
+			if !phraseMatchAt(text, absStart, rule.phrase) {
+				start = absStart + 1
+				continue
+			}
 			if !overlaps(claimed, absStart, absEnd) {
 				claimed = append(claimed, span{absStart, absEnd})
 				total += rule.weight
@@ -56,6 +60,7 @@ func matchWeighted(text string, rules []keywordRule) MatchResult {
 					Weight: rule.weight,
 					Tag:    rule.tag,
 				})
+				break
 			}
 			start = absStart + 1
 		}

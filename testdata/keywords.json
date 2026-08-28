@@ -551,42 +551,6 @@
       "tag": "competitor"
     },
     {
-      "id": "kw-openrtb-26",
-      "phrase": "openrtb 2.6",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-openrtb",
-      "phrase": "openrtb",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-real-time-bidding",
-      "phrase": "real-time bidding",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-rtb-exchange",
-      "phrase": "rtb exchange",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-bid-request",
-      "phrase": "bid request",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-bid-response",
-      "phrase": "bid response",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
       "id": "kw-sub-100ms",
       "phrase": "sub-100ms",
       "weight": 10,
@@ -685,30 +649,6 @@
     {
       "id": "kw-high-volume-ingestion",
       "phrase": "high-volume ingestion",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-supply-path-optimization",
-      "phrase": "supply path optimization",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-prebid-server",
-      "phrase": "prebid server",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-header-bidding",
-      "phrase": "header bidding",
-      "weight": 8,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-server-side-bidding",
-      "phrase": "server-side bidding",
       "weight": 10,
       "tag": "tech"
     },
@@ -833,48 +773,6 @@
       "tag": "tech"
     },
     {
-      "id": "kw-private-marketplace",
-      "phrase": "private marketplace",
-      "weight": 8,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-programmatic-guaranteed",
-      "phrase": "programmatic guaranteed",
-      "weight": 8,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-win-rate",
-      "phrase": "win rate",
-      "weight": 8,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-fill-rate",
-      "phrase": "fill rate",
-      "weight": 8,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-bid-timeout",
-      "phrase": "bid timeout",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-auction-timeout",
-      "phrase": "auction timeout",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-latency-budget",
-      "phrase": "latency budget",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
       "id": "kw-gclid-passthrough",
       "phrase": "gclid passthrough",
       "weight": 10,
@@ -991,12 +889,6 @@
     {
       "id": "kw-bid-engine",
       "phrase": "bid engine",
-      "weight": 8,
-      "tag": "infra"
-    },
-    {
-      "id": "kw-dsp-bidder",
-      "phrase": "dsp bidder",
       "weight": 8,
       "tag": "infra"
     },
@@ -1361,12 +1253,6 @@
       "tag": "pain"
     },
     {
-      "id": "kw-programmatic",
-      "phrase": "programmatic",
-      "weight": 4,
-      "tag": "tech"
-    },
-    {
       "id": "kw-adtech",
       "phrase": "adtech",
       "weight": 4,
@@ -1729,10 +1615,182 @@
       "phrase": "internship",
       "weight": -10,
       "tag": "negative"
+    },
+    {
+      "id": "neg-openrtb-26",
+      "phrase": "openrtb 2.6",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-openrtb",
+      "phrase": "openrtb",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-real-time-bidding",
+      "phrase": "real-time bidding",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-rtb-exchange",
+      "phrase": "rtb exchange",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-bid-request",
+      "phrase": "bid request",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-bid-response",
+      "phrase": "bid response",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-supply-path-optimization",
+      "phrase": "supply path optimization",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-prebid-server",
+      "phrase": "prebid server",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-header-bidding",
+      "phrase": "header bidding",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-server-side-bidding",
+      "phrase": "server-side bidding",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-private-marketplace",
+      "phrase": "private marketplace",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-programmatic-guaranteed",
+      "phrase": "programmatic guaranteed",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-win-rate",
+      "phrase": "win rate",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-fill-rate",
+      "phrase": "fill rate",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-bid-timeout",
+      "phrase": "bid timeout",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-auction-timeout",
+      "phrase": "auction timeout",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-latency-budget",
+      "phrase": "latency budget",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-dsp-bidder",
+      "phrase": "dsp bidder",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-programmatic",
+      "phrase": "programmatic",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
     }
   ],
   "hard_reject": [
-    {"id": "hr-cheapest-tracker", "phrase": "cheapest tracker", "tag": "anti-icp"},
-    {"id": "hr-affiliate-course", "phrase": "affiliate course", "tag": "anti-icp"}
+    {
+      "id": "hr-cheapest-tracker",
+      "phrase": "cheapest tracker",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-affiliate-course",
+      "phrase": "affiliate course",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-programmatic-guaranteed",
+      "phrase": "programmatic guaranteed",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-programmatic-stack",
+      "phrase": "programmatic stack",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-head-of-programmatic",
+      "phrase": "head of programmatic",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-header-bidding",
+      "phrase": "header bidding",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-openrtb-bidder",
+      "phrase": "openrtb bidder",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-supply-path-optimization",
+      "phrase": "supply path optimization",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-white-label-ssp",
+      "phrase": "white-label ssp",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-programmatic-display",
+      "phrase": "programmatic display",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-brand-awareness-campaign",
+      "phrase": "brand awareness campaign",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-out-of-home",
+      "phrase": "out of home advertising",
+      "tag": "anti-icp-programmatic"
+    }
   ]
 }

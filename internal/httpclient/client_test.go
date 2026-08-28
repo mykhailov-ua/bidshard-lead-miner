@@ -3,7 +3,6 @@ package httpclient
 import (
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -86,8 +85,8 @@ func TestRotatingProxyTransport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create proxy transport: %v", err)
 	}
-	if len(trans.proxies) != 3 {
-		t.Fatalf("expected 3 parsed proxies, got %d", len(trans.proxies))
+	if len(trans.pool.endpoints) != 3 {
+		t.Fatalf("expected 3 parsed proxies, got %d", len(trans.pool.endpoints))
 	}
 }
 
@@ -98,14 +97,14 @@ func BenchmarkRotatingProxySelection(b *testing.B) {
 		"http://10.0.0.3:8080",
 		"http://10.0.0.4:8080",
 	}
-	trans, _ := NewRotatingProxyTransport(proxies, nil)
+	trans, _ := newRotatingProxyTransport(proxies, nil, "", ProxyPoolConfig{PerProxyRPS: 100, PerProxyBurst: 8})
 	req, _ := http.NewRequest(http.MethodGet, "http://example.com", nil)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		idx := atomic.AddUint64(&trans.counter, 1) % uint64(len(trans.proxies))
-		_ = trans.proxies[idx]
+		ep, _ := trans.pool.pickEndpoint()
+		_ = ep
 		_ = req
 	}
 }

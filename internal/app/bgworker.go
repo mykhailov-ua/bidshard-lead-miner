@@ -2,11 +2,15 @@ package app
 
 import (
 	"context"
+	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/bidshard/parser/internal/bgworker"
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/domaincascade"
 	"github.com/bidshard/parser/internal/gemini"
+	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/sources/serp"
 	"github.com/bidshard/parser/internal/sources/tgweb"
 	"github.com/bidshard/parser/internal/telethon"
@@ -36,6 +40,34 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 			},
 		},
 		{
+			Name:          "serp_web_pain_catalog",
+			Interval:      cfg.BGForumDiscoverInterval,
+			SkipIfRunning: true,
+			Run: func(ctx context.Context) error {
+				return serp.NewCrawler(cfg, nil).HarvestWebPainCatalog(ctx, cfg.WebPainRegistryPath, domaincascade.Config{
+					RegistryPath:        cfg.SourceRegistryPath,
+					TelegramDomainsPath: cfg.TelegramDomainsPath,
+				})
+			},
+		},
+		{
+			Name:          "domain_cascade_registry",
+			Interval:      cfg.BGSourceRegistrySyncInterval,
+			SkipIfRunning: true,
+			Run: func(ctx context.Context) error {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				_, _, err := domaincascade.SyncDiscoveryRegistries(domaincascade.Config{
+					RegistryPath:        cfg.SourceRegistryPath,
+					TelegramDomainsPath: cfg.TelegramDomainsPath,
+					ForumRegistryPath:   cfg.ForumRegistryPath,
+					WebPainRegistryPath: cfg.WebPainRegistryPath,
+				})
+				return err
+			},
+		},
+		{
 			Name:          "source_registry_sync",
 			Interval:      cfg.BGSourceRegistrySyncInterval,
 			SkipIfRunning: true,
@@ -51,12 +83,17 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 			bgworker.Job{
 				Name:          "telegram_discover",
 				Interval:      cfg.BGTelegramDiscoverInterval,
+				InitialDelay:  15 * time.Minute,
 				SkipIfRunning: true,
 				Run: func(ctx context.Context) error {
-					return telethon.RunDiscover(ctx, telethon.Options{
+					err := telethon.RunDiscover(ctx, telethon.Options{
 						ConfigPath: cfg.TelegramConfigPath,
 						PythonBin:  cfg.TelethonPython,
 					})
+					if err != nil {
+						metrics.RecordTelethonSidecarFailed()
+					}
+					return err
 				},
 			},
 			bgworker.Job{
@@ -142,6 +179,31 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 			SkipIfRunning: true,
 			Run: func(ctx context.Context) error {
 				return RunSourceDisableGovernor(ctx, cfg, stats)
+			},
+		})
+	}
+
+	if cfg.ParserDiscoverFeedback && deps != nil && deps.sourceStats != nil && cfg.BGDiscoverFeedbackInterval > 0 {
+		feedDeps := deps
+		jobs = append(jobs, bgworker.Job{
+			Name:          "discover_feedback",
+			Interval:      cfg.BGDiscoverFeedbackInterval,
+			SkipIfRunning: true,
+			Run: func(ctx context.Context) error {
+				result, err := RunDiscoverFeedback(ctx, cfg, feedDeps.mongoClient, feedDeps.sourceStats, feedDeps.keywordStats, feedDeps.registry)
+				if err != nil {
+					return err
+				}
+				if result.PrunedDorks > 0 || result.OutcomeReportPath != "" {
+					slog.Info("discover feedback finished",
+						"outcome_report", result.OutcomeReportPath,
+						"keyword_tune", result.KeywordTunePath,
+						"keyword_tune_applied", result.KeywordTuneApplied,
+						"sales_feedback_ru", result.SalesFeedbackPath,
+						"pruned_dorks", result.PrunedDorks,
+					)
+				}
+				return nil
 			},
 		})
 	}

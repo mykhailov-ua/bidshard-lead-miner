@@ -114,6 +114,68 @@ func TestProcessorSeenCacheSkipsMongoExists(t *testing.T) {
 	}
 }
 
+func TestProcessorAcceptsForumRegistryKeywordPain(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	store := sink.NewStubStore()
+	proc := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    store,
+		MX:       validate.StubMX{OK: true},
+	}
+
+	// Phrase matches keywords.json; legacy forum HasPainSignal did not include it.
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "forum:affiliatefix.com/redtrack-switch",
+			Raw:     "Need redtrack alternative before renewal. ops@igaming-team.com",
+			Contact: "ops@igaming-team.com",
+		},
+	})
+	if !out.Accepted {
+		t.Fatalf("expected accept via keyword prescan, outcome=%+v", out)
+	}
+}
+
+func TestProcessorRejectsMissingMX(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	store := sink.NewStubStore()
+	proc := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    store,
+		MX:       validate.StubMX{OK: false},
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "forum:affiliatefix.com/redtrack-switch",
+			Raw:     "Need redtrack alternative before renewal. ops@igaming-team.com",
+			Contact: "ops@igaming-team.com",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected mx reject")
+	}
+	if !out.DroppedMX {
+		t.Fatal("expected DroppedMX")
+	}
+}
+
 func TestProcessorRejectsGeoBeforeScoring(t *testing.T) {
 	t.Parallel()
 
@@ -607,6 +669,12 @@ func TestProcessorStoresEngagementOnAccept(t *testing.T) {
 	}
 	if out.Lead.OutreachDraft == "" {
 		t.Fatal("expected outreach draft")
+	}
+	if out.Lead.ContactChannel != scoring.ContactChannelEmail {
+		t.Fatalf("contact_channel=%q", out.Lead.ContactChannel)
+	}
+	if out.Lead.NextAction != scoring.NextActionColdEmail {
+		t.Fatalf("next_action=%q", out.Lead.NextAction)
 	}
 }
 

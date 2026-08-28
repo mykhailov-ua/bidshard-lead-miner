@@ -25,6 +25,16 @@ func TestListFilterMatchQueryInboxDefault(t *testing.T) {
 	}
 }
 
+func TestListFilterMatchQueryContactChannel(t *testing.T) {
+	q := ListFilter{ContactChannel: "email", NextAction: "cold_email"}.matchQuery()
+	if q["contact_channel"] != "email" {
+		t.Fatalf("contact_channel=%v", q["contact_channel"])
+	}
+	if q["next_action"] != "cold_email" {
+		t.Fatalf("next_action=%v", q["next_action"])
+	}
+}
+
 func TestListFilterMatchQueryWithoutInbox(t *testing.T) {
 	q := ListFilter{Status: "new"}.matchQuery()
 	if q["status"] != "new" {

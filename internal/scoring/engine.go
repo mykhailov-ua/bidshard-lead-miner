@@ -23,10 +23,11 @@ func MeetsMinPriority(p, min Priority) bool {
 }
 
 type LeadText struct {
-	Title   string
-	Context string
-	Score   int
-	Matched []string
+	Title            string
+	Context          string
+	Score            int
+	Matched          []string
+	DisplacementTier DisplacementTier
 }
 
 func ScoreWithBoosts(reg *Registry, text *LeadText, source string, stack []string, rep *SourceReputation, opts ScoreOpts) Priority {
@@ -35,6 +36,12 @@ func ScoreWithBoosts(reg *Registry, text *LeadText, source string, stack []strin
 	_, _, _, highMin, mediumMin := reg.Snapshot()
 	score := ApplySpendGate(result.Score, combined, mediumMin)
 	score = CompetitorPainBoost(score, combined, stack)
+	if opts.StructuredStack && len(stack) > 0 && result.Score == 0 {
+		score += stackStructuredBoost
+	}
+	tier, dispBoost := DetectDisplacementTier(combined, stack)
+	text.DisplacementTier = tier
+	score += dispBoost
 	if rep != nil {
 		score += rep.Boost(source)
 	}

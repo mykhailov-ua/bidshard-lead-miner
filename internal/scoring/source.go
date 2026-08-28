@@ -82,18 +82,24 @@ func (r *SourceReputation) Boost(source string) int {
 func StaticSourceBoost(source string) int {
 	lower := strings.ToLower(strings.TrimSpace(source))
 	switch {
+	case strings.HasPrefix(lower, "telegram:invite"):
+		return -8
+	case strings.HasPrefix(lower, "lander:"):
+		return -6
+	case strings.HasPrefix(lower, "github:"):
+		return -4
+	case strings.Contains(lower, "_news") || strings.Contains(lower, "textlab") || strings.Contains(lower, "seo_for"):
+		return -5
 	case strings.HasPrefix(lower, "telegram:") && strings.Contains(lower, "igaming"):
-		return 5
+		return 2
 	case strings.HasPrefix(lower, "forum:") && strings.Contains(lower, "stm"):
 		return 10
 	case strings.HasPrefix(lower, "ads_txt:"):
 		return 8
 	case strings.HasPrefix(lower, "reddit:"):
-		return 3
+		return 5
 	case strings.HasPrefix(lower, "discord:"):
 		return 6
-	case strings.HasPrefix(lower, "lander:"):
-		return 0
 	default:
 		return 0
 	}
@@ -119,6 +125,9 @@ func dynamicBoost(c sourceCounts, max int) int {
 
 func normalizeSourceKey(source string) string {
 	lower := strings.ToLower(strings.TrimSpace(source))
+	if strings.HasPrefix(lower, "telegram:invite:") {
+		return "telegram:invite"
+	}
 	if idx := strings.Index(lower, "/"); idx > 0 {
 		return lower[:idx]
 	}

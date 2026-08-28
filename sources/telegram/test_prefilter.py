@@ -26,6 +26,17 @@ class PrefilterTest(unittest.TestCase):
             channel_icp_relevant(["VIP signal course mentorship paid tips only"])
         )
 
+    def test_job_tutorial_noise_rejected(self) -> None:
+        self.assertFalse(
+            should_emit_message("we are hiring a media buyer apply now")
+        )
+        self.assertTrue(
+            should_emit_message("hiring post but voluum postback keeps failing")
+        )
+        self.assertFalse(
+            should_emit_message("step by step tutorial how to build funnels")
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

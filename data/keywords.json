@@ -155,12 +155,6 @@
       "tag": "high-roller"
     },
     {
-      "id": "kw-custom-openrtb-endpoint",
-      "phrase": "custom openrtb endpoint",
-      "weight": 20,
-      "tag": "high-roller"
-    },
-    {
       "id": "kw-per-event-pricing",
       "phrase": "per-event pricing",
       "weight": 25,
@@ -653,42 +647,6 @@
       "tag": "competitor"
     },
     {
-      "id": "kw-openrtb-26",
-      "phrase": "openrtb 2.6",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-openrtb",
-      "phrase": "openrtb",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-real-time-bidding",
-      "phrase": "real-time bidding",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-rtb-exchange",
-      "phrase": "rtb exchange",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-bid-request",
-      "phrase": "bid request",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-bid-response",
-      "phrase": "bid response",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
       "id": "kw-sub-100ms",
       "phrase": "sub-100ms",
       "weight": 10,
@@ -787,30 +745,6 @@
     {
       "id": "kw-high-volume-ingestion",
       "phrase": "high-volume ingestion",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-supply-path-optimization",
-      "phrase": "supply path optimization",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-prebid-server",
-      "phrase": "prebid server",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-header-bidding",
-      "phrase": "header bidding",
-      "weight": 8,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-server-side-bidding",
-      "phrase": "server-side bidding",
       "weight": 10,
       "tag": "tech"
     },
@@ -935,48 +869,6 @@
       "tag": "tech"
     },
     {
-      "id": "kw-private-marketplace",
-      "phrase": "private marketplace",
-      "weight": 8,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-programmatic-guaranteed",
-      "phrase": "programmatic guaranteed",
-      "weight": 8,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-win-rate",
-      "phrase": "win rate",
-      "weight": 8,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-fill-rate",
-      "phrase": "fill rate",
-      "weight": 8,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-bid-timeout",
-      "phrase": "bid timeout",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-auction-timeout",
-      "phrase": "auction timeout",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
-      "id": "kw-latency-budget",
-      "phrase": "latency budget",
-      "weight": 10,
-      "tag": "tech"
-    },
-    {
       "id": "kw-gclid-passthrough",
       "phrase": "gclid passthrough",
       "weight": 10,
@@ -1093,12 +985,6 @@
     {
       "id": "kw-bid-engine",
       "phrase": "bid engine",
-      "weight": 8,
-      "tag": "infra"
-    },
-    {
-      "id": "kw-dsp-bidder",
-      "phrase": "dsp bidder",
       "weight": 8,
       "tag": "infra"
     },
@@ -1463,12 +1349,6 @@
       "tag": "pain"
     },
     {
-      "id": "kw-programmatic",
-      "phrase": "programmatic",
-      "weight": 4,
-      "tag": "tech"
-    },
-    {
       "id": "kw-adtech",
       "phrase": "adtech",
       "weight": 4,
@@ -1654,140 +1534,690 @@
       "weight": 4,
       "tag": "pain"
     },
-
-    {"id": "kw-margin-guard", "phrase": "margin guard", "weight": 14, "tag": "bidshard"},
-    {"id": "kw-margin-breach", "phrase": "margin breach", "weight": 16, "tag": "bidshard"},
-    {"id": "kw-cost-sync", "phrase": "cost sync", "weight": 14, "tag": "bidshard"},
-    {"id": "kw-true-roi", "phrase": "true roi", "weight": 12, "tag": "bidshard"},
-    {"id": "kw-safe-page-url", "phrase": "safe page url", "weight": 14, "tag": "bidshard"},
-    {"id": "kw-money-page-url", "phrase": "money page url", "weight": 12, "tag": "bidshard"},
-    {"id": "kw-get-click-endpoint", "phrase": "get /click", "weight": 12, "tag": "bidshard"},
-    {"id": "kw-click-endpoint", "phrase": "click endpoint", "weight": 10, "tag": "bidshard"},
-    {"id": "kw-meta-capi", "phrase": "meta capi", "weight": 12, "tag": "bidshard"},
-    {"id": "kw-facebook-conversions-api", "phrase": "facebook conversions api", "weight": 12, "tag": "bidshard"},
-    {"id": "kw-tiktok-events-api", "phrase": "tiktok events api", "weight": 12, "tag": "bidshard"},
-    {"id": "kw-gclid-pass-through", "phrase": "gclid pass through", "weight": 12, "tag": "bidshard"},
-    {"id": "kw-ttclid-macro", "phrase": "ttclid macro", "weight": 10, "tag": "bidshard"},
-    {"id": "kw-zero-afterburn", "phrase": "zero afterburn", "weight": 16, "tag": "bidshard"},
-    {"id": "kw-budget-stop", "phrase": "budget stop", "weight": 14, "tag": "bidshard"},
-    {"id": "kw-postback-dlq", "phrase": "postback dlq", "weight": 12, "tag": "bidshard"},
-    {"id": "kw-landing-url-rotation", "phrase": "landing url rotation", "weight": 10, "tag": "bidshard"},
-    {"id": "kw-ivt-filter", "phrase": "ivt filter", "weight": 10, "tag": "bidshard"},
-    {"id": "kw-bot-traffic-filter", "phrase": "bot traffic filter", "weight": 10, "tag": "bidshard"},
-
-    {"id": "kw-clickflare", "phrase": "clickflare", "weight": 12, "tag": "competitor"},
-    {"id": "kw-clickflare-alternative", "phrase": "clickflare alternative", "weight": 25, "tag": "intent"},
-    {"id": "kw-wroba", "phrase": "wroba", "weight": 10, "tag": "competitor"},
-    {"id": "kw-cpvlab", "phrase": "cpvlab", "weight": 10, "tag": "competitor"},
-    {"id": "kw-cpv-lab", "phrase": "cpv lab", "weight": 10, "tag": "competitor"},
-    {"id": "kw-octotracker", "phrase": "octotracker", "weight": 10, "tag": "competitor"},
-    {"id": "kw-linktracker", "phrase": "linktracker", "weight": 10, "tag": "competitor"},
-    {"id": "kw-hasoffers", "phrase": "hasoffers", "weight": 10, "tag": "competitor"},
-    {"id": "kw-tune-hasoffers", "phrase": "tune hasoffers", "weight": 10, "tag": "competitor"},
-    {"id": "kw-cake-marketing", "phrase": "cake marketing", "weight": 10, "tag": "competitor"},
-    {"id": "kw-hyros", "phrase": "hyros", "weight": 8, "tag": "competitor"},
-    {"id": "kw-triple-whale", "phrase": "triple whale", "weight": 8, "tag": "competitor"},
-
-    {"id": "kw-postback-not-firing", "phrase": "postback not firing", "weight": 22, "tag": "pain"},
-    {"id": "kw-postback-delay", "phrase": "postback delay", "weight": 20, "tag": "pain"},
-    {"id": "kw-postback-timeout", "phrase": "postback timeout", "weight": 18, "tag": "pain"},
-    {"id": "kw-s2s-failed", "phrase": "s2s failed", "weight": 20, "tag": "pain"},
-    {"id": "kw-conversion-not-attributed", "phrase": "conversion not attributed", "weight": 22, "tag": "pain"},
-    {"id": "kw-double-counting-conversions", "phrase": "double counting conversions", "weight": 18, "tag": "pain"},
-    {"id": "kw-click-id-mismatch", "phrase": "click id mismatch", "weight": 18, "tag": "pain"},
-    {"id": "kw-subid-not-passing", "phrase": "subid not passing", "weight": 18, "tag": "pain"},
-    {"id": "kw-tracker-downtime", "phrase": "tracker downtime", "weight": 22, "tag": "pain"},
-    {"id": "kw-lost-clicks", "phrase": "lost clicks", "weight": 20, "tag": "pain"},
-    {"id": "kw-stats-dont-match", "phrase": "stats don't match", "weight": 18, "tag": "pain"},
-    {"id": "kw-voluum-bill", "phrase": "voluum bill", "weight": 22, "tag": "pain"},
-    {"id": "kw-voluum-invoice", "phrase": "voluum invoice", "weight": 20, "tag": "pain"},
-    {"id": "kw-keitaro-crash", "phrase": "keitaro crash", "weight": 20, "tag": "pain"},
-    {"id": "kw-keitaro-slow", "phrase": "keitaro slow", "weight": 18, "tag": "pain"},
-    {"id": "kw-tracker-crash-under-load", "phrase": "tracker crash under load", "weight": 22, "tag": "pain"},
-
-    {"id": "kw-cloaker", "phrase": "cloaker", "weight": 12, "tag": "gray"},
-    {"id": "kw-cloaking", "phrase": "cloaking", "weight": 12, "tag": "gray"},
-    {"id": "kw-prelander", "phrase": "prelander", "weight": 10, "tag": "gray"},
-    {"id": "kw-pop-cash", "phrase": "pop cash", "weight": 8, "tag": "vertical"},
-    {"id": "kw-push-cpa", "phrase": "push cpa", "weight": 10, "tag": "vertical"},
-    {"id": "kw-sweep-cpa", "phrase": "sweep cpa", "weight": 10, "tag": "vertical"},
-    {"id": "kw-gambling-affiliate", "phrase": "gambling affiliate", "weight": 10, "tag": "vertical"},
-    {"id": "kw-betting-affiliate", "phrase": "betting affiliate", "weight": 10, "tag": "vertical"},
-    {"id": "kw-crypto-cpa", "phrase": "crypto cpa", "weight": 10, "tag": "vertical"},
-    {"id": "kw-dating-cpa", "phrase": "dating cpa", "weight": 10, "tag": "vertical"},
-    {"id": "kw-ad-account-ban", "phrase": "ad account ban", "weight": 14, "tag": "pain"},
-    {"id": "kw-campaign-disapproved", "phrase": "campaign disapproved", "weight": 12, "tag": "pain"},
-
-    {"id": "kw-openrtb-bidder", "phrase": "openrtb bidder", "weight": 14, "tag": "tech"},
-    {"id": "kw-dsp-bidder", "phrase": "dsp bidder", "weight": 12, "tag": "tech"},
-    {"id": "kw-ssp-integration", "phrase": "ssp integration", "weight": 10, "tag": "tech"},
-    {"id": "kw-programmatic-stack", "phrase": "programmatic stack", "weight": 10, "tag": "tech"},
-    {"id": "kw-shadow-bidder", "phrase": "shadow bidder", "weight": 12, "tag": "tech"},
-    {"id": "kw-live-rtb", "phrase": "live rtb", "weight": 12, "tag": "tech"},
-    {"id": "kw-bidder-latency", "phrase": "bidder latency", "weight": 14, "tag": "pain"},
-    {"id": "kw-ingress-cost", "phrase": "ingress cost", "weight": 12, "tag": "pain"},
-
-    {"id": "kw-voluum-enterprise", "phrase": "voluum enterprise", "weight": 22, "tag": "pain"},
-    {"id": "kw-voluum-enterprise-plan", "phrase": "voluum enterprise plan", "weight": 25, "tag": "pain"},
-    {"id": "kw-capi-enterprise-only", "phrase": "capi enterprise only", "weight": 28, "tag": "pain"},
-    {"id": "kw-conversions-api-locked", "phrase": "conversions api locked", "weight": 28, "tag": "pain"},
-    {"id": "kw-meta-capi-enterprise", "phrase": "meta capi enterprise", "weight": 26, "tag": "pain"},
-    {"id": "kw-voluum-event-cap", "phrase": "voluum event cap", "weight": 24, "tag": "pain"},
-    {"id": "kw-event-overage-fee", "phrase": "event overage fee", "weight": 24, "tag": "pain"},
-    {"id": "kw-events-over-limit", "phrase": "events over limit", "weight": 22, "tag": "pain"},
-    {"id": "kw-unlimited-events-tracker", "phrase": "unlimited events tracker", "weight": 22, "tag": "intent"},
-    {"id": "kw-flat-fee-unlimited-events", "phrase": "flat fee unlimited events", "weight": 25, "tag": "intent"},
-
-    {"id": "kw-stape-alternative", "phrase": "stape alternative", "weight": 22, "tag": "intent"},
-    {"id": "kw-stape-io-pricing", "phrase": "stape.io pricing", "weight": 18, "tag": "pain"},
-    {"id": "kw-server-side-gtm-cost", "phrase": "server-side gtm cost", "weight": 18, "tag": "pain"},
-    {"id": "kw-server-side-tagging-alternative", "phrase": "server-side tagging alternative", "weight": 20, "tag": "intent"},
-
-    {"id": "kw-click-id-not-found", "phrase": "click id not found", "weight": 26, "tag": "pain"},
-    {"id": "kw-click-id-truncated", "phrase": "click id truncated", "weight": 24, "tag": "pain"},
-    {"id": "kw-clickid-macro-not-replaced", "phrase": "clickid macro not replaced", "weight": 24, "tag": "pain"},
-    {"id": "kw-literal-clickid-postback", "phrase": "literal clickid in postback", "weight": 26, "tag": "pain"},
-    {"id": "kw-postback-idempotent", "phrase": "postback idempotent", "weight": 20, "tag": "bidshard"},
-    {"id": "kw-event-id-deduplication", "phrase": "event_id deduplication", "weight": 22, "tag": "bidshard"},
-    {"id": "kw-capi-deduplication", "phrase": "capi deduplication", "weight": 22, "tag": "bidshard"},
-    {"id": "kw-duplicate-event-id", "phrase": "duplicate event_id", "weight": 20, "tag": "pain"},
-    {"id": "kw-attribution-window-mismatch", "phrase": "attribution window mismatch", "weight": 20, "tag": "pain"},
-    {"id": "kw-ftd-discrepancy", "phrase": "ftd discrepancy", "weight": 26, "tag": "pain"},
-    {"id": "kw-ngr-reconciliation", "phrase": "ngr reconciliation", "weight": 22, "tag": "pain"},
-    {"id": "kw-network-vs-tracker-stats", "phrase": "network stats vs tracker", "weight": 22, "tag": "pain"},
-    {"id": "kw-tracker-numbers-dont-match", "phrase": "tracker numbers don't match", "weight": 24, "tag": "pain"},
-    {"id": "kw-postback-retry-queue", "phrase": "postback retry queue", "weight": 18, "tag": "bidshard"},
-    {"id": "kw-s2s-500-error", "phrase": "s2s 500 error", "weight": 20, "tag": "pain"},
-    {"id": "kw-postback-502", "phrase": "postback 502", "weight": 18, "tag": "pain"},
-    {"id": "kw-subid-not-found", "phrase": "subid not found", "weight": 22, "tag": "pain"},
-
-    {"id": "kw-bemob-alternative", "phrase": "bemob alternative", "weight": 25, "tag": "intent"},
-    {"id": "kw-scaleo-alternative", "phrase": "scaleo alternative", "weight": 25, "tag": "intent"},
-    {"id": "kw-prosper202-alternative", "phrase": "prosper202 alternative", "weight": 22, "tag": "intent"},
-    {"id": "kw-trackbox-alternative", "phrase": "trackbox alternative", "weight": 22, "tag": "intent"},
-    {"id": "kw-peerclick-alternative", "phrase": "peerclick alternative", "weight": 22, "tag": "intent"},
-    {"id": "kw-thrivetracker-alternative", "phrase": "thrivetracker alternative", "weight": 22, "tag": "intent"},
-    {"id": "kw-redtrack-event-limit", "phrase": "redtrack event limit", "weight": 20, "tag": "pain"},
-    {"id": "kw-keitaro-mysql-slow", "phrase": "keitaro mysql slow", "weight": 20, "tag": "pain"},
-    {"id": "kw-binom-license-cost", "phrase": "binom license cost", "weight": 18, "tag": "pain"},
-
-    {"id": "kw-openrtb-26-discount", "phrase": "openrtb 2.6 discount", "weight": 14, "tag": "tech"},
-    {"id": "kw-auction-discount-macro", "phrase": "auction discount macro", "weight": 14, "tag": "tech"},
-    {"id": "kw-adm-price-macro", "phrase": "adm price macro", "weight": 12, "tag": "tech"},
-    {"id": "kw-loss-notification-url", "phrase": "loss notification url", "weight": 12, "tag": "tech"},
-    {"id": "kw-supply-chain-object", "phrase": "supply chain object", "weight": 12, "tag": "tech"},
-    {"id": "kw-net-price-macro", "phrase": "net price macro", "weight": 14, "tag": "tech"},
-    {"id": "kw-bidder-under-load", "phrase": "bidder under load", "weight": 16, "tag": "pain"},
-
-    {"id": "kw-snapchat-capi", "phrase": "snapchat capi", "weight": 14, "tag": "bidshard"},
-    {"id": "kw-pinterest-conversions-api", "phrase": "pinterest conversions api", "weight": 14, "tag": "bidshard"},
-    {"id": "kw-google-ads-offline-conversion-delay", "phrase": "google ads offline conversion delay", "weight": 18, "tag": "pain"},
-    {"id": "kw-offline-conversion-import", "phrase": "offline conversion import", "weight": 14, "tag": "tech"},
-
-    {"id": "kw-100m-events-month", "phrase": "100m events per month", "weight": 22, "tag": "high-roller"},
-    {"id": "kw-1m-clicks-day", "phrase": "1m clicks per day", "weight": 20, "tag": "high-roller"},
-    {"id": "kw-tracker-at-scale", "phrase": "tracker at scale", "weight": 18, "tag": "high-roller"},
-    {"id": "kw-migrate-from-mysql", "phrase": "migrate tracker from mysql", "weight": 18, "tag": "intent"}
+    {
+      "id": "kw-margin-guard",
+      "phrase": "margin guard",
+      "weight": 14,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-margin-breach",
+      "phrase": "margin breach",
+      "weight": 16,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-cost-sync",
+      "phrase": "cost sync",
+      "weight": 14,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-true-roi",
+      "phrase": "true roi",
+      "weight": 12,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-safe-page-url",
+      "phrase": "safe page url",
+      "weight": 14,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-money-page-url",
+      "phrase": "money page url",
+      "weight": 12,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-get-click-endpoint",
+      "phrase": "get /click",
+      "weight": 12,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-click-endpoint",
+      "phrase": "click endpoint",
+      "weight": 10,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-meta-capi",
+      "phrase": "meta capi",
+      "weight": 12,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-facebook-conversions-api",
+      "phrase": "facebook conversions api",
+      "weight": 12,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-tiktok-events-api",
+      "phrase": "tiktok events api",
+      "weight": 12,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-gclid-pass-through",
+      "phrase": "gclid pass through",
+      "weight": 12,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-ttclid-macro",
+      "phrase": "ttclid macro",
+      "weight": 10,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-zero-afterburn",
+      "phrase": "zero afterburn",
+      "weight": 16,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-budget-stop",
+      "phrase": "budget stop",
+      "weight": 14,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-postback-dlq",
+      "phrase": "postback dlq",
+      "weight": 12,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-landing-url-rotation",
+      "phrase": "landing url rotation",
+      "weight": 10,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-ivt-filter",
+      "phrase": "ivt filter",
+      "weight": 10,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-bot-traffic-filter",
+      "phrase": "bot traffic filter",
+      "weight": 10,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-clickflare",
+      "phrase": "clickflare",
+      "weight": 12,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-clickflare-alternative",
+      "phrase": "clickflare alternative",
+      "weight": 25,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-wroba",
+      "phrase": "wroba",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-cpvlab",
+      "phrase": "cpvlab",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-cpv-lab",
+      "phrase": "cpv lab",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-octotracker",
+      "phrase": "octotracker",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-linktracker",
+      "phrase": "linktracker",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-hasoffers",
+      "phrase": "hasoffers",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-tune-hasoffers",
+      "phrase": "tune hasoffers",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-cake-marketing",
+      "phrase": "cake marketing",
+      "weight": 10,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-hyros",
+      "phrase": "hyros",
+      "weight": 8,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-triple-whale",
+      "phrase": "triple whale",
+      "weight": 8,
+      "tag": "competitor"
+    },
+    {
+      "id": "kw-postback-not-firing",
+      "phrase": "postback not firing",
+      "weight": 22,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-postback-delay",
+      "phrase": "postback delay",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-postback-timeout",
+      "phrase": "postback timeout",
+      "weight": 18,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-s2s-failed",
+      "phrase": "s2s failed",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-conversion-not-attributed",
+      "phrase": "conversion not attributed",
+      "weight": 22,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-double-counting-conversions",
+      "phrase": "double counting conversions",
+      "weight": 18,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-click-id-mismatch",
+      "phrase": "click id mismatch",
+      "weight": 18,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-subid-not-passing",
+      "phrase": "subid not passing",
+      "weight": 18,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-tracker-downtime",
+      "phrase": "tracker downtime",
+      "weight": 22,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-lost-clicks",
+      "phrase": "lost clicks",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-stats-dont-match",
+      "phrase": "stats don't match",
+      "weight": 18,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-voluum-bill",
+      "phrase": "voluum bill",
+      "weight": 22,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-voluum-invoice",
+      "phrase": "voluum invoice",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-keitaro-crash",
+      "phrase": "keitaro crash",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-keitaro-slow",
+      "phrase": "keitaro slow",
+      "weight": 18,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-tracker-crash-under-load",
+      "phrase": "tracker crash under load",
+      "weight": 22,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-cloaker",
+      "phrase": "cloaker",
+      "weight": 12,
+      "tag": "gray"
+    },
+    {
+      "id": "kw-cloaking",
+      "phrase": "cloaking",
+      "weight": 12,
+      "tag": "gray"
+    },
+    {
+      "id": "kw-prelander",
+      "phrase": "prelander",
+      "weight": 10,
+      "tag": "gray"
+    },
+    {
+      "id": "kw-pop-cash",
+      "phrase": "pop cash",
+      "weight": 8,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-push-cpa",
+      "phrase": "push cpa",
+      "weight": 10,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-sweep-cpa",
+      "phrase": "sweep cpa",
+      "weight": 10,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-gambling-affiliate",
+      "phrase": "gambling affiliate",
+      "weight": 10,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-betting-affiliate",
+      "phrase": "betting affiliate",
+      "weight": 10,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-crypto-cpa",
+      "phrase": "crypto cpa",
+      "weight": 10,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-dating-cpa",
+      "phrase": "dating cpa",
+      "weight": 10,
+      "tag": "vertical"
+    },
+    {
+      "id": "kw-ad-account-ban",
+      "phrase": "ad account ban",
+      "weight": 14,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-campaign-disapproved",
+      "phrase": "campaign disapproved",
+      "weight": 12,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-ingress-cost",
+      "phrase": "ingress cost",
+      "weight": 12,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-voluum-enterprise",
+      "phrase": "voluum enterprise",
+      "weight": 22,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-voluum-enterprise-plan",
+      "phrase": "voluum enterprise plan",
+      "weight": 25,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-capi-enterprise-only",
+      "phrase": "capi enterprise only",
+      "weight": 28,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-conversions-api-locked",
+      "phrase": "conversions api locked",
+      "weight": 28,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-meta-capi-enterprise",
+      "phrase": "meta capi enterprise",
+      "weight": 26,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-voluum-event-cap",
+      "phrase": "voluum event cap",
+      "weight": 24,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-event-overage-fee",
+      "phrase": "event overage fee",
+      "weight": 24,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-events-over-limit",
+      "phrase": "events over limit",
+      "weight": 22,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-unlimited-events-tracker",
+      "phrase": "unlimited events tracker",
+      "weight": 22,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-flat-fee-unlimited-events",
+      "phrase": "flat fee unlimited events",
+      "weight": 25,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-stape-alternative",
+      "phrase": "stape alternative",
+      "weight": 22,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-stape-io-pricing",
+      "phrase": "stape.io pricing",
+      "weight": 18,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-server-side-gtm-cost",
+      "phrase": "server-side gtm cost",
+      "weight": 18,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-server-side-tagging-alternative",
+      "phrase": "server-side tagging alternative",
+      "weight": 20,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-click-id-not-found",
+      "phrase": "click id not found",
+      "weight": 26,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-click-id-truncated",
+      "phrase": "click id truncated",
+      "weight": 24,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-clickid-macro-not-replaced",
+      "phrase": "clickid macro not replaced",
+      "weight": 24,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-literal-clickid-postback",
+      "phrase": "literal clickid in postback",
+      "weight": 26,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-postback-idempotent",
+      "phrase": "postback idempotent",
+      "weight": 20,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-event-id-deduplication",
+      "phrase": "event_id deduplication",
+      "weight": 22,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-capi-deduplication",
+      "phrase": "capi deduplication",
+      "weight": 22,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-duplicate-event-id",
+      "phrase": "duplicate event_id",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-attribution-window-mismatch",
+      "phrase": "attribution window mismatch",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-ftd-discrepancy",
+      "phrase": "ftd discrepancy",
+      "weight": 26,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-ngr-reconciliation",
+      "phrase": "ngr reconciliation",
+      "weight": 22,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-network-vs-tracker-stats",
+      "phrase": "network stats vs tracker",
+      "weight": 22,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-tracker-numbers-dont-match",
+      "phrase": "tracker numbers don't match",
+      "weight": 24,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-postback-retry-queue",
+      "phrase": "postback retry queue",
+      "weight": 18,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-s2s-500-error",
+      "phrase": "s2s 500 error",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-postback-502",
+      "phrase": "postback 502",
+      "weight": 18,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-subid-not-found",
+      "phrase": "subid not found",
+      "weight": 22,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-bemob-alternative",
+      "phrase": "bemob alternative",
+      "weight": 25,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-scaleo-alternative",
+      "phrase": "scaleo alternative",
+      "weight": 25,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-prosper202-alternative",
+      "phrase": "prosper202 alternative",
+      "weight": 22,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-trackbox-alternative",
+      "phrase": "trackbox alternative",
+      "weight": 22,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-peerclick-alternative",
+      "phrase": "peerclick alternative",
+      "weight": 22,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-thrivetracker-alternative",
+      "phrase": "thrivetracker alternative",
+      "weight": 22,
+      "tag": "intent"
+    },
+    {
+      "id": "kw-redtrack-event-limit",
+      "phrase": "redtrack event limit",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-keitaro-mysql-slow",
+      "phrase": "keitaro mysql slow",
+      "weight": 20,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-binom-license-cost",
+      "phrase": "binom license cost",
+      "weight": 18,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-auction-discount-macro",
+      "phrase": "auction discount macro",
+      "weight": 14,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-adm-price-macro",
+      "phrase": "adm price macro",
+      "weight": 12,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-loss-notification-url",
+      "phrase": "loss notification url",
+      "weight": 12,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-supply-chain-object",
+      "phrase": "supply chain object",
+      "weight": 12,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-net-price-macro",
+      "phrase": "net price macro",
+      "weight": 14,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-bidder-under-load",
+      "phrase": "bidder under load",
+      "weight": 16,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-snapchat-capi",
+      "phrase": "snapchat capi",
+      "weight": 14,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-pinterest-conversions-api",
+      "phrase": "pinterest conversions api",
+      "weight": 14,
+      "tag": "bidshard"
+    },
+    {
+      "id": "kw-google-ads-offline-conversion-delay",
+      "phrase": "google ads offline conversion delay",
+      "weight": 18,
+      "tag": "pain"
+    },
+    {
+      "id": "kw-offline-conversion-import",
+      "phrase": "offline conversion import",
+      "weight": 14,
+      "tag": "tech"
+    },
+    {
+      "id": "kw-100m-events-month",
+      "phrase": "100m events per month",
+      "weight": 22,
+      "tag": "high-roller"
+    },
+    {
+      "id": "kw-1m-clicks-day",
+      "phrase": "1m clicks per day",
+      "weight": 20,
+      "tag": "high-roller"
+    },
+    {
+      "id": "kw-tracker-at-scale",
+      "phrase": "tracker at scale",
+      "weight": 18,
+      "tag": "high-roller"
+    },
+    {
+      "id": "kw-migrate-from-mysql",
+      "phrase": "migrate tracker from mysql",
+      "weight": 18,
+      "tag": "intent"
+    }
   ],
   "titles": [
     {
@@ -2127,36 +2557,360 @@
       "phrase": "cpa exam",
       "weight": -12,
       "tag": "negative"
+    },
+    {
+      "id": "neg-custom-openrtb-endpoint",
+      "phrase": "custom openrtb endpoint",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-openrtb-26",
+      "phrase": "openrtb 2.6",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-openrtb",
+      "phrase": "openrtb",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-real-time-bidding",
+      "phrase": "real-time bidding",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-rtb-exchange",
+      "phrase": "rtb exchange",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-bid-request",
+      "phrase": "bid request",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-bid-response",
+      "phrase": "bid response",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-supply-path-optimization",
+      "phrase": "supply path optimization",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-prebid-server",
+      "phrase": "prebid server",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-header-bidding",
+      "phrase": "header bidding",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-server-side-bidding",
+      "phrase": "server-side bidding",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-private-marketplace",
+      "phrase": "private marketplace",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-programmatic-guaranteed",
+      "phrase": "programmatic guaranteed",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-win-rate",
+      "phrase": "win rate",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-fill-rate",
+      "phrase": "fill rate",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-bid-timeout",
+      "phrase": "bid timeout",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-auction-timeout",
+      "phrase": "auction timeout",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-latency-budget",
+      "phrase": "latency budget",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-dsp-bidder",
+      "phrase": "dsp bidder",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-programmatic",
+      "phrase": "programmatic",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-openrtb-bidder",
+      "phrase": "openrtb bidder",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-ssp-integration",
+      "phrase": "ssp integration",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-programmatic-stack",
+      "phrase": "programmatic stack",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-shadow-bidder",
+      "phrase": "shadow bidder",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-live-rtb",
+      "phrase": "live rtb",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-bidder-latency",
+      "phrase": "bidder latency",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "neg-openrtb-26-discount",
+      "phrase": "openrtb 2.6 discount",
+      "weight": -14,
+      "tag": "anti-icp-programmatic"
     }
   ],
   "hard_reject": [
-    {"id": "hr-how-to-start-affiliate", "phrase": "how to start affiliate", "tag": "anti-icp"},
-    {"id": "hr-how-to-start", "phrase": "how to start", "tag": "anti-icp"},
-    {"id": "hr-best-tracker-for-beginner", "phrase": "best tracker for beginner", "tag": "anti-icp"},
-    {"id": "hr-best-tracker-for-beginners", "phrase": "best tracker for beginners", "tag": "anti-icp"},
-    {"id": "hr-cheapest-tracker", "phrase": "cheapest tracker", "tag": "anti-icp"},
-    {"id": "hr-free-alternative", "phrase": "free alternative", "tag": "anti-icp"},
-    {"id": "hr-free-tracker-alternative", "phrase": "free tracker alternative", "tag": "anti-icp"},
-    {"id": "hr-looking-for-a-job", "phrase": "looking for a job", "tag": "anti-icp"},
-    {"id": "hr-we-are-hiring", "phrase": "we are hiring", "tag": "anti-icp"},
-    {"id": "hr-hiring-media-buyer", "phrase": "hiring media buyer", "tag": "anti-icp"},
-    {"id": "hr-job-posting", "phrase": "job posting", "tag": "anti-icp"},
-    {"id": "hr-open-position", "phrase": "open position", "tag": "anti-icp"},
-    {"id": "hr-affiliate-course", "phrase": "affiliate course", "tag": "anti-icp"},
-    {"id": "hr-online-course", "phrase": "online course", "tag": "anti-icp"},
-    {"id": "hr-dm-me-for-course", "phrase": "dm me for course", "tag": "anti-icp"},
-    {"id": "hr-mentorship-program", "phrase": "mentorship program", "tag": "anti-icp"},
-    {"id": "hr-mentorship", "phrase": "mentorship", "tag": "anti-icp"},
-    {"id": "hr-beginner-guide", "phrase": "beginner guide", "tag": "anti-icp"},
-    {"id": "hr-for-beginners", "phrase": "for beginners", "tag": "anti-icp"},
-    {"id": "hr-job-seeker", "phrase": "job seeker", "tag": "anti-icp"},
-    {"id": "hr-join-our-channel", "phrase": "join our channel", "tag": "anti-icp"},
-    {"id": "hr-white-label-adtech", "phrase": "prebid publisher", "tag": "anti-icp"},
-    {"id": "hr-google-ad-manager", "phrase": "google ad manager", "tag": "anti-icp"},
-    {"id": "hr-keitaro-vs-binom-start", "phrase": "keitaro vs binom for start", "tag": "anti-icp"},
-    {"id": "hr-certified-public-accountant", "phrase": "certified public accountant", "tag": "anti-icp"},
-    {"id": "hr-tax-accountant", "phrase": "tax accountant", "tag": "anti-icp"},
-    {"id": "hr-accounting-firm", "phrase": "accounting firm", "tag": "anti-icp"},
-    {"id": "hr-cpa-exam", "phrase": "cpa exam", "tag": "anti-icp"}
+    {
+      "id": "hr-how-to-start-affiliate",
+      "phrase": "how to start affiliate",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-how-to-start",
+      "phrase": "how to start",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-best-tracker-for-beginner",
+      "phrase": "best tracker for beginner",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-best-tracker-for-beginners",
+      "phrase": "best tracker for beginners",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-cheapest-tracker",
+      "phrase": "cheapest tracker",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-free-alternative",
+      "phrase": "free alternative",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-free-tracker-alternative",
+      "phrase": "free tracker alternative",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-looking-for-a-job",
+      "phrase": "looking for a job",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-we-are-hiring",
+      "phrase": "we are hiring",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-hiring-media-buyer",
+      "phrase": "hiring media buyer",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-job-posting",
+      "phrase": "job posting",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-open-position",
+      "phrase": "open position",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-affiliate-course",
+      "phrase": "affiliate course",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-online-course",
+      "phrase": "online course",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-dm-me-for-course",
+      "phrase": "dm me for course",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-mentorship-program",
+      "phrase": "mentorship program",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-mentorship",
+      "phrase": "mentorship",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-beginner-guide",
+      "phrase": "beginner guide",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-for-beginners",
+      "phrase": "for beginners",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-job-seeker",
+      "phrase": "job seeker",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-join-our-channel",
+      "phrase": "join our channel",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-white-label-adtech",
+      "phrase": "prebid publisher",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-google-ad-manager",
+      "phrase": "google ad manager",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-keitaro-vs-binom-start",
+      "phrase": "keitaro vs binom for start",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-certified-public-accountant",
+      "phrase": "certified public accountant",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-tax-accountant",
+      "phrase": "tax accountant",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-accounting-firm",
+      "phrase": "accounting firm",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-cpa-exam",
+      "phrase": "cpa exam",
+      "tag": "anti-icp"
+    },
+    {
+      "id": "hr-programmatic-guaranteed",
+      "phrase": "programmatic guaranteed",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-programmatic-stack",
+      "phrase": "programmatic stack",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-head-of-programmatic",
+      "phrase": "head of programmatic",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-header-bidding",
+      "phrase": "header bidding",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-openrtb-bidder",
+      "phrase": "openrtb bidder",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-supply-path-optimization",
+      "phrase": "supply path optimization",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-white-label-ssp",
+      "phrase": "white-label ssp",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-programmatic-display",
+      "phrase": "programmatic display",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-brand-awareness-campaign",
+      "phrase": "brand awareness campaign",
+      "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "hr-out-of-home",
+      "phrase": "out of home advertising",
+      "tag": "anti-icp-programmatic"
+    }
   ]
 }

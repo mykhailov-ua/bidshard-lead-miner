@@ -26,8 +26,9 @@ var DiscoverDorkDenylist = []string{
 
 // AutoApplyState tracks weekly auto-apply quota consumption.
 type AutoApplyState struct {
-	WeekStart string `json:"week_start"`
-	Applied   int    `json:"applied"`
+	WeekStart          string `json:"week_start"`
+	Applied            int    `json:"applied"`
+	KeywordTuneApplied int    `json:"keyword_tune_applied"`
 }
 
 // BlockedDiscoverQuery reports whether a discover query must stay in manual review.
@@ -188,6 +189,19 @@ func RemainingWeeklyQuota(st AutoApplyState, now time.Time, maxPerWeek int) int 
 		return 0
 	}
 	rem := maxPerWeek - st.Applied
+	if rem < 0 {
+		return 0
+	}
+	return rem
+}
+
+// RemainingKeywordTuneQuota returns how many keyword tune edits may auto-apply this week.
+func RemainingKeywordTuneQuota(st AutoApplyState, now time.Time, maxPerWeek int) int {
+	st = normalizeAutoApplyWeek(st, now)
+	if maxPerWeek <= 0 {
+		return 0
+	}
+	rem := maxPerWeek - st.KeywordTuneApplied
 	if rem < 0 {
 		return 0
 	}

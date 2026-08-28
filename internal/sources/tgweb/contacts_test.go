@@ -1,10 +1,41 @@
 package tgweb
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/bidshard/parser/internal/extract"
 )
+
+func TestQueueDomainAppendsPending(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tg_domains.json")
+
+	added, err := QueueDomain(path, "buylink.pro", "ads_txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !added {
+		t.Fatal("expected add")
+	}
+	added, err = QueueDomain(path, "buylink.pro", "ads_txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if added {
+		t.Fatal("expected dedupe")
+	}
+
+	f, err := LoadDomains(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Domains) != 1 || f.Domains[0].Domain != "buylink.pro" {
+		t.Fatalf("domains=%v", f.Domains)
+	}
+}
 
 func TestPickSiteLPRRequiresEmailOrSkype(t *testing.T) {
 	t.Parallel()
@@ -33,6 +64,23 @@ func TestPickSiteLPRAcceptsSiteEmail(t *testing.T) {
 		t.Fatal("expected site email")
 	}
 	if primary.Type != "email" || primary.Value != "partners@bojoko.com" {
+		t.Fatalf("got %+v", primary)
+	}
+}
+
+func TestPickSiteLPRAcceptsAdsEmail(t *testing.T) {
+	t.Parallel()
+
+	page := extract.Result{
+		Contacts: []extract.Contact{
+			{Type: "email", Value: "ads@acme.com"},
+		},
+	}
+	primary, ok := pickSiteLPR(page, "", "acme.com")
+	if !ok {
+		t.Fatal("expected ads@ site email")
+	}
+	if primary.Value != "ads@acme.com" {
 		t.Fatalf("got %+v", primary)
 	}
 }

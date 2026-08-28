@@ -8,22 +8,25 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/domaincascade"
 	"github.com/bidshard/parser/internal/geo"
 	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/model"
 	"github.com/bidshard/parser/internal/proxybudget"
 	"github.com/bidshard/parser/internal/sourceregistry"
+	"github.com/bidshard/parser/internal/validate"
 )
 
 type EmitFunc func(ctx context.Context, item model.RawItem) error
 
 type Crawler struct {
-	seedPath     string
-	registryPath string
-	domainTriage bool
-	maxHosts     int
-	usesProxy    bool
-	fetcher      *Fetcher
+	seedPath      string
+	registryPath  string
+	tgDomainsPath string
+	domainTriage  bool
+	maxHosts      int
+	usesProxy     bool
+	fetcher       *Fetcher
 }
 
 func NewCrawler(cfg config.Config, fetcher *Fetcher) *Crawler {
@@ -31,12 +34,13 @@ func NewCrawler(cfg config.Config, fetcher *Fetcher) *Crawler {
 		fetcher = NewFetcherFromConfig(cfg)
 	}
 	return &Crawler{
-		seedPath:     cfg.SupplySeedPath,
-		registryPath: cfg.SourceRegistryPath,
-		domainTriage: cfg.ParserDomainTriage,
-		maxHosts:     cfg.SupplyMaxDomains,
-		usesProxy:    len(cfg.ProxyURLsForSource("supply")) > 0,
-		fetcher:      fetcher,
+		seedPath:      cfg.SupplySeedPath,
+		registryPath:  cfg.SourceRegistryPath,
+		tgDomainsPath: cfg.TelegramDomainsPath,
+		domainTriage:  cfg.ParserDomainTriage,
+		maxHosts:      cfg.SupplyMaxDomains,
+		usesProxy:     len(cfg.ProxyURLsForSource("supply")) > 0,
+		fetcher:       fetcher,
 	}
 }
 
@@ -125,16 +129,28 @@ func (c *Crawler) crawlDomain(ctx context.Context, domain string, emit EmitFunc)
 		return 0, nil
 	}
 
-	snippet := BuildSnippet(domain, adsLines, sellers)
+	partners := PartnerDomainsFromCrawl(domain, adsLines, sellers)
+	if len(partners) > 0 {
+		_, _, cascadeErr := domaincascade.FanOutMany(domaincascade.Config{
+			RegistryPath:        c.registryPath,
+			TelegramDomainsPath: c.tgDomainsPath,
+		}, partners, "ads_txt", "supply")
+		if cascadeErr != nil {
+			slog.Debug("supply cascade failed", "domain", domain, "error", cascadeErr)
+		}
+	}
+
+	snippet := BuildSnippet(domain, adsLines, sellers, string(adsBody), string(appAdsBody))
 	crawlHTML := string(adsBody) + "\n" + string(appAdsBody) + "\n" + string(sellersBody)
 	contacts := collectContacts(sellers)
-	if directContact := ExtractContactDirective(string(adsBody)); directContact != "" {
-		contacts = append(contacts, directContact)
+	if directContact := ExtractContactDirective(string(adsBody)); directContact != "" && validate.AcceptEmail(directContact) {
+		contacts = appendUniqueContact(contacts, directContact)
 	}
-	if directContact := ExtractContactDirective(string(appAdsBody)); directContact != "" {
-		contacts = append(contacts, directContact)
+	if directContact := ExtractContactDirective(string(appAdsBody)); directContact != "" && validate.AcceptEmail(directContact) {
+		contacts = appendUniqueContact(contacts, directContact)
 	}
 	if len(contacts) == 0 {
+		// Registry intel when sellers.json has no outreach-grade mailbox.
 		contacts = append(contacts, "domain:"+domain)
 	}
 
@@ -157,12 +173,13 @@ func (c *Crawler) crawlDomain(ctx context.Context, domain string, emit EmitFunc)
 	return emitted, nil
 }
 
+// collectContacts returns deduped seller emails that pass validate.AcceptEmail.
 func collectContacts(sellers []SellerContact) []string {
 	seen := map[string]struct{}{}
 	var out []string
 	for _, s := range sellers {
 		email := strings.ToLower(strings.TrimSpace(s.ContactEmail))
-		if email == "" {
+		if email == "" || !validate.AcceptEmail(email) {
 			continue
 		}
 		if _, ok := seen[email]; ok {
@@ -172,4 +189,17 @@ func collectContacts(sellers []SellerContact) []string {
 		out = append(out, email)
 	}
 	return out
+}
+
+func appendUniqueContact(contacts []string, email string) []string {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return contacts
+	}
+	for _, existing := range contacts {
+		if existing == email {
+			return contacts
+		}
+	}
+	return append(contacts, email)
 }

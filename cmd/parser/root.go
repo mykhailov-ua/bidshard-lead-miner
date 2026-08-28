@@ -13,6 +13,7 @@ import (
 	"github.com/bidshard/parser/internal/app"
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/log"
+	"github.com/bidshard/parser/internal/pretty"
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +25,7 @@ type cliOpts struct {
 	output          string
 	logFormat       string
 	quiet           bool
+	noColor         bool
 	jsonStdout      bool
 	exportJSON      string
 	exportFormat    string
@@ -36,13 +38,14 @@ type cliOpts struct {
 }
 
 func (o *cliOpts) bindFlags(cmd *cobra.Command) {
-	cmd.PersistentFlags().StringVarP(&o.source, "source", "s", "", "source set: forum|supply|lander|reddit|discord|warrior|ct|github|reviews|all (overrides PARSER_SOURCE)")
+	cmd.PersistentFlags().StringVarP(&o.source, "source", "s", "", "source set: forum|supply|lander|reddit|discord|warrior|ct|github|reviews|all (warrior aliases forum)")
 	cmd.PersistentFlags().StringVarP(&o.output, "output", "o", "", "stdout format: auto|pretty|json|json-pretty|ndjson|quiet (overrides PARSER_OUTPUT)")
 	cmd.PersistentFlags().BoolVar(&o.jsonStdout, "json", false, "shorthand for --output=ndjson (one JSON object per accepted lead on stdout)")
 	cmd.PersistentFlags().StringVar(&o.exportJSON, "export", "", "append accepted leads to this file (overrides PARSER_EXPORT_JSON)")
 	cmd.PersistentFlags().StringVar(&o.exportFormat, "export-format", "", "export file format: auto|ndjson|json|pretty (overrides PARSER_EXPORT_JSON_FORMAT)")
 	cmd.PersistentFlags().StringVar(&o.logFormat, "log-format", "", "log format: auto|pretty|json|json-pretty|text (overrides PARSER_LOG_FORMAT)")
 	cmd.PersistentFlags().BoolVarP(&o.quiet, "quiet", "q", false, "less log noise (warn level); implied for --json / -o ndjson")
+	cmd.PersistentFlags().BoolVar(&o.noColor, "no-color", false, "disable ANSI colors in CLI output")
 	cmd.PersistentFlags().BoolVar(&o.landerHeadless, "lander-headless", false, "enable Playwright headless lander fetch")
 }
 
@@ -203,6 +206,7 @@ func main() {
 		rootCmd.SetArgs(normalizeLegacyArgs(os.Args[1:]))
 	}
 	if err := rootCmd.Execute(); err != nil {
+		pretty.FatalErr("%v", err)
 		os.Exit(1)
 	}
 }
@@ -235,6 +239,12 @@ func init() {
 	globalOpts.bindFlags(rootCmd)
 	globalOpts.bindLegacyFlags(rootCmd)
 
+	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		if globalOpts.noColor {
+			_ = os.Setenv("NO_COLOR", "1")
+		}
+	}
+
 	rootCmd.AddCommand(
 		newRunCmd(),
 		newScanCmd(),
@@ -247,5 +257,7 @@ func init() {
 		newColdCmd(),
 		newHeadlessCmd(),
 		newAutoCmd(),
+		newFeedbackCmd(),
+		newSalesCmd(),
 	)
 }

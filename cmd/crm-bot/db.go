@@ -27,10 +27,12 @@ Examples:
   crm-bot db delete --hash abcdef12 --yes
   crm-bot db purge --status new --score-max 30 --yes
   crm-bot db set-status --hash abcdef12 --status spam
+  crm-bot db set-outcome --hash abcdef12 --outcome pilot_started
+  crm-bot db outcome-report --dir data/suggestions
   crm-bot db entity-split --id ENTITY_ID --hash HASH --yes`,
 	}
 
-	cmd.AddCommand(newDBStatsCmd(), newDBDeleteCmd(), newDBPurgeCmd(), newDBSetStatusCmd(), newDBEntitySplitCmd(), newBoostsCmd())
+	cmd.AddCommand(newDBStatsCmd(), newDBDeleteCmd(), newDBPurgeCmd(), newDBSetStatusCmd(), newDBSetOutcomeCmd(), newDBOutcomeReportCmd(), newDBEntitySplitCmd(), newBoostsCmd())
 	return cmd
 }
 
@@ -154,6 +156,60 @@ func newDBSetStatusCmd() *cobra.Command {
 	}
 	c.Flags().StringVar(&hashID, "hash", "", "lead hash_id or unique prefix")
 	c.Flags().StringVar(&status, "status", "", "new|contacted|won|lost|spam|archived")
+	return c
+}
+
+func newDBSetOutcomeCmd() *cobra.Command {
+	var hashID, outcome, note string
+	c := &cobra.Command{
+		Use:   "set-outcome",
+		Short: "Record downstream outcome on a lead",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			hashID = strings.TrimSpace(hashID)
+			if hashID == "" {
+				return fmt.Errorf("--hash required")
+			}
+			return withLeadStore(cmd.Context(), cmd.OutOrStdout(), func(_ context.Context, out io.Writer, s *store.LeadStore) error {
+				resolved, err := s.ResolveHashID(cmd.Context(), hashID)
+				if err != nil {
+					return err
+				}
+				if err := s.SetOutcome(cmd.Context(), resolved, outcome, note); err != nil {
+					return err
+				}
+				normalized, _ := store.NormalizeOutcome(outcome)
+				_, _ = fmt.Fprintf(out, "updated hash_id=%s outcome=%s\n", resolved, normalized)
+				return nil
+			})
+		},
+	}
+	c.Flags().StringVar(&hashID, "hash", "", "lead hash_id or unique prefix")
+	c.Flags().StringVar(&outcome, "outcome", "", "contacted|replied|pilot_started|migration_imported")
+	c.Flags().StringVar(&note, "note", "", "optional note")
+	return c
+}
+
+func newDBOutcomeReportCmd() *cobra.Command {
+	var (
+		dir          string
+		channelsPath string
+	)
+	c := &cobra.Command{
+		Use:   "outcome-report",
+		Short: "Write outcome_dork_rank JSON (source/dork vs pilot outcomes)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return withLeadStore(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, out io.Writer, s *store.LeadStore) error {
+				path, err := s.WriteOutcomeDorkReport(ctx, channelsPath, dir)
+				if err != nil {
+					return err
+				}
+				_, _ = fmt.Fprintf(out, "written %s\n", path)
+				return nil
+			})
+		},
+	}
+	c.Flags().StringVar(&dir, "dir", "data/suggestions", "output directory")
+	c.Flags().StringVar(&channelsPath, "channels", "data/runtime/discovered_telegram_channels.json", "telegram discover registry for dork mapping")
 	return c
 }
 

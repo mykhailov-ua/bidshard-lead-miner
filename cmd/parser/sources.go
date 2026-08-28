@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/pretty"
 	"github.com/bidshard/parser/internal/sourceregistry"
 	"github.com/bidshard/parser/internal/sources"
 	"github.com/spf13/cobra"
@@ -22,23 +22,7 @@ func newSourcesCmd() *cobra.Command {
 		Use:   "list",
 		Short: "Print source names and required env vars",
 		Run: func(cmd *cobra.Command, args []string) {
-			for _, info := range sources.Catalog() {
-				inAll := ""
-				if info.InAll {
-					inAll = " [all]"
-				}
-				line := fmt.Sprintf("  %-10s%s", info.Name, inAll)
-				if len(info.Requires) > 0 {
-					line += fmt.Sprintf("  requires: %s", strings.Join(info.Requires, ", "))
-				}
-				if info.Note != "" {
-					line += fmt.Sprintf("  (%s)", info.Note)
-				}
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), line)
-			}
-			_, _ = fmt.Fprintln(cmd.OutOrStdout())
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Set source: parser scan --source=forum   or   PARSER_SOURCE=forum")
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Telegram is separate: parser telegram")
+			printSourcesList(cmd.OutOrStdout(), sources.Catalog())
 		},
 	})
 
@@ -74,18 +58,22 @@ func newSourcesStatsCmd() *cobra.Command {
 				}
 				return rows[i].Domain < rows[j].Domain
 			})
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 2, 2, ' ', 0)
-			_, _ = fmt.Fprintln(w, "DOMAIN\tSCORE\tTRIAGE\tTYPES\tDISCOVERED_BY")
+			out := cmd.OutOrStdout()
+			color := cliColor(out)
+			pretty.Section(out, color, "Source registry relevance")
+			header := []string{"domain", "score", "triage", "types", "discovered_by"}
+			table := make([][]string, 0, len(rows))
 			for _, row := range rows {
-				_, _ = fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\n",
+				table = append(table, []string{
 					row.Domain,
-					row.RelevanceScore,
+					fmt.Sprintf("%d", row.RelevanceScore),
 					row.TriageStatus,
 					strings.Join(row.Types, ","),
 					row.DiscoveredBy,
-				)
+				})
 			}
-			return w.Flush()
+			pretty.PrintTable(out, color, header, table)
+			return nil
 		},
 	}
 	c.Flags().StringVar(&registryPath, "registry", "", "source registry path (default from config)")

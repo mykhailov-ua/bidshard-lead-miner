@@ -11,8 +11,15 @@ type LinkSuggestPair struct {
 	PainB        string
 }
 
-// FindLinkSuggestPairs returns domain-shared entity pairs with differing unified_pain.
+// FindLinkSuggestPairs returns entity pairs that may need merge/split review.
 func FindLinkSuggestPairs(docs []EntityDoc) []LinkSuggestPair {
+	var out []LinkSuggestPair
+	out = append(out, findDomainPainPairs(docs)...)
+	out = append(out, findIdentityKeyPairs(docs)...)
+	return dedupeLinkPairs(out)
+}
+
+func findDomainPainPairs(docs []EntityDoc) []LinkSuggestPair {
 	if len(docs) < 2 {
 		return nil
 	}
@@ -62,6 +69,70 @@ func FindLinkSuggestPairs(docs []EntityDoc) []LinkSuggestPair {
 				})
 			}
 		}
+	}
+	return out
+}
+
+// findIdentityKeyPairs surfaces forum_user/telegram/email collisions across entity nodes.
+func findIdentityKeyPairs(docs []EntityDoc) []LinkSuggestPair {
+	if len(docs) < 2 {
+		return nil
+	}
+	byKey := make(map[string][]EntityDoc)
+	for _, doc := range docs {
+		for _, key := range doc.AliasKeys {
+			key = strings.TrimSpace(key)
+			if key == "" || strings.HasPrefix(key, KindDomain+":") {
+				continue
+			}
+			if strings.HasPrefix(key, KindForumUser+":") ||
+				strings.HasPrefix(key, KindForumUID+":") ||
+				strings.HasPrefix(key, KindTelegram+":") ||
+				strings.HasPrefix(key, "email:") {
+				byKey[key] = append(byKey[key], doc)
+			}
+		}
+	}
+	var out []LinkSuggestPair
+	seen := make(map[string]struct{})
+	for sharedKey, group := range byKey {
+		if len(group) < 2 {
+			continue
+		}
+		for i := 0; i < len(group); i++ {
+			for j := i + 1; j < len(group); j++ {
+				a, b := group[i], group[j]
+				if a.EntityID == b.EntityID {
+					continue
+				}
+				idKey := pairKey(a.EntityID, b.EntityID, sharedKey)
+				if _, ok := seen[idKey]; ok {
+					continue
+				}
+				seen[idKey] = struct{}{}
+				out = append(out, LinkSuggestPair{
+					EntityA:      a.EntityID,
+					EntityB:      b.EntityID,
+					SharedDomain: sharedKey,
+					PainA:        strings.TrimSpace(a.UnifiedPain),
+					PainB:        strings.TrimSpace(b.UnifiedPain),
+				})
+			}
+		}
+	}
+	return out
+}
+
+func dedupeLinkPairs(pairs []LinkSuggestPair) []LinkSuggestPair {
+	seen := make(map[string]struct{}, len(pairs))
+	var out []LinkSuggestPair
+	for _, p := range pairs {
+		key := pairKey(p.EntityA, p.EntityB, p.SharedDomain)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, p)
 	}
 	return out
 }

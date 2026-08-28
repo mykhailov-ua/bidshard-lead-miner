@@ -27,6 +27,9 @@ type NoteDoc struct {
 type LeadMetaDoc struct {
 	HashID           string    `bson:"hash_id"`
 	Tags             []string  `bson:"tags,omitempty"`
+	Outcome          string    `bson:"outcome,omitempty"`
+	OutcomeAt        time.Time `bson:"outcome_at,omitempty"`
+	OutcomeNote      string    `bson:"outcome_note,omitempty"`
 	ExplainSummary   string    `bson:"explain_summary,omitempty"`
 	ExplainCachedAt  time.Time `bson:"explain_cached_at,omitempty"`
 	ExplainExpiresAt time.Time `bson:"explain_expires_at,omitempty"`

@@ -14,7 +14,7 @@ func TestLeadBatchResultFromItemSkipsGeoWhenDisabled(t *testing.T) {
 		Hot:           true,
 		SpendTier:     "15k-150k",
 	}
-	res := leadBatchResultFromItem(item, false)
+	res := leadBatchResultFromItem(item, false, LeadBatchInput{})
 	if res.Geo.Blocked {
 		t.Fatal("expected empty geo when geoClassify=false")
 	}
@@ -32,7 +32,7 @@ func TestLeadBatchResultFromItemGeoWhenEnabled(t *testing.T) {
 		GeoConfidence: "high",
 		PersonCountry: "RU",
 	}
-	res := leadBatchResultFromItem(item, true)
+	res := leadBatchResultFromItem(item, true, LeadBatchInput{})
 	if !res.Geo.Blocked {
 		t.Fatal("expected geo blocked when geoClassify=true")
 	}

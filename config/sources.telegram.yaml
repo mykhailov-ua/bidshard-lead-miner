@@ -13,7 +13,7 @@
 discover:
   enabled: true
   icp_path: config/discover.icp.json  # telegram_search + serp dorks (discovery only)
-  limit_per_query: 15
+  limit_per_query: 10  # lower than default 15; pair with PARSER_CHANNEL_TRIAGE=true
   serp_channels_path: data/runtime/discovered_telegram_channels.json
   domains_path: data/runtime/discovered_telegram_domains.json  # tgweb crawl registry
   # queries: []  # override; default loads telegram_search from discover.icp.json
@@ -24,7 +24,11 @@ discover:
     rescan_days: 30  # skip channels crawled within this window
 
 # Manual additions (public channels only). geo is metadata for ops; loader skips geo: ru.
+# Prefer buyer/community chats over news digests. SERP discover fills the rest; triage drops noise.
 chats:
+  - name: voluum_community
+    username: voluum
+    geo: global
   # - name: igaming_latam
   #   username: affiliate_latam_en
   #   geo: latam

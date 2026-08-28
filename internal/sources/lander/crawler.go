@@ -9,14 +9,17 @@ import (
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/diag"
 	"github.com/bidshard/parser/internal/extract"
+	"github.com/bidshard/parser/internal/filter"
 	"github.com/bidshard/parser/internal/model"
 	"github.com/bidshard/parser/internal/proxybudget"
+	"github.com/bidshard/parser/internal/validate"
 )
 
 type EmitFunc func(ctx context.Context, item model.RawItem) error
 
 type Crawler struct {
 	seedPath        string
+	registryPath    string
 	http            *HTTPFetcher
 	headless        HeadlessFetcher
 	headlessEnabled bool
@@ -37,6 +40,7 @@ func NewCrawler(cfg config.Config, httpFetcher *HTTPFetcher, headless HeadlessFe
 	}
 	return &Crawler{
 		seedPath:        cfg.LanderSeedPath,
+		registryPath:    cfg.SourceRegistryPath,
 		http:            httpFetcher,
 		headless:        headless,
 		headlessEnabled: cfg.LanderHeadless,
@@ -54,7 +58,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		slog.Info("lander crawl skipped", "reason", reason)
 		return nil
 	}
-	urls, err := LoadURLs(c.seedPath)
+	urls, err := LoadURLsCombined(c.seedPath, c.registryPath)
 	if err != nil {
 		slog.Error("lander seed load failed", "path", c.seedPath, "error", err)
 		return err
@@ -70,6 +74,12 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+		}
+
+		host := hostFromURL(pageURL)
+		if validate.IsBlacklistedDomain(host) {
+			slog.Debug("lander skip blacklisted domain", "host", host, "url", pageURL)
+			continue
 		}
 
 		html, fetchMeta, err := c.fetchHTML(ctx, pageURL)
@@ -112,6 +122,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		)
 
 		contacts := extract.Extract(text)
+		contacts.Contacts = extract.FilterJunkContacts(contacts.Contacts)
 		if contacts.Rejected {
 			slog.Warn("lander contacts rejected",
 				"url", pageURL,
@@ -122,6 +133,14 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		}
 		if len(contacts.Contacts) == 0 {
 			slog.Warn("lander no contacts",
+				"url", pageURL,
+				"method", method,
+				"text_preview", diag.Preview(text, 300),
+			)
+			continue
+		}
+		if !filter.LanderRequiresEmailOrSkype(contacts.Contacts) {
+			slog.Warn("lander no email or skype contact",
 				"url", pageURL,
 				"method", method,
 				"text_preview", diag.Preview(text, 300),

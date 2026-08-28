@@ -10,6 +10,9 @@ func TestApplyComplianceDefaultsCRMWebhook(t *testing.T) {
 		"PARSER_LEAD_STATUS_ENABLED",
 		"PARSER_GEMINI_SYNC_GEO",
 		"PARSER_CRM_WEBHOOK_HEAT_MIN",
+		"PARSER_MX_CHECK",
+		"PARSER_WARM_EMBED_PRESCAN",
+		"PARSER_WARM_EMBED_CLUSTER",
 	} {
 		t.Setenv(key, "")
 	}
@@ -34,6 +37,15 @@ func TestApplyComplianceDefaultsCRMWebhook(t *testing.T) {
 	}
 	if cfg.CRMWebhookHeatMin != "warm" {
 		t.Fatalf("heat_min=%q want warm", cfg.CRMWebhookHeatMin)
+	}
+	if !cfg.MXCheck {
+		t.Fatal("expected MXCheck default true with CRM webhook")
+	}
+	if !cfg.ParserWarmEmbedPrescan {
+		t.Fatal("expected ParserWarmEmbedPrescan default true with defer+CRM")
+	}
+	if !cfg.ParserWarmEmbedCluster {
+		t.Fatal("expected ParserWarmEmbedCluster default true with defer+CRM")
 	}
 }
 

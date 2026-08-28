@@ -30,10 +30,6 @@ func IsTerminal(w io.Writer) bool {
 	return (stat.Mode() & os.ModeCharDevice) != 0
 }
 
-func ColorEnabled(w io.Writer) bool {
-	return IsTerminal(w)
-}
-
 func KV(w io.Writer, color bool, key, value string) {
 	indent := "    "
 	if color {

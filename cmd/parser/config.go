@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/gemini"
+	"github.com/bidshard/parser/internal/pretty"
 	"github.com/bidshard/parser/internal/seedcheck"
 	"github.com/bidshard/parser/internal/sink"
 	"github.com/bidshard/parser/internal/sourceregistry"
@@ -75,6 +77,8 @@ func runConfigShow(ctx context.Context, out io.Writer, format string) error {
 		enc.SetIndent("", "  ")
 		return enc.Encode(view)
 	default:
+		color := cliColor(out)
+		pretty.Section(out, color, "Effective configuration")
 		keys := []string{
 			"source", "output", "log_format", "log_level",
 			"export_json", "export_format",
@@ -83,11 +87,13 @@ func runConfigShow(ctx context.Context, out io.Writer, format string) error {
 			"gemini_api_key", "telegram_api_id", "telegram_api_hash",
 			"keywords",
 		}
+		var pairs [][2]string
 		for _, k := range keys {
 			if v, ok := view[k]; ok {
-				_, _ = fmt.Fprintf(out, "%s=%v\n", k, v)
+				pairs = append(pairs, [2]string{k, fmt.Sprint(v)})
 			}
 		}
+		pretty.PrintLabeled(out, color, pairs)
 		return nil
 	}
 }
@@ -143,6 +149,8 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 	}
 
 	var warnings, errors []string
+	color := cliColor(out)
+	pretty.Section(out, color, "Configuration check")
 
 	checkFile := func(label, path string) {
 		if path == "" {
@@ -185,7 +193,7 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 		if err := pingMongo(ctx, cfg.MongoURI); err != nil {
 			warnings = append(warnings, fmt.Sprintf("MongoDB ping failed: %v", err))
 		} else {
-			_, _ = fmt.Fprintln(out, "ok  MongoDB reachable")
+			pretty.StatusOK(out, color, "MongoDB reachable")
 		}
 	} else if cfg.ExportJSONPath == "" {
 		warnings = append(warnings, "no MONGO_URI or PARSER_EXPORT_JSON - leads will not be persisted")
@@ -193,6 +201,8 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 
 	if cfg.GeminiAPIKey == "" {
 		errors = append(errors, config.GeminiMisconfigErrors(cfg, containsSource(active, "tgweb"))...)
+	} else if msg := gemini.DeprecatedModelWarning(cfg.GeminiModel); msg != "" {
+		warnings = append(warnings, msg)
 	}
 	if cfg.CRMWebhookEnabled && strings.TrimSpace(cfg.CRMWebhookURL) == "" {
 		errors = append(errors, "PARSER_CRM_WEBHOOK enabled but PARSER_CRM_WEBHOOK_URL empty")
@@ -201,21 +211,36 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 		if err := sink.ValidateWebhookURL(cfg.CRMWebhookURL); err != nil {
 			errors = append(errors, err.Error())
 		} else {
-			_, _ = fmt.Fprintln(out, "ok  crm webhook URL set")
+			pretty.StatusOK(out, color, "crm webhook URL set")
 		}
 	}
 	warnings = append(warnings, config.GeoComplianceWarnings(cfg)...)
+	warnings = append(warnings, config.AcceptQualitySourceWarnings(cfg, seedcheck.Profile() == seedcheck.ProfileProd)...)
 	errors = append(errors, config.GeoComplianceErrors(cfg, seedcheck.Profile() == seedcheck.ProfileProd)...)
 	errors = append(errors, config.AutoCRMBundleErrors(cfg, seedcheck.Profile() == seedcheck.ProfileProd)...)
 	if config.AutoCRMBundleOK(cfg) {
-		_, _ = fmt.Fprintln(out, "ok  auto-crm bundle (defer + after-analysis webhook + geo)")
+		pretty.StatusOK(out, color, "auto-crm bundle (defer + after-analysis webhook + geo)")
 	} else if cfg.ParserGeminiDefer && cfg.CRMWebhookEnabled {
 		for _, miss := range config.AutoCRMBundleMissing(cfg) {
 			warnings = append(warnings, "auto-crm bundle missing: "+miss)
 		}
 	}
+	if config.AcceptQualityBundleOK(cfg) {
+		pretty.StatusOK(out, color, "accept-quality bundle (ICP + embed prescan + junk governor)")
+	} else if cfg.ParserGeminiDefer && cfg.CRMWebhookEnabled && cfg.GeminiAPIKey != "" {
+		for _, miss := range config.AcceptQualityBundleMissing(cfg) {
+			warnings = append(warnings, "accept-quality bundle missing: "+miss)
+		}
+	}
 	if config.SyncGeoGateConfigured(cfg) {
-		_, _ = fmt.Fprintln(out, "ok  sync geo gate configured (inline before Mongo write)")
+		pretty.StatusOK(out, color, "sync geo gate configured (inline before Mongo write)")
+	}
+	if len(cfg.ProxyURLs) > 0 {
+		if err := config.ValidateProxyURLs(cfg.ProxyURLs); err != nil {
+			errors = append(errors, "PARSER_PROXY_LIST: "+err.Error())
+		} else {
+			pretty.StatusOK(out, color, "proxy list: %d URL(s)", len(cfg.ProxyURLs))
+		}
 	}
 	if seedcheck.Profile() == seedcheck.ProfileProd {
 		for _, src := range []string{"forum", "tgweb", "lander"} {
@@ -227,13 +252,16 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 			}
 		}
 		if len(cfg.ProxyURLs) > 0 && len(cfg.ProxySources) > 0 {
-			_, _ = fmt.Fprintln(out, "ok  proxy scoped via PARSER_PROXY_SOURCES")
+			pretty.StatusOK(out, color, "proxy scoped via PARSER_PROXY_SOURCES")
+		}
+		if len(cfg.ProxyURLs) > 0 && os.Getenv("PARSER_PROXY_SOURCES") == "" {
+			pretty.StatusOK(out, color, "proxy default scope: forum,tgweb,lander,webpain (serp/reddit/github direct)")
 		}
 		if len(cfg.ProxyURLs) > 0 && cfg.ProxyDailyMBCap <= 0 {
 			warnings = append(warnings, "prod profile: PARSER_PROXY_LIST set but PARSER_PROXY_DAILY_MB_CAP=0 (no egress cap)")
 		}
 		if cfg.ProxyDailyMBCap > 0 {
-			_, _ = fmt.Fprintf(out, "ok  proxy daily budget cap: %d MB\n", cfg.ProxyDailyMBCap)
+			pretty.StatusOK(out, color, "proxy daily budget cap: %d MB", cfg.ProxyDailyMBCap)
 		}
 		for src, path := range map[string]string{
 			"forum":  cfg.ForumSeedPath,
@@ -269,14 +297,14 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 				case "forum":
 					if reg, err := forum.LoadThreadRegistry(cfg.ForumRegistryPath); err == nil {
 						if ok, msg := config.AutoDiscoverRegistryOK(cfg, src, len(reg.Threads)); ok {
-							_, _ = fmt.Fprintln(out, "ok  "+msg)
+							pretty.StatusOK(out, color, "%s", msg)
 							continue
 						}
 					}
 				case "supply":
 					if n, err := sourceregistry.CountByType(cfg.SourceRegistryPath, sourceregistry.TypeSupply); err == nil {
 						if ok, msg := config.AutoDiscoverRegistryOK(cfg, src, n); ok {
-							_, _ = fmt.Fprintln(out, "ok  "+msg)
+							pretty.StatusOK(out, color, "%s", msg)
 							continue
 						}
 					}
@@ -296,7 +324,7 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 
 	if cfg.TelegramAPIID > 0 && cfg.TelegramAPIHash != "" {
 		if cfg.TelegramProxyURL != "" {
-			_, _ = fmt.Fprintln(out, "ok  telethon MTProto proxy configured (TELEGRAM_PROXY_URL)")
+			pretty.StatusOK(out, color, "telethon MTProto proxy configured (TELEGRAM_PROXY_URL)")
 		}
 		sessionPath := telethon.SessionPath(cfg.TelegramConfigPath)
 		if _, err := os.Stat(sessionPath); err != nil {
@@ -311,44 +339,46 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 				warnings = append(warnings, fmt.Sprintf("telethon session %s: %v", sessionPath, err))
 			}
 		} else {
-			_, _ = fmt.Fprintf(out, "ok  telethon session: %s\n", sessionPath)
+			pretty.StatusOK(out, color, "telethon session: %s", sessionPath)
 		}
 		if cfg.BGTelegramEnabled {
-			_, _ = fmt.Fprintln(out, "ok  telegram bg worker enabled (PARSER_BG_TELEGRAM=true)")
+			pretty.StatusOK(out, color, "telegram bg worker enabled (PARSER_BG_TELEGRAM=true)")
 		}
 	}
 
 	if containsSource(active, "forum") {
 		if n := countForumFixtureSeeds(cfg.ForumSeedPath); n > 0 && seedcheck.Profile() != seedcheck.ProfileProd {
-			_, _ = fmt.Fprintf(out, "ok  forum dev fixture seeds: %d (forum-fixture.test)\n", n)
+			pretty.StatusOK(out, color, "forum dev fixture seeds: %d (forum-fixture.test)", n)
 		}
 	}
 
 	for _, w := range warnings {
-		_, _ = fmt.Fprintln(out, "warn", w)
+		pretty.StatusWarn(out, color, "%s", w)
 	}
 	for _, e := range errors {
-		_, _ = fmt.Fprintln(out, "error", e)
+		pretty.StatusErr(out, color, "%s", e)
 	}
 
 	if len(errors) > 0 {
 		return fmt.Errorf("%d error(s) - fix config and retry", len(errors))
 	}
 
-	_, _ = fmt.Fprintf(out, "ok  config loaded (source=%s)\n", cfg.Source)
+	pretty.StatusOK(out, color, "config loaded (source=%s)", cfg.Source)
 	return nil
 }
 
 func seedPathForSource(name string, cfg config.Config) []string {
 	switch name {
 	case "forum":
-		return []string{cfg.ForumSeedPath}
+		paths := []string{cfg.ForumSeedPath}
+		if p := strings.TrimSpace(cfg.WarriorSeedPath); p != "" {
+			paths = append(paths, p)
+		}
+		return paths
 	case "supply":
 		return []string{cfg.SupplySeedPath}
 	case "lander":
 		return []string{cfg.LanderSeedPath}
-	case "warrior":
-		return []string{cfg.WarriorSeedPath}
 	default:
 		return nil
 	}

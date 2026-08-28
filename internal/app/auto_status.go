@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/proxybudget"
 	"github.com/bidshard/parser/internal/sink"
 	"github.com/bidshard/parser/internal/sourceregistry"
@@ -23,18 +24,19 @@ import (
 
 // AutoStatus is a point-in-time automation health snapshot (no PII).
 type AutoStatus struct {
-	At                  time.Time      `json:"at"`
-	AutoDiscover        bool           `json:"auto_discover"`
-	ForumThreads        int            `json:"forum_threads"`
-	TelegramDomains     int            `json:"telegram_domains"`
-	SourceRegistry      map[string]int `json:"source_registry"`
-	RegistryDropped     int            `json:"registry_dropped"`
-	HeadlessQueued      int            `json:"headless_queued"`
-	ProxyUsedMB         float64        `json:"proxy_used_mb"`
-	ProxyCapMB          int            `json:"proxy_cap_mb"`
-	ProxyBudgetExceeded bool           `json:"proxy_budget_exceeded"`
-	AnalysisPending     int64          `json:"analysis_pending"`
-	MongoOK             bool           `json:"mongo_ok"`
+	At                  time.Time              `json:"at"`
+	AutoDiscover        bool                   `json:"auto_discover"`
+	ForumThreads        int                    `json:"forum_threads"`
+	TelegramDomains     int                    `json:"telegram_domains"`
+	SourceRegistry      map[string]int         `json:"source_registry"`
+	RegistryDropped     int                    `json:"registry_dropped"`
+	HeadlessQueued      int                    `json:"headless_queued"`
+	ProxyUsedMB         float64                `json:"proxy_used_mb"`
+	ProxyCapMB          int                    `json:"proxy_cap_mb"`
+	ProxyBudgetExceeded bool                   `json:"proxy_budget_exceeded"`
+	AnalysisPending     int64                  `json:"analysis_pending"`
+	MongoOK             bool                   `json:"mongo_ok"`
+	Egress              metrics.EgressCounters `json:"egress"`
 }
 
 // CollectAutoStatus reads runtime registries and optional Mongo counters.
@@ -79,6 +81,7 @@ func CollectAutoStatus(ctx context.Context, cfg config.Config) AutoStatus {
 			st.MongoOK = true
 		}
 	}
+	st.Egress = metrics.SnapshotEgress()
 	return st
 }
 
@@ -145,6 +148,19 @@ func WriteAutoStatus(w io.Writer, st AutoStatus) {
 		_, _ = fmt.Fprintf(w, "analysis_pending=%d\n", st.AnalysisPending)
 	} else if st.MongoOK {
 		_, _ = fmt.Fprintln(w, "analysis_pending=0")
+	}
+	if st.Egress.ProxyCfBlock > 0 || st.Egress.ProxyCooldownWait > 0 || st.Egress.ProxyTransportFail > 0 ||
+		st.Egress.CrawlHTTPFail > 0 || st.Egress.SerpHarvestFailed > 0 || st.Egress.GeminiJunkBatchFailed > 0 ||
+		st.Egress.TelethonSidecarFailed > 0 {
+		_, _ = fmt.Fprintf(w, "egress proxy_cf_block=%d proxy_cooldown_wait=%d proxy_transport_fail=%d crawl_http_fail=%d serp_fail=%d gemini_junk_fail=%d telethon_fail=%d\n",
+			st.Egress.ProxyCfBlock,
+			st.Egress.ProxyCooldownWait,
+			st.Egress.ProxyTransportFail,
+			st.Egress.CrawlHTTPFail,
+			st.Egress.SerpHarvestFailed,
+			st.Egress.GeminiJunkBatchFailed,
+			st.Egress.TelethonSidecarFailed,
+		)
 	}
 }
 

@@ -8,6 +8,18 @@ import (
 	"github.com/bidshard/parser/internal/sink"
 )
 
+func TestEvaluateNoisyFamilyLowerThreshold(t *testing.T) {
+	t.Parallel()
+	stats := []sink.SourceStatsDoc{
+		{Source: "lander", Accepted: 0, Junk: 45},
+		{Source: "forum", Accepted: 0, Junk: 45},
+	}
+	got := Evaluate(stats, 100)
+	if len(got) != 1 || got[0] != "lander" {
+		t.Fatalf("got=%v want lander only", got)
+	}
+}
+
 func TestEvaluateZeroAcceptHighRaw(t *testing.T) {
 	t.Parallel()
 	stats := []sink.SourceStatsDoc{

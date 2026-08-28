@@ -128,7 +128,7 @@ func IsForumThreadURL(rawURL string) bool {
 		return false
 	}
 	host := strings.ToLower(u.Host)
-	if !isKnownForumHost(host) {
+	if !IsKnownForumHost(host) {
 		return false
 	}
 	path := strings.ToLower(u.Path)
@@ -143,16 +143,6 @@ func IsForumThreadURL(rawURL string) bool {
 	case strings.Contains(query, "t="):
 		return true
 	case strings.Contains(host, "blackhatworld.com") && strings.Contains(path, "/seo/"):
-		return true
-	default:
-		return false
-	}
-}
-
-func isKnownForumHost(host string) bool {
-	host = strings.TrimPrefix(host, "www.")
-	switch host {
-	case "affiliatefix.com", "stmforum.com", "blackhatworld.com", "warriorforum.com", "afflift.com":
 		return true
 	default:
 		return false

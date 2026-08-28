@@ -18,12 +18,6 @@ var preferredLPRLocals = []string{
 	"bizdev", "business", "bd", "growth", "ads", "media",
 }
 
-var junkTelegramHandles = map[string]struct{}{
-	"media": {}, "keyframes": {}, "starting": {}, "skype": {},
-	"supports": {}, "import": {}, "charset": {}, "font-face": {},
-	"trustpilot": {}, "boost": {},
-}
-
 func isJunkSkypeHandle(value string) bool {
 	v := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(value, "skype:")))
 	if v == "" || len(v) < 4 {
@@ -37,12 +31,7 @@ func isJunkSkypeHandle(value string) bool {
 }
 
 func isJunkTelegramHandle(handle string) bool {
-	handle = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(handle, "@")))
-	if handle == "" {
-		return true
-	}
-	_, junk := junkTelegramHandles[handle]
-	return junk
+	return extract.IsJunkTelegramHandle(handle)
 }
 
 func pickSiteLPR(page extract.Result, channel, siteDomain string) (extract.Contact, bool) {

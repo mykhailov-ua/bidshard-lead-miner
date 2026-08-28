@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/coldpath"
-	"github.com/bidshard/parser/internal/scoring"
 	"github.com/bidshard/parser/internal/sink"
 )
 
@@ -17,10 +16,6 @@ func (s *Service) filterWarmPrescan(ctx context.Context, batch []Event) []Event 
 	}
 	out := make([]Event, 0, len(batch))
 	for _, ev := range batch {
-		if !scoring.MeetsMinPriority(scoring.Priority(ev.Priority), scoring.PriorityMedium) {
-			out = append(out, ev)
-			continue
-		}
 		text := strings.TrimSpace(ev.Snippet)
 		if text == "" {
 			out = append(out, ev)

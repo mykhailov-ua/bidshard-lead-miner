@@ -7,6 +7,25 @@ import (
 	"testing"
 )
 
+func TestConfigCheckRejectsInvalidProxyList(t *testing.T) {
+	chdirRepoRoot(t)
+	t.Setenv("PARSER_SOURCE", "forum")
+	t.Setenv("PARSER_PROXY_LIST", "http://:0")
+	t.Setenv("PARSER_BG_TELEGRAM", "false")
+	t.Setenv("TELEGRAM_API_ID", "")
+	t.Setenv("TELEGRAM_API_HASH", "")
+	t.Setenv("MONGO_URI", "")
+
+	var out bytes.Buffer
+	err := runConfigCheck(t.Context(), &out)
+	if err == nil {
+		t.Fatal("expected config check error for invalid PARSER_PROXY_LIST")
+	}
+	if !strings.Contains(err.Error(), "PARSER_PROXY_LIST") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
 func TestConfigCheckProdRejectsFixtureForumSeed(t *testing.T) {
 	chdirRepoRoot(t)
 	t.Setenv("PARSER_SEED_PROFILE", "prod")

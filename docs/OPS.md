@@ -179,13 +179,83 @@ Profile: `config/env/.env.global.example` (merge into `.env`).
 
 ### HTTP source bundle
 
-`PARSER_SOURCE=all` does **not** include tgweb, github, ct, or reviews. Recommended prod HTTP mix:
+`PARSER_SOURCE=all` = forum, supply, reddit, discord, serp (**lander opt-in**; not in `all`). Does **not** include tgweb, github, ct, or reviews.
+
+Recommended prod mix (accept-quality Tier 0):
 
 ```env
-PARSER_SOURCE=forum,supply,lander,reddit,warrior,serp,reviews
+cat config/env/.env.precision.example >> .env
+# or manually:
+PARSER_SOURCE=forum,supply,reddit,serp,reviews,tgweb
+PARSER_ICP_CLASSIFY=true
+PARSER_EMBED_PRESCAN=true
+PARSER_CHANNEL_TRIAGE=true
+PARSER_SOURCE_DISABLE_GOVERNOR=true
 ```
 
-Add `GITHUB_TOKEN` + `GITHUB_SEARCH_QUERIES` for GitHub issue search; enable `ct` / `reviews` when seeds are populated.
+Do **not** add `github` to `PARSER_SOURCE` without the Tier1 pain gate (CKAN/`keitaroinc` false positives). `GITHUB_SEARCH_QUERIES` is fine for discovery only.
+
+Add `ct` / `reviews` when seeds are populated. Add `lander` only when LPR-only Tier1 gate is deployed.
+
+### Accept-quality Tier 1 (code gates)
+
+Hot path in `internal/pipeline/processor.go` after contact extract:
+
+| Gate | Blocks |
+| --- | --- |
+| `extract.FilterJunkContacts` | CSS `@media`, `@github` false positives |
+| `filter.LanderRequiresEmailOrSkype` | lander with telegram-only / CSS contacts |
+| `filter.GitHubRequiresPainContext` | CKAN/vendor issues without tracker pain |
+| `filter.TelegramChannelSelfBroadcast` | channel posts where contact == channel handle |
+| `filter.TelegramInviteWithoutBuyerIntent` | invite-channel promos without pain/intent |
+| `scoring.PhraseMatches` word boundaries | `keitaro` inside `keitaroinc` no longer scores |
+| defer `pilot-qualified` | only warm engage sets `pilot_qualified` |
+
+### Accept-quality Tier 2 (ranking + CRM sort)
+
+| Mechanism | Behavior |
+| --- | --- |
+| `HasBuyerIntentSignal` | displacement boost only on first-person / question intent |
+| `StaticSourceBoost` | penalties for `telegram:invite`, `lander`, `github`, news channels |
+| `normalizeSourceKey` | aggregates `telegram:invite:*` junk stats |
+| `ComputeEngagePriority` | +8 reddit, +6 forum; CRM inbox sorts by `engage_priority` |
+| `CRM_ENGAGE_PRIORITY_MIN` | default 70 for `crm-bot api list` inbox and `entity inbox` |
+
+### Accept-quality Tier 3 (source mix + routing)
+
+| Mechanism | Behavior |
+| --- | --- |
+| `PARSER_SOURCE_PRIORITY` | coordinator collects reddit/forum before lander/github |
+| `PARSER_LANDER_OUTREACH` | default false: `lander:*` feeds registry intel only, not CRM |
+| `PARSER_INTENT_CLASSIFY` | Gemini buyer_search gate on github, lander (outreach), webpain, TG channels |
+| `filter.TelegramChannelBroadcastReject` | channel broadcast without buyer pain -> junk |
+| `sourcedisable.MinRawForFamily` | governor disables lander/github/invite at 40 raw (vs 100 default) |
+| `crm-bot db purge` | clean legacy junk: `--source-prefix lander: --score-max 50 --yes` |
+
+### Webpain P1 (crawl parity)
+
+| Mechanism | Behavior |
+| --- | --- |
+| `lander.TextForContactExtract` | webpain uses same HTML/RSC extract as lander/tgweb |
+| `PickPageLPR` | on-domain email or skype required at crawl emit |
+| `webpain.FilterPipelineContacts` | processor collapses to one LPR, drops role/CSS contacts |
+| `CrawlHTML` | preserved for stack/debug on accepted webpain leads |
+
+### Lander P2 (extraction hygiene)
+
+| Mechanism | Behavior |
+| --- | --- |
+| `skipExtractString` | `flattenJSON` / RSC skip CDN URLs, asset paths, base64, webpack chunk IDs |
+| `inlineStyleRe` | strip `style="..."` before visible body parse (no CSS `@media` leakage) |
+| contact-region prefer | footer/mailto/skype found -> skip full 50k body dump in `ExtractStaticLandingText` |
+
+### Supply P3 (ads.txt hygiene)
+
+| Mechanism | Behavior |
+| --- | --- |
+| `validate.AcceptEmail` | `collectContacts` and `CONTACT=` directives reject role/disposable mail |
+| `BuildSnippet` samples | up to 3 lines: `CONTACT=`, partner DIRECT row, seller email |
+| `AcceptCascadePartnerDomain` | SSP/CDN partners (rubicon, pubmatic, openx, ...) skip tgweb fan-out |
 
 ### Gemini discover diff
 
@@ -263,7 +333,7 @@ PARSER_PROXY_LIST=http://USER:PASS@connect.proxies.vision:8080
 PARSER_PROXY_LIST=http://USER:PASS@geo.iproyal.com:12321
 ```
 
-Geo/session often goes in the **username** (provider dashboard). Multiple URLs -> round-robin; 403/503 with `CF-Ray` -> 10 min cooldown per URL.
+Geo/session often goes in the **username** (provider dashboard). Multiple URLs -> round-robin. Per-proxy defaults: `PARSER_PROXY_RPS=0.5`, `PARSER_PROXY_BURST=1`, `PARSER_PROXY_COOLDOWN=10m`. On 403/503/429 block -> cooldown per URL; pool waits instead of reusing cooled endpoints.
 
 Residential signup without passport: DataImpulse (card or crypto) or Proxies.VISION (crypto). See [DEPLOY.md#recommended-stack-no-passport](DEPLOY.md#recommended-stack-no-passport).
 

@@ -103,7 +103,7 @@ func collectRSCStrings(raw string) string {
 		if s == "" || strings.HasPrefix(s, "$") || strings.HasPrefix(s, "@") {
 			continue
 		}
-		if looksLikeRSCInternal(s) {
+		if looksLikeRSCInternal(s) || skipExtractString(s) {
 			continue
 		}
 		parts = append(parts, s)
@@ -176,7 +176,9 @@ func collectJSONValues(v any, parts *[]string) {
 			collectJSONValues(val, parts)
 		}
 	case string:
-		if s := strings.TrimSpace(t); s != "" {
+		s := strings.TrimSpace(t)
+		// skipExtractString drops CDN/asset literals that inflate keyword prescan.
+		if s != "" && !skipExtractString(s) {
 			*parts = append(*parts, s)
 		}
 	}

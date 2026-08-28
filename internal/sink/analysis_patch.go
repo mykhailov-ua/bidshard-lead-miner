@@ -10,32 +10,37 @@ import (
 
 // LeadAnalysisPatch updates Gemini-derived fields on an existing lead document.
 type LeadAnalysisPatch struct {
-	HashID          string
-	AnalysisStatus  string
-	Status          string
-	Priority        string
-	Score           int
-	ICP             string
-	Hot             bool
-	SpendTier       string
-	ICPWhy          string
-	GeoCountry      string
-	CompanyCountry  string
-	CompanyName     string
-	GeoSignals      []string
-	GeoWhy          string
-	Tags            []string
-	OutreachChannel string
-	OutreachAngle   string
-	OutreachDraft   string
-	PilotQualified  bool
-	PilotWhy        string
-	CompanyType     string
-	EnrichSummary   string
-	GeoConfidence   string
-	DuplicateOf     string
-	ContactQuality  string
-	Stale           bool
+	HashID           string
+	AnalysisStatus   string
+	Status           string
+	Priority         string
+	Score            int
+	ICP              string
+	Hot              bool
+	SpendTier        string
+	ICPWhy           string
+	GeoCountry       string
+	CompanyCountry   string
+	CompanyName      string
+	GeoSignals       []string
+	GeoWhy           string
+	Tags             []string
+	OutreachChannel  string
+	OutreachSubject  string
+	OutreachAngle    string
+	OutreachDraft    string
+	PilotQualified   bool
+	PilotWhy         string
+	CompanyType      string
+	EnrichSummary    string
+	GeoConfidence    string
+	DuplicateOf      string
+	ContactQuality   string
+	ContactChannel   string
+	NextAction       string
+	EngagePriority   int
+	DisplacementTier string
+	Stale            bool
 }
 
 // LeadAnalysisPatcher patches deferred Gemini analysis results.
@@ -99,6 +104,9 @@ func (s *MongoStore) PatchLeadAnalysis(ctx context.Context, patch LeadAnalysisPa
 	if patch.OutreachChannel != "" {
 		set["outreach_channel"] = patch.OutreachChannel
 	}
+	if patch.OutreachSubject != "" {
+		set["outreach_subject"] = patch.OutreachSubject
+	}
 	if patch.OutreachAngle != "" {
 		set["outreach_angle"] = patch.OutreachAngle
 	}
@@ -125,6 +133,18 @@ func (s *MongoStore) PatchLeadAnalysis(ctx context.Context, patch LeadAnalysisPa
 	}
 	if patch.ContactQuality != "" {
 		set["contact_quality"] = patch.ContactQuality
+	}
+	if patch.ContactChannel != "" {
+		set["contact_channel"] = patch.ContactChannel
+	}
+	if patch.NextAction != "" {
+		set["next_action"] = patch.NextAction
+	}
+	if patch.EngagePriority > 0 {
+		set["engage_priority"] = patch.EngagePriority
+	}
+	if patch.DisplacementTier != "" {
+		set["displacement_tier"] = patch.DisplacementTier
 	}
 	if patch.Stale {
 		set["stale"] = true

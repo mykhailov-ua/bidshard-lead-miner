@@ -27,9 +27,28 @@ func applyComplianceDefaults(cfg *Config) {
 	if !cfg.CRMWebhookAfterAnalysis && envUnset("PARSER_GEMINI_SYNC_GEO") {
 		cfg.ParserGeminiSyncGeo = true
 	}
+	if envUnset("PARSER_WARM_EMBED_PRESCAN") {
+		cfg.ParserWarmEmbedPrescan = true
+	}
+	if envUnset("PARSER_WARM_EMBED_CLUSTER") {
+		cfg.ParserWarmEmbedCluster = true
+	}
 	if envUnset("PARSER_CRM_WEBHOOK_HEAT_MIN") {
 		// Staging-safe default; set hot in prod (.env.prod.example).
 		cfg.CRMWebhookHeatMin = "warm"
+	}
+	applyEmailQualityDefaults(cfg)
+	applyAcceptQualityDefaults(cfg)
+}
+
+// applyEmailQualityDefaults turns on MX gate for CRM handoff when env is unset.
+// SMTP verify stays opt-in (slow, often blocked on residential egress).
+func applyEmailQualityDefaults(cfg *Config) {
+	if !crmWebhookActive(*cfg) {
+		return
+	}
+	if envUnset("PARSER_MX_CHECK") {
+		cfg.MXCheck = true
 	}
 }
 

@@ -30,6 +30,7 @@ type DeleteResult struct {
 type DBStats struct {
 	TotalLeads int64         `json:"total_leads"`
 	ByStatus   []StatusCount `json:"by_status"`
+	ByOutcome  []StatusCount `json:"by_outcome"`
 }
 
 func (f DeleteFilter) Validate() error {
@@ -98,14 +99,26 @@ func (s *LeadStore) DBStats(ctx context.Context) (DBStats, error) {
 	}
 	defer func() { _ = cur.Close(queryCtx) }()
 
-	var rows []bson.M
-	if err := cur.All(queryCtx, &rows); err != nil {
+	var statusRows []bson.M
+	if err := cur.All(queryCtx, &statusRows); err != nil {
+		return DBStats{}, err
+	}
+
+	cur2, err := s.leads.Aggregate(queryCtx, mongoPipelineGroupByOutcome())
+	if err != nil {
+		return DBStats{}, err
+	}
+	defer func() { _ = cur2.Close(queryCtx) }()
+
+	var outcomeRows []bson.M
+	if err := cur2.All(queryCtx, &outcomeRows); err != nil {
 		return DBStats{}, err
 	}
 
 	return DBStats{
 		TotalLeads: total,
-		ByStatus:   decodeStatusFunnel(rows),
+		ByStatus:   decodeStatusFunnel(statusRows),
+		ByOutcome:  decodeOutcomeFunnel(outcomeRows),
 	}, nil
 }
 
@@ -114,6 +127,22 @@ func mongoPipelineGroupByStatus() bson.A {
 		bson.M{"$group": bson.M{"_id": "$status", "count": bson.M{"$sum": 1}}},
 		bson.M{"$sort": bson.M{"count": -1}},
 	}
+}
+
+func mongoPipelineGroupByOutcome() bson.A {
+	return bson.A{
+		bson.M{"$match": bson.M{"outcome": bson.M{"$exists": true, "$ne": ""}}},
+		bson.M{"$group": bson.M{"_id": "$outcome", "count": bson.M{"$sum": 1}}},
+		bson.M{"$sort": bson.M{"count": -1}},
+	}
+}
+
+func decodeOutcomeFunnel(raw any) []StatusCount {
+	rows, ok := raw.([]bson.M)
+	if !ok {
+		return nil
+	}
+	return decodeStatusFunnel(rows)
 }
 
 func (s *LeadStore) DeleteLeads(ctx context.Context, filter DeleteFilter) (DeleteResult, error) {

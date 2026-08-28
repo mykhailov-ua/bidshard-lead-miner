@@ -11,9 +11,13 @@ func TestLimitsForModelFlash(t *testing.T) {
 	if l.RPM != 20 || l.RPD != 250 {
 		t.Fatalf("unexpected 2.5-flash limits: %+v", l)
 	}
-	l36 := LimitsForModel("gemini-3.6-flash")
+	l36 := LimitsForModel(DefaultModel)
 	if l36.RPM != 15 || l36.RPD != 1500 {
 		t.Fatalf("unexpected 3.6-flash limits: %+v", l36)
+	}
+	l35 := LimitsForModel("gemini-3.5-flash")
+	if l35.RPM != 15 || l35.RPD != 1500 {
+		t.Fatalf("unexpected 3.5-flash limits: %+v", l35)
 	}
 }
 

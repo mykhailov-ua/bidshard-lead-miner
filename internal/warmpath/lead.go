@@ -48,6 +48,7 @@ func leadForCRM(ev Event, patch sink.LeadAnalysisPatch) model.Lead {
 		PilotWhy:        patch.PilotWhy,
 		Tags:            append([]string(nil), patch.Tags...),
 		OutreachChannel: patch.OutreachChannel,
+		OutreachSubject: patch.OutreachSubject,
 		OutreachAngle:   patch.OutreachAngle,
 		OutreachDraft:   patch.OutreachDraft,
 		CompanyType:     patch.CompanyType,
@@ -56,5 +57,8 @@ func leadForCRM(ev Event, patch sink.LeadAnalysisPatch) model.Lead {
 		EntityID:        ev.EntityID,
 		EntityHeat:      ev.EntityHeat,
 		HeatTier:        ev.HeatTier,
+		ContactQuality:  patch.ContactQuality,
+		ContactChannel:  patch.ContactChannel,
+		NextAction:      patch.NextAction,
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+
+	"github.com/bidshard/parser/internal/sourceregistry"
 )
 
 type AdsTxtLine struct {
@@ -117,10 +119,78 @@ func ParseSellersJSON(body []byte) []SellerContact {
 	return out
 }
 
-func BuildSnippet(domain string, ads []AdsTxtLine, sellers []SellerContact) string {
-	return strings.TrimSpace(strings.Join([]string{
+// BuildSnippet formats ads_txt Raw for prescan: counts plus up to three representative lines.
+func BuildSnippet(domain string, ads []AdsTxtLine, sellers []SellerContact, adsBodies ...string) string {
+	parts := []string{
 		"Supply crawl on " + domain + ".",
 		"ads.txt entries: " + strconv.Itoa(len(ads)) + ".",
 		"sellers.json contacts: " + strconv.Itoa(len(sellers)) + ".",
-	}, " "))
+	}
+	parts = append(parts, sampleAdsTxtLines(ads, sellers, adsBodies)...)
+	return strings.TrimSpace(strings.Join(parts, " "))
+}
+
+// sampleAdsTxtLines picks CONTACT=, non-SSP partners, then sellers; SSP rows fill leftover slots.
+func sampleAdsTxtLines(ads []AdsTxtLine, sellers []SellerContact, adsBodies []string) []string {
+	const maxSamples = 3
+	seen := make(map[string]struct{}, maxSamples)
+	var out []string
+	add := func(line string) bool {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			return false
+		}
+		if _, ok := seen[line]; ok {
+			return false
+		}
+		seen[line] = struct{}{}
+		out = append(out, line)
+		return len(out) >= maxSamples
+	}
+
+	for _, body := range adsBodies {
+		if contact := ExtractContactDirective(body); contact != "" {
+			if add("CONTACT=" + contact) {
+				return out
+			}
+		}
+	}
+	for _, line := range ads {
+		if sourceregistry.AcceptCascadePartnerDomain(line.Domain) {
+			if add(formatAdsTxtLine(line)) {
+				return out
+			}
+		}
+	}
+	for _, s := range sellers {
+		email := strings.TrimSpace(s.ContactEmail)
+		if email == "" {
+			continue
+		}
+		label := strings.TrimSpace(s.Name)
+		if label == "" {
+			label = strings.TrimSpace(s.Domain)
+		}
+		sample := "seller: " + email
+		if label != "" {
+			sample = "seller " + label + ": " + email
+		}
+		if add(sample) {
+			return out
+		}
+	}
+	for _, line := range ads {
+		if add(formatAdsTxtLine(line)) {
+			return out
+		}
+	}
+	return out
+}
+
+func formatAdsTxtLine(line AdsTxtLine) string {
+	s := line.Domain + ", " + line.PubID + ", " + line.Relation
+	if line.CertID != "" {
+		s += ", " + line.CertID
+	}
+	return s
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/bidshard/parser/internal/discover"
 	"github.com/bidshard/parser/internal/entity"
 	"github.com/bidshard/parser/internal/gemini"
+	"github.com/bidshard/parser/internal/metrics"
+	"github.com/bidshard/parser/internal/salesexport"
 	"github.com/bidshard/parser/internal/scoring"
 	"github.com/bidshard/parser/internal/sink"
 	"github.com/bidshard/parser/internal/worker"
@@ -32,31 +34,35 @@ type Config struct {
 
 // ServiceExtras wires optional cold-path audit and enrichment workers.
 type ServiceExtras struct {
-	Stale        *StaleLeadRegrader
-	DupSuggest   *DuplicateSuggestScanner
-	GeoAudit     *GeoAuditRunner
-	WebhookAudit *WebhookAuditReporter
-	SourceStats  *sink.SourceStatsStore
-	ChannelsPath string
+	Stale          *StaleLeadRegrader
+	DupSuggest     *DuplicateSuggestScanner
+	GeoAudit       *GeoAuditRunner
+	WebhookAudit   *WebhookAuditReporter
+	SourceStats    *sink.SourceStatsStore
+	ChannelsPath   string
+	SalesExportRU  bool
+	SalesExportDir string
 }
 
 type Service struct {
-	cfg          Config
-	capturer     *Capturer
-	junk         *sink.JunkStore
-	gemini       *gemini.Client
-	crm          BoostStore
-	embed        *sink.EmbeddingStore
-	keywordStats *sink.KeywordStatsStore
-	registry     *scoring.Registry
-	leads        BoostLeadLookup
-	entityPains  entity.PainSampleLister
-	stale        *StaleLeadRegrader
-	dupSuggest   *DuplicateSuggestScanner
-	geoAudit     *GeoAuditRunner
-	webhookAudit *WebhookAuditReporter
-	sourceStats  *sink.SourceStatsStore
-	channelsPath string
+	cfg            Config
+	capturer       *Capturer
+	junk           *sink.JunkStore
+	gemini         *gemini.Client
+	crm            BoostStore
+	embed          *sink.EmbeddingStore
+	keywordStats   *sink.KeywordStatsStore
+	registry       *scoring.Registry
+	leads          BoostLeadLookup
+	entityPains    entity.PainSampleLister
+	stale          *StaleLeadRegrader
+	dupSuggest     *DuplicateSuggestScanner
+	geoAudit       *GeoAuditRunner
+	webhookAudit   *WebhookAuditReporter
+	sourceStats    *sink.SourceStatsStore
+	channelsPath   string
+	salesExportRU  bool
+	salesExportDir string
 
 	lastReportEnd      time.Time
 	reportCount        int
@@ -107,6 +113,8 @@ func NewService(cfg Config, capturer *Capturer, junk *sink.JunkStore, client *ge
 		webhookAudit:       extras.WebhookAudit,
 		sourceStats:        extras.SourceStats,
 		channelsPath:       extras.ChannelsPath,
+		salesExportRU:      extras.SalesExportRU,
+		salesExportDir:     extras.SalesExportDir,
 		lastReportEnd:      time.Now().UTC(),
 		embedThreshold:     cfg.EmbedThreshold,
 		keywordDiffEvery:   cfg.KeywordDiffEvery,
@@ -230,6 +238,7 @@ func (s *Service) runAnalyze(ctx context.Context) {
 
 	results, err := s.gemini.AnalyzeJunkBatch(ctx, docs)
 	if err != nil {
+		metrics.RecordGeminiJunkBatchFailed()
 		slog.Warn("gemini analyze batch failed", "count", len(docs), "error", err)
 		return
 	}
@@ -353,6 +362,25 @@ func (s *Service) runReport(ctx context.Context) {
 	if err := s.junk.InsertReport(ctx, doc); err != nil {
 		slog.Warn("junk report insert failed", "error", err)
 		return
+	}
+	if s.salesExportRU {
+		report := salesexport.JunkReportFromDoc(doc)
+		if s.gemini != nil {
+			if localized, err := s.gemini.LocalizeJunkReportRU(ctx, doc); err == nil {
+				report = localized
+			} else {
+				slog.Warn("sales junk report RU localize failed", "error", err)
+			}
+		}
+		dir := s.salesExportDir
+		if dir == "" {
+			dir = "data/export/sales"
+		}
+		if path, err := salesexport.WriteJSON(dir, "junk_report_ru", report); err == nil {
+			slog.Info("sales junk report RU written", "path", path)
+		} else {
+			slog.Warn("sales junk report RU write failed", "error", err)
+		}
 	}
 
 	reportID := doc.ID.Hex()

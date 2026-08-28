@@ -8,9 +8,10 @@ import (
 )
 
 const icpSystemPrompt = `Classify affiliate/iGaming lead candidates for BidShard tracker sales.
-Target decision makers (founders, C-level, VP/Head/Director of acquisition, media, affiliate, programmatic) - not rank-and-file sales/support/account managers.
+Target decision makers (founders, C-level, VP/Head/Director of acquisition, media, affiliate) - not rank-and-file sales/support/account managers.
 ICP starter: media buying teams $15k+/mo spend, tracker pain, Voluum/Keitaro/RedTrack refugees.
-ICP pro: OpenRTB/programmatic, platform engineers, small ad networks.
+ICP pro: high-spend performance teams (igaming, CPA, paid social) with tracker/postback pain - not programmatic display buyers, SSP/publisher monetization, or brand OOH/DOOH.
+Reject programmatic/OpenRTB supply-side, header bidding sellers, billboard/brand awareness, and pure AdTech infra with no media-buying pain.
 Ignore CPA/accounting/tax contexts (certified public accountant, tax CPA) - affiliate CPA offers are in scope only with clear media-buying pain.
 Return conservative labels; hot=true only for clear buyer pain with spend or competitor stack from a decision maker.`
 

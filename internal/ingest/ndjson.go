@@ -9,13 +9,15 @@ import (
 )
 
 type ndjsonItem struct {
-	Source       string `json:"source"`
-	Text         string `json:"text"`
-	Contact      string `json:"contact"`
-	Title        string `json:"title"`
-	Username     string `json:"username"`
-	MessageID    int64  `json:"message_id"`
-	ChannelAbout string `json:"channel_about"`
+	Source           string `json:"source"`
+	Text             string `json:"text"`
+	Contact          string `json:"contact"`
+	Title            string `json:"title"`
+	Username         string `json:"username"`
+	MessageID        int64  `json:"message_id"`
+	ReplyToMessageID int64  `json:"reply_to_message_id"`
+	ChatType         string `json:"chat_type"`
+	ChannelAbout     string `json:"channel_about"`
 }
 
 func parseNDJSONLine(line []byte) (model.RawItem, error) {
@@ -43,13 +45,15 @@ func (item ndjsonItem) toRawItem() model.RawItem {
 	}
 
 	return model.RawItem{
-		Source:       item.Source,
-		Raw:          item.Text,
-		Contact:      contact,
-		Title:        item.Title,
-		Username:     item.Username,
-		MessageID:    item.MessageID,
-		ChannelAbout: item.ChannelAbout,
+		Source:           item.Source,
+		Raw:              item.Text,
+		Contact:          contact,
+		Title:            item.Title,
+		Username:         item.Username,
+		MessageID:        item.MessageID,
+		ReplyToMessageID: item.ReplyToMessageID,
+		ChatType:         item.ChatType,
+		ChannelAbout:     item.ChannelAbout,
 	}
 }
 

@@ -144,6 +144,22 @@ func (r *Registry) Snapshot() (kw, title, neg []keywordRule, highMin, mediumMin 
 		r.highMin, r.mediumMin
 }
 
+// KeywordWeights returns current keyword id -> weight for stats tuning reports.
+func (r *Registry) KeywordWeights() map[string]int {
+	if r == nil {
+		return map[string]int{}
+	}
+	kw, _, _, _, _ := r.Snapshot()
+	out := make(map[string]int, len(kw))
+	for _, rule := range kw {
+		if rule.id == "" {
+			continue
+		}
+		out[rule.id] = rule.weight
+	}
+	return out
+}
+
 func (r *Registry) Prescan(text string) bool {
 	return AnalyzeWithRegistry(r, text).Score > 0
 }

@@ -40,6 +40,19 @@ PAIN_HINTS = (
     "arbitrage",
 )
 
+TRACKER_PAIN_HINTS = (
+    "voluum",
+    "keitaro",
+    "binom",
+    "redtrack",
+    "postback",
+    "tracker",
+    "alternative",
+    "clickid",
+    "cloak",
+    "s2s",
+)
+
 CHANNEL_SPAM_HINTS = (
     "signal",
     "signals",
@@ -59,6 +72,25 @@ CHANNEL_POSITIVE_HINTS = (
     "acquisition",
     "performance marketing",
     "cpa",
+)
+
+JOB_HINTS = (
+    "hiring",
+    "job offer",
+    "open position",
+    "recruiting",
+    "вакансия",
+    "ищем медиабайера",
+)
+
+TUTORIAL_HINTS = (
+    "how to build",
+    "step by step",
+    "tutorial",
+    "guide",
+    "гайд",
+    "мануал",
+    "инструкция",
 )
 
 MIN_MESSAGE_RUNES = 40
@@ -89,6 +121,11 @@ def has_pain_signal(text: str) -> bool:
     return any(hint in body for hint in PAIN_HINTS)
 
 
+def has_tracker_pain_signal(text: str) -> bool:
+    body = _lower(text)
+    return any(hint in body for hint in TRACKER_PAIN_HINTS)
+
+
 def has_substance(text: str) -> bool:
     stripped = _EMAIL_RE.sub(" ", text)
     stripped = re.sub(r"(?:telegram:)?@[a-zA-Z][a-zA-Z0-9_]{3,}", " ", stripped)
@@ -96,10 +133,21 @@ def has_substance(text: str) -> bool:
     return runes >= MIN_MESSAGE_RUNES
 
 
+def is_job_or_tutorial_noise(text: str) -> bool:
+    body = _lower(text)
+    if any(h in body for h in JOB_HINTS):
+        return not has_tracker_pain_signal(text)
+    if any(h in body for h in TUTORIAL_HINTS):
+        return not has_tracker_pain_signal(text)
+    return False
+
+
 def should_emit_message(text: str) -> bool:
     if not prefilter_enabled():
         return True
     if is_spam_message(text):
+        return False
+    if is_job_or_tutorial_noise(text):
         return False
     # Emit on pain keywords even when message is short; otherwise require MIN_MESSAGE_RUNES substance.
     if has_pain_signal(text):

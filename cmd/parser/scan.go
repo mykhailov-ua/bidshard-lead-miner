@@ -6,7 +6,7 @@ func newScanCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "scan",
 		Short: "Run a single scan round and exit",
-		Long: `Run one scan round and exit. Default sources are forum+supply+lander+reddit+discord+warrior+serp.
+		Long: `Run one scan round and exit. Default sources are forum+supply+lander+reddit+discord+serp.
 
 Examples:
   parser scan

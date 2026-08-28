@@ -2,6 +2,15 @@ package extract
 
 import "testing"
 
+func TestExtractForumUserHint(t *testing.T) {
+	t.Parallel()
+
+	got := Extract("voluum alternative postback failing", "forum:user/media_buyer")
+	if len(got.Contacts) != 1 || got.Contacts[0].Type != "forum_user" {
+		t.Fatalf("contacts=%v", got.Contacts)
+	}
+}
+
 func TestExtractRedditHint(t *testing.T) {
 	t.Parallel()
 
@@ -96,6 +105,17 @@ func TestExtractDomainGitHubReviewHints(t *testing.T) {
 	}
 	if types["review"] != "John D" {
 		t.Fatalf("review=%q", types["review"])
+	}
+}
+
+func TestExtractSkipsCSSTelegramHandles(t *testing.T) {
+	t.Parallel()
+
+	got := Extract("@media screen and (max-width: 768px) { } @keyframes fade { } @supports (display: grid)")
+	for _, c := range got.Contacts {
+		if c.Type == "telegram" {
+			t.Fatalf("unexpected telegram contact %q", c.Value)
+		}
 	}
 }
 

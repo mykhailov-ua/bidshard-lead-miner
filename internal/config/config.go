@@ -37,7 +37,10 @@ type Config struct {
 	SourceRegistryPath        string
 	ForumSeedPath             string
 	ForumRegistryPath         string
+	WebPainRegistryPath       string
 	ForumBaseURL              string
+	ForumHostAllowlist        []string
+	ForumHostAllowlistPath    string
 	LanderSeedPath            string
 	LanderBaseURL             string
 	LanderHeadless            bool
@@ -120,7 +123,11 @@ type Config struct {
 	WarmAnalysisDLQCollection       string        // Empty disables DLQ writes
 	WarmAnalysisShutdownDrain       time.Duration // Warm-path flush budget on shutdown (WARM_ANALYSIS_SHUTDOWN_DRAIN)
 	ParserICPClassify               bool
-	ParserICPClassifyTgWeb          bool   // sync ICP on tgweb hot path even when ParserGeminiDefer is true
+	ParserICPClassifyTgWeb          bool // sync ICP on tgweb hot path even when ParserGeminiDefer is true
+	ParserLanderOutreach            bool
+	ParserSourcePriority            bool
+	ParserIntentClassify            bool
+	ParserIntentMinConfidence       float64
 	ParserTgWebPrescanMode          string // aggressive: site LPR bypasses keyword prescan; strict: require affiliate hits
 	ParserGeoClassify               bool
 	ParserTimeDecay                 bool
@@ -128,6 +135,7 @@ type Config struct {
 	EnrichDNS                       bool
 	EnrichEmail                     bool
 	EnrichSMTPVerify                bool
+	ProfileEnrichEnabled            bool
 	DiscordBotToken                 string
 	DiscordChannelIDs               []string
 	DiscordMaxMessages              int
@@ -187,9 +195,12 @@ type Config struct {
 	ParserEntityLinkSuggest           bool
 	EntityLinkSuggestInterval         time.Duration
 	HTTPWorkers                       int
-	ProxyURLs                         []string // PARSER_PROXY_LIST; HTTP crawlers only (not Mongo/Gemini)
-	ProxySources                      []string // PARSER_PROXY_SOURCES; empty = all crawlers may use proxy
-	ProxyDailyMBCap                   int      // PARSER_PROXY_DAILY_MB_CAP; 0 = no cap
+	ProxyURLs                         []string      // PARSER_PROXY_LIST; HTTP crawlers only (not Mongo/Gemini)
+	ProxySources                      []string      // PARSER_PROXY_SOURCES; empty = all crawlers may use proxy
+	ProxyDailyMBCap                   int           // PARSER_PROXY_DAILY_MB_CAP; 0 = no cap
+	ProxyRPS                          float64       // PARSER_PROXY_RPS; per-proxy req/s; 0 = default 0.5
+	ProxyBurst                        int           // PARSER_PROXY_BURST; 0 = default 1
+	ProxyCooldown                     time.Duration // PARSER_PROXY_COOLDOWN; 0 = default 10m
 	ProxyBudgetStatePath              string
 	TelegramProxyURL                  string // TELEGRAM_PROXY_URL; MTProto sidecar only (socks5/http)
 	BGWorkerEnabled                   bool
@@ -203,10 +214,19 @@ type Config struct {
 	BGAutoReportInterval              time.Duration
 	BGDiscordDiscoverInterval         time.Duration
 	BGSourceDisableInterval           time.Duration
+	BGDiscoverFeedbackInterval        time.Duration
 	AutoReportPath                    string
 	DisabledSourcesPath               string
+	DisabledDorksPath                 string
 	SourceDisableMinRaw               int
+	DorkDisableMinRaw                 int
+	DorkDisableMaxAcceptRate          float64
 	ParserSourceDisableGovernor       bool
+	ParserDiscoverFeedback            bool
+	ParserKeywordTuneAutoApply        bool
+	KeywordTuneAutoApplyMaxWeek       int
+	ParserSalesExportRU               bool
+	SalesExportDir                    string
 	ParserAutoDiscover                bool
 	ParserSeedFeedback                bool
 	ParserSeedFeedbackMinHeat         string
@@ -235,6 +255,9 @@ func Load() (Config, error) {
 		ProxyURLs:                         parseCSV(env("PARSER_PROXY_LIST", "")),
 		ProxySources:                      parseCSV(strings.ToLower(env("PARSER_PROXY_SOURCES", ""))),
 		ProxyDailyMBCap:                   envInt("PARSER_PROXY_DAILY_MB_CAP", 0),
+		ProxyRPS:                          envFloat("PARSER_PROXY_RPS", 0),
+		ProxyBurst:                        envInt("PARSER_PROXY_BURST", 0),
+		ProxyCooldown:                     envDuration("PARSER_PROXY_COOLDOWN", 0),
 		ProxyBudgetStatePath:              env("PARSER_PROXY_BUDGET_STATE_PATH", "data/runtime/proxy_budget.json"),
 		LogFormat:                         env("PARSER_LOG_FORMAT", "auto"),
 		LogLevel:                          env("PARSER_LOG_LEVEL", "info"),
@@ -246,7 +269,7 @@ func Load() (Config, error) {
 		MongoCollection:                   env("PARSER_MONGO_COLLECTION", "leads"),
 		ExportJSONPath:                    env("PARSER_EXPORT_JSON", ""),
 		ExportJSONFormat:                  env("PARSER_EXPORT_JSON_FORMAT", "auto"),
-		MXCheck:                           envBool("PARSER_MX_CHECK", false),
+		MXCheck:                           envBool("PARSER_MX_CHECK", true),
 		KeywordsJSONPath:                  env("KEYWORDS_JSON_PATH", "data/keywords.json"),
 		KeywordsGrayPath:                  env("KEYWORDS_GRAY_JSON_PATH", "data/keywords-gray.json"),
 		GeoBlockCountries:                 parseCSV(env("GEO_BLOCK_COUNTRIES", "RU,BY")),
@@ -260,7 +283,10 @@ func Load() (Config, error) {
 		SourceRegistryPath:                env("SOURCE_REGISTRY_PATH", "data/runtime/source_registry.json"),
 		ForumSeedPath:                     env("FORUM_SEED_PATH", "data/seeds/forum_threads.csv"),
 		ForumRegistryPath:                 env("FORUM_REGISTRY_PATH", "data/runtime/discovered_forum_threads.json"),
+		WebPainRegistryPath:               env("WEB_PAIN_REGISTRY_PATH", "data/runtime/discovered_web_pain.json"),
 		ForumBaseURL:                      env("FORUM_BASE_URL", ""),
+		ForumHostAllowlist:                parseCSV(env("FORUM_HOST_ALLOWLIST", "")),
+		ForumHostAllowlistPath:            env("FORUM_HOST_ALLOWLIST_PATH", ""),
 		LanderSeedPath:                    env("LANDER_SEED_PATH", "data/seeds/lander_urls.csv"),
 		LanderBaseURL:                     env("LANDER_BASE_URL", ""),
 		LanderHeadless:                    envBool("PARSER_LANDER_HEADLESS", false),
@@ -270,7 +296,7 @@ func Load() (Config, error) {
 		LanderHeadlessDrainLimit:          envInt("PARSER_LANDER_HEADLESS_DRAIN_LIMIT", 25),
 		LanderHeadlessMaxBrowsers:         envInt("PARSER_LANDER_HEADLESS_MAX_BROWSERS", 2),
 		GeminiAPIKey:                      env("GEMINI_API_KEY", ""),
-		GeminiModel:                       env("GEMINI_MODEL", "gemini-2.5-flash"),
+		GeminiModel:                       env("GEMINI_MODEL", "gemini-3.6-flash"),
 		GeminiAnalyzeInterval:             envDuration("GEMINI_ANALYZE_INTERVAL", 15*time.Minute),
 		GeminiReportInterval:              envDuration("GEMINI_REPORT_INTERVAL", 6*time.Hour),
 		GeminiBatchSize:                   envInt("GEMINI_BATCH_SIZE", 20),
@@ -329,6 +355,10 @@ func Load() (Config, error) {
 		WarmAnalysisShutdownDrain:         envDuration("WARM_ANALYSIS_SHUTDOWN_DRAIN", 2*time.Minute),
 		ParserICPClassify:                 envBool("PARSER_ICP_CLASSIFY", false),
 		ParserICPClassifyTgWeb:            envBool("PARSER_ICP_CLASSIFY_TGWEB", true),
+		ParserLanderOutreach:              envBool("PARSER_LANDER_OUTREACH", false),
+		ParserSourcePriority:              envBool("PARSER_SOURCE_PRIORITY", true),
+		ParserIntentClassify:              envBool("PARSER_INTENT_CLASSIFY", false),
+		ParserIntentMinConfidence:         envFloat("PARSER_INTENT_MIN_CONFIDENCE", 0.8),
 		ParserTgWebPrescanMode:            env("PARSER_TGWEB_PRESCAN_MODE", "aggressive"),
 		ParserGeoClassify:                 envBool("PARSER_GEO_CLASSIFY", false),
 		ParserTimeDecay:                   envBool("PARSER_TIME_DECAY", true),
@@ -336,6 +366,7 @@ func Load() (Config, error) {
 		EnrichDNS:                         envBool("PARSER_ENRICH_DNS", true),
 		EnrichEmail:                       envBool("PARSER_ENRICH_EMAIL", true),
 		EnrichSMTPVerify:                  envBool("PARSER_ENRICH_SMTP_VERIFY", false),
+		ProfileEnrichEnabled:              envBool("PARSER_PROFILE_ENRICH", true),
 		DiscordBotToken:                   env("DISCORD_BOT_TOKEN", ""),
 		DiscordChannelIDs:                 parseCSV(env("DISCORD_CHANNEL_IDS", "")),
 		DiscordMaxMessages:                envInt("DISCORD_MAX_MESSAGES", 50),
@@ -383,10 +414,19 @@ func Load() (Config, error) {
 		BGAutoReportInterval:              envDuration("PARSER_BG_AUTO_REPORT_INTERVAL", 7*24*time.Hour),
 		BGDiscordDiscoverInterval:         envDuration("PARSER_BG_DISCORD_DISCOVER_INTERVAL", 24*time.Hour),
 		BGSourceDisableInterval:           envDuration("PARSER_BG_SOURCE_DISABLE_INTERVAL", 24*time.Hour),
+		BGDiscoverFeedbackInterval:        envDuration("PARSER_BG_DISCOVER_FEEDBACK_INTERVAL", 24*time.Hour),
 		AutoReportPath:                    env("PARSER_AUTO_REPORT_PATH", "data/runtime/auto_report.jsonl"),
 		DisabledSourcesPath:               env("PARSER_DISABLED_SOURCES_PATH", "data/runtime/disabled_sources.json"),
+		DisabledDorksPath:                 env("PARSER_DISABLED_DORKS_PATH", "data/runtime/disabled_dorks.json"),
 		SourceDisableMinRaw:               envInt("PARSER_SOURCE_DISABLE_MIN_RAW", 100),
+		DorkDisableMinRaw:                 envInt("PARSER_DORK_DISABLE_MIN_RAW", 30),
+		DorkDisableMaxAcceptRate:          envFloat("PARSER_DORK_DISABLE_MAX_ACCEPT_RATE", 0.05),
 		ParserSourceDisableGovernor:       envBool("PARSER_SOURCE_DISABLE_GOVERNOR", false),
+		ParserDiscoverFeedback:            envBool("PARSER_DISCOVER_FEEDBACK", false),
+		ParserKeywordTuneAutoApply:        envBool("PARSER_KEYWORD_TUNE_AUTO_APPLY", false),
+		KeywordTuneAutoApplyMaxWeek:       envInt("PARSER_KEYWORD_TUNE_AUTO_APPLY_MAX_WEEK", 15),
+		ParserSalesExportRU:               envBool("PARSER_SALES_EXPORT_RU", false),
+		SalesExportDir:                    env("PARSER_SALES_EXPORT_DIR", "data/export/sales"),
 		ParserAutoDiscover:                envBool("PARSER_AUTO_DISCOVER", false),
 		ParserSeedFeedback:                envBool("PARSER_SEED_FEEDBACK", false),
 		ParserSeedFeedbackMinHeat:         env("PARSER_SEED_FEEDBACK_MIN_HEAT", "hot"),
@@ -427,6 +467,11 @@ func Load() (Config, error) {
 	cfg.TelegramAPIID = apiID
 
 	applyComplianceDefaults(&cfg)
+	applyProxyDefaults(&cfg)
+
+	if err := ValidateProxyURLs(cfg.ProxyURLs); err != nil {
+		return Config{}, fmt.Errorf("PARSER_PROXY_LIST: %w", err)
+	}
 
 	return cfg, nil
 }

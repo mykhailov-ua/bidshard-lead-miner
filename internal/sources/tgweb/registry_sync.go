@@ -23,9 +23,9 @@ func SyncToSourceRegistry(tgDomainsPath, registryPath string) (added int, err er
 		if discoveredBy == "" {
 			discoveredBy = "telegram"
 		}
-		types := []string{sourceregistry.TypeTGWeb, sourceregistry.TypeSupply}
+		types := append([]string(nil), sourceregistry.CascadeTypes...)
 		if strings.Contains(strings.ToLower(discoveredBy), "cross") || strings.Contains(strings.ToLower(discoveredBy), "mention") {
-			types = []string{sourceregistry.TypeSupply, sourceregistry.TypeTGWeb}
+			types = []string{sourceregistry.TypeSupply, sourceregistry.TypeTGWeb, sourceregistry.TypeLander}
 		}
 		ok, upsertErr := sourceregistry.Upsert(registryPath, sourceregistry.Entry{
 			Domain:       domain,

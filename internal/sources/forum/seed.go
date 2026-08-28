@@ -78,8 +78,8 @@ func loadThreadSeedsFromCSV(path string) ([]ThreadSeed, error) {
 	return seeds, nil
 }
 
-// LoadThreadSeedsCombined merges runtime registry threads with optional CSV seeds.
-func LoadThreadSeedsCombined(csvPath, registryPath string) ([]ThreadSeed, error) {
+// LoadThreadSeedsCombined merges runtime registry, forum CSV, and legacy warrior CSV seeds.
+func LoadThreadSeedsCombined(csvPath, registryPath, warriorCSVPath string) ([]ThreadSeed, error) {
 	seen := map[string]struct{}{}
 	var seeds []ThreadSeed
 
@@ -119,6 +119,20 @@ func LoadThreadSeedsCombined(csvPath, registryPath string) ([]ThreadSeed, error)
 			continue
 		}
 		seen[s.URL] = struct{}{}
+		seeds = append(seeds, s)
+	}
+	warriorSeeds, err := LoadThreadSeedsOptional(warriorCSVPath)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range warriorSeeds {
+		if _, ok := seen[s.URL]; ok {
+			continue
+		}
+		seen[s.URL] = struct{}{}
+		if s.Notes == "" {
+			s.Notes = "warrior_csv"
+		}
 		seeds = append(seeds, s)
 	}
 	if len(seeds) == 0 {

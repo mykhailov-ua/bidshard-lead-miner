@@ -40,7 +40,11 @@ type LeadDoc struct {
 	Lang                string          `bson:"lang,omitempty" json:"lang,omitempty"`
 	Status              string          `bson:"status,omitempty" json:"status,omitempty"`
 	StatusAt            time.Time       `bson:"status_at,omitempty" json:"status_at,omitempty"`
+	Outcome             string          `bson:"outcome,omitempty" json:"outcome,omitempty"`
+	OutcomeAt           time.Time       `bson:"outcome_at,omitempty" json:"outcome_at,omitempty"`
+	OutcomeNote         string          `bson:"outcome_note,omitempty" json:"outcome_note,omitempty"`
 	OutreachChannel     string          `bson:"outreach_channel,omitempty" json:"outreach_channel,omitempty"`
+	OutreachSubject     string          `bson:"outreach_subject,omitempty" json:"outreach_subject,omitempty"`
 	OutreachAngle       string          `bson:"outreach_angle,omitempty" json:"outreach_angle,omitempty"`
 	OutreachDraft       string          `bson:"outreach_draft,omitempty" json:"outreach_draft,omitempty"`
 	EntityProof         string          `bson:"entity_proof,omitempty" json:"entity_proof,omitempty"`
@@ -59,6 +63,10 @@ type LeadDoc struct {
 	DuplicateOf         string          `bson:"duplicate_of,omitempty" json:"duplicate_of,omitempty"`
 	DuplicateSuggest    string          `bson:"duplicate_suggest,omitempty" json:"duplicate_suggest,omitempty"`
 	ContactQuality      string          `bson:"contact_quality,omitempty" json:"contact_quality,omitempty"`
+	ContactChannel      string          `bson:"contact_channel,omitempty" json:"contact_channel,omitempty"`
+	NextAction          string          `bson:"next_action,omitempty" json:"next_action,omitempty"`
+	EngagePriority      int             `bson:"engage_priority,omitempty" json:"engage_priority,omitempty"`
+	DisplacementTier    string          `bson:"displacement_tier,omitempty" json:"displacement_tier,omitempty"`
 	Stale               bool            `bson:"stale,omitempty" json:"stale,omitempty"`
 }
 
@@ -112,6 +120,7 @@ func ToLeadDoc(lead model.Lead) LeadDoc {
 		Status:              status,
 		StatusAt:            statusAt,
 		OutreachChannel:     lead.OutreachChannel,
+		OutreachSubject:     lead.OutreachSubject,
 		OutreachAngle:       lead.OutreachAngle,
 		OutreachDraft:       lead.OutreachDraft,
 		EntityProof:         lead.EntityProof,
@@ -130,6 +139,10 @@ func ToLeadDoc(lead model.Lead) LeadDoc {
 		DuplicateOf:         lead.DuplicateOf,
 		DuplicateSuggest:    lead.DuplicateSuggest,
 		ContactQuality:      lead.ContactQuality,
+		ContactChannel:      lead.ContactChannel,
+		NextAction:          lead.NextAction,
+		EngagePriority:      lead.EngagePriority,
+		DisplacementTier:    lead.DisplacementTier,
 		Stale:               lead.Stale,
 	}
 	return doc
@@ -164,6 +177,7 @@ type LeadDocUpdateFields struct {
 	Tags                []string        `bson:"tags,omitempty"`
 	Lang                string          `bson:"lang,omitempty"`
 	OutreachChannel     string          `bson:"outreach_channel,omitempty"`
+	OutreachSubject     string          `bson:"outreach_subject,omitempty"`
 	OutreachAngle       string          `bson:"outreach_angle,omitempty"`
 	OutreachDraft       string          `bson:"outreach_draft,omitempty"`
 	EntityProof         string          `bson:"entity_proof,omitempty"`
@@ -180,6 +194,10 @@ type LeadDocUpdateFields struct {
 	DuplicateOf         string          `bson:"duplicate_of,omitempty"`
 	DuplicateSuggest    string          `bson:"duplicate_suggest,omitempty"`
 	ContactQuality      string          `bson:"contact_quality,omitempty"`
+	ContactChannel      string          `bson:"contact_channel,omitempty"`
+	NextAction          string          `bson:"next_action,omitempty"`
+	EngagePriority      int             `bson:"engage_priority,omitempty"`
+	DisplacementTier    string          `bson:"displacement_tier,omitempty"`
 	Stale               bool            `bson:"stale,omitempty"`
 }
 
@@ -212,6 +230,7 @@ func ToLeadDocUpdateBSON(doc LeadDoc) (bson.M, error) {
 		Tags:                doc.Tags,
 		Lang:                doc.Lang,
 		OutreachChannel:     doc.OutreachChannel,
+		OutreachSubject:     doc.OutreachSubject,
 		OutreachAngle:       doc.OutreachAngle,
 		OutreachDraft:       doc.OutreachDraft,
 		EntityProof:         doc.EntityProof,
@@ -228,6 +247,10 @@ func ToLeadDocUpdateBSON(doc LeadDoc) (bson.M, error) {
 		DuplicateOf:         doc.DuplicateOf,
 		DuplicateSuggest:    doc.DuplicateSuggest,
 		ContactQuality:      doc.ContactQuality,
+		ContactChannel:      doc.ContactChannel,
+		NextAction:          doc.NextAction,
+		EngagePriority:      doc.EngagePriority,
+		DisplacementTier:    doc.DisplacementTier,
 		Stale:               doc.Stale,
 	})
 	if err != nil {
@@ -278,6 +301,7 @@ func LeadDocToModel(doc LeadDoc) model.Lead {
 		Status:              doc.Status,
 		StatusAt:            doc.StatusAt,
 		OutreachChannel:     doc.OutreachChannel,
+		OutreachSubject:     doc.OutreachSubject,
 		OutreachAngle:       doc.OutreachAngle,
 		OutreachDraft:       doc.OutreachDraft,
 		EntityProof:         doc.EntityProof,
@@ -296,6 +320,10 @@ func LeadDocToModel(doc LeadDoc) model.Lead {
 		DuplicateOf:         doc.DuplicateOf,
 		DuplicateSuggest:    doc.DuplicateSuggest,
 		ContactQuality:      doc.ContactQuality,
+		ContactChannel:      doc.ContactChannel,
+		NextAction:          doc.NextAction,
+		EngagePriority:      doc.EngagePriority,
+		DisplacementTier:    doc.DisplacementTier,
 		Stale:               doc.Stale,
 	}
 }

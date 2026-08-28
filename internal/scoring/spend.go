@@ -57,7 +57,7 @@ func HasSpendSignal(text string) bool {
 
 func HasCompetitorMention(text string) bool {
 	for _, phrase := range competitorPhrases {
-		if strings.Contains(text, phrase) {
+		if PhraseMatches(text, phrase) {
 			return true
 		}
 	}

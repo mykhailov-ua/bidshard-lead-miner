@@ -43,7 +43,7 @@ func NewClient(apiKey, model string, opts ...Option) (*Client, error) {
 		return nil, fmt.Errorf("gemini api key required")
 	}
 	if model == "" {
-		model = "gemini-2.5-flash"
+		model = DefaultModel
 	}
 	lc := DefaultLimitConfig(model)
 	cl := &Client{

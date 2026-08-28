@@ -30,3 +30,19 @@ func TestFindLinkSuggestPairs(t *testing.T) {
 		t.Fatalf("domain=%q", pairs[0].SharedDomain)
 	}
 }
+
+func TestFindLinkSuggestPairsIdentityKeys(t *testing.T) {
+	t.Parallel()
+
+	docs := []EntityDoc{
+		{EntityID: "e1", AliasKeys: []string{"telegram:buyer42"}, UnifiedPain: "Voluum"},
+		{EntityID: "e2", AliasKeys: []string{"telegram:buyer42", "forum_user:affbuyer"}, UnifiedPain: "Tracker"},
+	}
+	pairs := FindLinkSuggestPairs(docs)
+	if len(pairs) != 1 {
+		t.Fatalf("pairs=%d want 1", len(pairs))
+	}
+	if pairs[0].SharedDomain != "telegram:buyer42" {
+		t.Fatalf("shared=%q", pairs[0].SharedDomain)
+	}
+}

@@ -7,7 +7,8 @@ func TestParseSourceList(t *testing.T) {
 
 	cases := map[string][]string{
 		"":             nil,
-		"all":          {"forum", "supply", "lander", "reddit", "discord", "warrior", "serp"},
+		"all":          {"forum", "supply", "reddit", "discord", "serp"},
+		"warrior":      {"forum"},
 		"forum,reddit": {"forum", "reddit"},
 	}
 	for in, want := range cases {

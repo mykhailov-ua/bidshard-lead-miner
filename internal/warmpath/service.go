@@ -32,6 +32,7 @@ type Config struct {
 	PendingStaleAge         time.Duration // WARM_ANALYSIS_PENDING_STALE; min age of analysis_status=pending
 	ShutdownDrainTimeout    time.Duration // WARM_ANALYSIS_SHUTDOWN_DRAIN; flush budget after ctx cancel
 	EngageMediumEnabled     bool          // PARSER_GEMINI_ENGAGE_MEDIUM: lite outreach_angle for Medium+warm entity
+	TimeDecayEnabled        bool          // PARSER_TIME_DECAY on warm score refresh
 }
 
 // ServiceExtras wires optional Mongo pending scan, DLQ, embed prescan, cluster, junk insert.
@@ -175,6 +176,7 @@ func (s *Service) flushAll(ctx context.Context) {
 func (s *Service) processBatch(ctx context.Context, batch []Event) {
 	// Batch is already removed from the in-memory buffer; on shutdown mid-retry we requeue instead of DLQ.
 	batch = s.filterWarmPrescan(ctx, batch)
+	batch = s.filterWarmCluster(ctx, batch)
 	if len(batch) == 0 {
 		return
 	}
@@ -346,6 +348,10 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 
 	score := ev.Score
 	priority := scoring.Priority(ev.Priority)
+	if s.cfg.TimeDecayEnabled && !ev.PostedAt.IsZero() {
+		score = scoring.ApplyTimeDecay(score, ev.PostedAt, time.Now().UTC())
+		priority = scoring.PriorityFromScore(s.registry, score)
+	}
 	if s.registry != nil {
 		score, _ = gemini.ApplyICPToScore(score, res.ICP, highMin)
 		priority = scoring.PriorityFromScore(s.registry, score)
@@ -400,6 +406,7 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 			patch.PilotWhy = res.Engagement.PilotWhy
 			patch.Tags = append([]string(nil), res.PilotTags...)
 			patch.OutreachChannel = res.Engagement.OutreachChannel
+			patch.OutreachSubject = res.Engagement.OutreachSubject
 			patch.OutreachAngle = res.Engagement.OutreachAngle
 			patch.OutreachDraft = res.Engagement.OutreachDraft
 		}
@@ -424,6 +431,25 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 				patch.OutreachAngle = angle
 			}
 		}
+	}
+
+	ch, action := scoring.AssignOutreachQueue(ev.Contacts, patch.OutreachChannel)
+	patch.ContactChannel = ch
+	patch.NextAction = action
+	patch.DisplacementTier = ev.DisplacementTier
+	patch.EngagePriority = scoring.ComputeEngagePriority(scoring.EngagePriorityInput{
+		Priority:         priority,
+		Score:            score,
+		DisplacementTier: scoring.DisplacementTier(ev.DisplacementTier),
+		PilotQualified:   patch.PilotQualified,
+		Stack:            ev.Stack,
+		EntityHeat:       ev.EntityHeat,
+		ContactQuality:   patch.ContactQuality,
+		HasEngageDraft:   strings.TrimSpace(patch.OutreachDraft) != "",
+		SourceFamily:     ev.Source,
+	})
+	if patch.EngagePriority < ev.EngagePriority {
+		patch.EngagePriority = ev.EngagePriority
 	}
 
 	if s.cluster != nil && scoring.MeetsMinPriority(priority, scoring.PriorityHigh) {

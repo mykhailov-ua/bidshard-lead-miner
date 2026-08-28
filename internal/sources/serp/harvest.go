@@ -2,14 +2,10 @@ package serp
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
-	"net/http"
-	"net/url"
-	"strings"
 
 	"github.com/bidshard/parser/internal/discover"
-	"github.com/bidshard/parser/internal/httpclient"
+	"github.com/bidshard/parser/internal/dorkdisable"
 )
 
 // HarvestTelegramCatalog searches the web for public and invite Telegram links only.
@@ -25,6 +21,7 @@ func (c *Crawler) HarvestTelegramCatalog(ctx context.Context) error {
 	if len(dorks) == 0 {
 		dorks = fallbackTelegramCatalogDorks()
 	}
+	dorks = dorkdisable.FilterActiveDorks(c.disabledDorksPath, dorks)
 
 	var added int
 	for _, dork := range dorks {
@@ -49,33 +46,6 @@ func (c *Crawler) HarvestTelegramCatalog(ctx context.Context) error {
 	}
 	slog.Info("telegram catalog harvest finished", "new_entries", added)
 	return nil
-}
-
-func (c *Crawler) searchDork(ctx context.Context, dork string) ([]SERPResult, error) {
-	params := url.Values{}
-	params.Set("q", dork)
-	reqURL := c.baseURL
-	if !strings.HasSuffix(reqURL, "/") {
-		reqURL += "/"
-	}
-	if !strings.Contains(reqURL, "?") {
-		reqURL += "?" + params.Encode()
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-
-	body, status, err := httpclient.DoBytes(c.client, req, 2<<20)
-	if err != nil {
-		return nil, err
-	}
-	if status != http.StatusOK {
-		return nil, fmt.Errorf("http %d", status)
-	}
-	return parseSERPResults(string(body)), nil
 }
 
 func fallbackTelegramCatalogDorks() []string {

@@ -24,6 +24,7 @@ import (
 	"github.com/bidshard/parser/internal/scoring"
 	"github.com/bidshard/parser/internal/seedfeedback"
 	"github.com/bidshard/parser/internal/sink"
+	"github.com/bidshard/parser/internal/sources/forum"
 	"github.com/bidshard/parser/internal/telethon"
 	"github.com/bidshard/parser/internal/validate"
 	"github.com/bidshard/parser/internal/warmpath"
@@ -39,6 +40,8 @@ type runtimeDeps struct {
 	entityLinkSuggest *warmpath.EntityLinkSuggestService
 	mongoClient       *mongo.Client
 	sourceStats       *sink.SourceStatsStore
+	keywordStats      *sink.KeywordStatsStore
+	registry          *scoring.Registry
 }
 
 func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
@@ -64,11 +67,34 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		slog.Info("blacklist emails loaded", "path", cfg.BlacklistEmailsPath, "count", validate.BlacklistEmailCount())
 	}
 
+	forumExtra := append([]string(nil), cfg.ForumHostAllowlist...)
+	if cfg.ForumHostAllowlistPath != "" {
+		fileHosts, err := forum.LoadHostAllowlistFile(cfg.ForumHostAllowlistPath)
+		if err != nil {
+			slog.Warn("forum host allowlist file failed", "path", cfg.ForumHostAllowlistPath, "error", err)
+		} else {
+			forumExtra = append(forumExtra, fileHosts...)
+		}
+	}
+	forum.ConfigureHosts(forumExtra)
+	slog.Info("forum host allowlist ready", "hosts", forum.ForumHostCount(), "extra", len(forumExtra))
+
 	_ = httpclient.Shared(cfg.HTTPTimeout) // warm default client for supply/enrich; HTTP crawlers use NewClientWithProxies when configured
+	httpclient.SetProxyPoolConfig(httpclient.ProxyPoolConfig{
+		PerProxyRPS:      cfg.ProxyRPS,
+		PerProxyBurst:    cfg.ProxyBurst,
+		CooldownDuration: cfg.ProxyCooldown,
+	})
 	gov := proxybudget.Configure(cfg.ProxyDailyMBCap, cfg.ProxyBudgetStatePath)
 	httpclient.SetProxyBudget(gov)
 	if gov.Enabled() {
 		slog.Info("proxy daily budget enabled", "cap_mb", cfg.ProxyDailyMBCap, "state", cfg.ProxyBudgetStatePath)
+	}
+	if len(cfg.ProxyURLs) > 0 {
+		slog.Info("proxy egress configured",
+			"proxies", len(cfg.ProxyURLs),
+			"scoped_sources", cfg.ProxySources,
+		)
 	}
 
 	mx := validate.MXValidator(validate.StubMX{OK: true})
@@ -217,12 +243,14 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 				EmbedThreshold:           cfg.GeminiEmbedThreshold,
 				HardRejectShadowDailyCap: cfg.HardRejectShadowDailyCap,
 			}, junkCapturer, junkStore, geminiClient, crmStore, embedStore, keywordStats, reg, boostLeads, painLister, coldpath.ServiceExtras{
-				Stale:        staleRegrader,
-				DupSuggest:   dupScanner,
-				GeoAudit:     geoAudit,
-				WebhookAudit: webhookAudit,
-				SourceStats:  sourceStats,
-				ChannelsPath: cfg.TelegramChannelsPath,
+				Stale:          staleRegrader,
+				DupSuggest:     dupScanner,
+				GeoAudit:       geoAudit,
+				WebhookAudit:   webhookAudit,
+				SourceStats:    sourceStats,
+				ChannelsPath:   cfg.TelegramChannelsPath,
+				SalesExportRU:  cfg.ParserSalesExportRU,
+				SalesExportDir: cfg.SalesExportDir,
 			})
 			slog.Info("cold path gemini enabled",
 				"model", cfg.GeminiModel,
@@ -325,6 +353,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 				PendingRescanInterval:   cfg.WarmAnalysisPendingScanInterval,
 				PendingStaleAge:         cfg.WarmAnalysisPendingStale,
 				ShutdownDrainTimeout:    cfg.WarmAnalysisShutdownDrain,
+				TimeDecayEnabled:        cfg.ParserTimeDecay,
 			}, warmCapturer, leadPatcher, geminiClient, reg, warmExtras)
 			slog.Info("warm path gemini enabled",
 				"analyze_interval", cfg.GeminiLeadAnalyzeInterval,
@@ -422,6 +451,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 	icpTgWebEnabled := cfg.ParserICPClassifyTgWeb && geminiClient != nil
 	geoEnabled := cfg.ParserGeoClassify && geminiClient != nil && (!geminiDefer || cfg.ParserGeminiSyncGeo)
 	engageEnabled := cfg.ParserGeminiEngage && geminiClient != nil && !geminiDefer
+	intentEnabled := cfg.ParserIntentClassify && geminiClient != nil
 	enrichSynthEnabled := cfg.ParserGeminiEnrichSynth && geminiClient != nil && !geminiDefer
 	prescanEnabled := cfg.ParserEmbedPrescan && embedPrescan != nil && !geminiDefer
 	clusterEnabled := cfg.ParserEmbedCluster && leadCluster != nil && !geminiDefer
@@ -431,6 +461,9 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 	}
 	if icpTgWebEnabled {
 		slog.Info("tgweb sync icp enabled", "gemini_defer", geminiDefer)
+	}
+	if intentEnabled {
+		slog.Info("intent classify enabled", "min_confidence", cfg.ParserIntentMinConfidence)
 	}
 	leadStore := sink.Store(sink.NewStubStore())
 	if deps.bulkStore != nil {
@@ -453,11 +486,16 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		GeoBlockCountries:     cfg.GeoBlockCountries,
 		Engage:                geminiClient,
 		EngageEnabled:         engageEnabled,
+		Intent:                geminiClient,
+		IntentEnabled:         intentEnabled,
+		IntentMinConfidence:   cfg.ParserIntentMinConfidence,
+		LanderOutreachEnabled: cfg.ParserLanderOutreach,
 		Prescan:               embedPrescan,
 		PrescanEnabled:        prescanEnabled,
 		LeadCluster:           leadCluster,
 		LeadClusterEnabled:    clusterEnabled,
 		Enricher:              enricher,
+		ProfileEnricher:       enrich.NewProfileEnricher(cfg),
 		EnrichSynth:           geminiClient,
 		EnrichSynthEnabled:    enrichSynthEnabled,
 		TimeDecayEnabled:      cfg.ParserTimeDecay,
@@ -482,6 +520,8 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		}),
 		TelegramThread: entity.NewThreadBuffer(entity.DefaultTelegramThreadWindow),
 	}
+	deps.registry = reg
+	deps.keywordStats = keywordStats
 
 	if cfg.MetricsAddr != "" {
 		metrics.StartMetricsServer(ctx, cfg.MetricsAddr)
@@ -565,6 +605,8 @@ func runIngestOnce(ctx context.Context, cfg config.Config, deps *runtimeDeps, re
 		"raw", stats.RawTotal,
 		"accepted", stats.Accepted,
 		"rejected_geo", stats.RejectedGeo,
+		"hard_rejected", stats.HardRejected,
+		"dedup", stats.Dedup,
 		"dropped", stats.Dropped,
 		"high", stats.High,
 		"medium", stats.Medium,
@@ -614,6 +656,7 @@ func runTelegramSidecarOnce(ctx context.Context, cfg config.Config, deps *runtim
 		return ingestErr
 	}
 	if sidecarErr != nil && sidecarErr != context.Canceled {
+		metrics.RecordTelethonSidecarFailed()
 		return sidecarErr
 	}
 	return nil

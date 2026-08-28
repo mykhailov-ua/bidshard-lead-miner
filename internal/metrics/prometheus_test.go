@@ -20,6 +20,13 @@ func TestMetricsExposition(t *testing.T) {
 	RecordSourcesDiscovered("telegram", 3)
 	RecordSourcesTriagedDropped(2)
 	RecordProxyEgressBytes("forum", 4096)
+	RecordProxyCFBlock("forum", "http_403")
+	RecordProxyCooldownWait("forum")
+	RecordProxyTransportFail("forum")
+	RecordCrawlHTTPFail("forum", 403)
+	RecordSERPHarvestFailed()
+	RecordGeminiJunkBatchFailed()
+	RecordTelethonSidecarFailed()
 	RecordICPDrift("tgweb")
 	RecordQueueDropped("junk")
 
@@ -68,6 +75,15 @@ func TestMetricsExposition(t *testing.T) {
 	}
 	if !strings.Contains(content, "parser_proxy_egress_bytes_total{source=\"forum\"} 4096") {
 		t.Errorf("expected parser_proxy_egress_bytes_total metric in output:\n%s", content)
+	}
+	if !strings.Contains(content, "parser_proxy_cf_block_total{source=\"forum\",reason=\"http_403\"}") {
+		t.Errorf("expected parser_proxy_cf_block_total metric in output:\n%s", content)
+	}
+	if !strings.Contains(content, "parser_serp_harvest_failed_total 1") {
+		t.Errorf("expected parser_serp_harvest_failed_total metric in output:\n%s", content)
+	}
+	if !strings.Contains(content, "parser_telethon_sidecar_failed_total 1") {
+		t.Errorf("expected parser_telethon_sidecar_failed_total metric in output:\n%s", content)
 	}
 	if !strings.Contains(content, "parser_icp_drift_total{source=\"tgweb\"}") {
 		t.Errorf("expected parser_icp_drift_total metric in output:\n%s", content)

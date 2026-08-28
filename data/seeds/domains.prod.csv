@@ -1,4 +1,4 @@
-# Production supply seeds: public ads.txt / sellers.json hosts (no .example TLD).
+# Production supply seeds: public ads.txt / sellers.json hosts (real domains only).
 # Requires PARSER_PROXY_LIST on datacenter VPS when hosts block direct egress.
 domain,geo,notes
 google.com,global,ads.txt

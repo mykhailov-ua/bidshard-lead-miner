@@ -31,7 +31,25 @@ var (
 	headlessDrainedTotal    int64
 	icpDriftTotal           = make(map[string]int64)
 	queueDroppedTotal       = make(map[string]int64)
+	proxyCfBlockTotal       = make(map[string]int64)
+	proxyCooldownWaitTotal  = make(map[string]int64)
+	proxyTransportFailTotal = make(map[string]int64)
+	crawlHTTPFailTotal      = make(map[string]int64)
+	serpHarvestFailedTotal  int64
+	geminiJunkBatchFailed   int64
+	telethonSidecarFailed   int64
 )
+
+// EgressCounters is a point-in-time snapshot of egress health counters (auto report).
+type EgressCounters struct {
+	ProxyCfBlock          int64
+	ProxyCooldownWait     int64
+	ProxyTransportFail    int64
+	CrawlHTTPFail         int64
+	SerpHarvestFailed     int64
+	GeminiJunkBatchFailed int64
+	TelethonSidecarFailed int64
+}
 
 // RecordAccepted increments the accepted leads counter by source and priority.
 func RecordAccepted(source, priority string) {
@@ -218,6 +236,95 @@ func RecordQueueDropped(queue string) {
 	queueDroppedTotal[queue]++
 }
 
+// RecordProxyCFBlock increments when a proxy endpoint enters cooldown after a block response.
+func RecordProxyCFBlock(source, reason string) {
+	if source == "" {
+		source = "unknown"
+	}
+	if reason == "" {
+		reason = "unknown"
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	key := fmt.Sprintf("%s|%s", source, reason)
+	proxyCfBlockTotal[key]++
+}
+
+// RecordProxyCooldownWait increments when the proxy pool sleeps waiting for cooldown expiry.
+func RecordProxyCooldownWait(source string) {
+	if source == "" {
+		source = "unknown"
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	proxyCooldownWaitTotal[source]++
+}
+
+// RecordProxyTransportFail increments proxy RoundTrip transport errors by crawler source id.
+func RecordProxyTransportFail(source string) {
+	if source == "" {
+		source = "unknown"
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	proxyTransportFailTotal[source]++
+}
+
+// RecordCrawlHTTPFail increments final non-OK HTTP responses by source and status code.
+func RecordCrawlHTTPFail(source string, status int) {
+	if source == "" {
+		source = "unknown"
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	key := fmt.Sprintf("%s|%d", source, status)
+	crawlHTTPFailTotal[key]++
+}
+
+// RecordSERPHarvestFailed increments when a SERP dork search fails after retries.
+func RecordSERPHarvestFailed() {
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	serpHarvestFailedTotal++
+}
+
+// RecordGeminiJunkBatchFailed increments cold-path junk Gemini batch failures.
+func RecordGeminiJunkBatchFailed() {
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	geminiJunkBatchFailed++
+}
+
+// RecordTelethonSidecarFailed increments Telethon scrape/discover sidecar failures.
+func RecordTelethonSidecarFailed() {
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	telethonSidecarFailed++
+}
+
+// SnapshotEgress returns summed egress counters for automation snapshots.
+func SnapshotEgress() EgressCounters {
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	var out EgressCounters
+	for _, v := range proxyCfBlockTotal {
+		out.ProxyCfBlock += v
+	}
+	for _, v := range proxyCooldownWaitTotal {
+		out.ProxyCooldownWait += v
+	}
+	for _, v := range proxyTransportFailTotal {
+		out.ProxyTransportFail += v
+	}
+	for _, v := range crawlHTTPFailTotal {
+		out.CrawlHTTPFail += v
+	}
+	out.SerpHarvestFailed = serpHarvestFailedTotal
+	out.GeminiJunkBatchFailed = geminiJunkBatchFailed
+	out.TelethonSidecarFailed = telethonSidecarFailed
+	return out
+}
+
 // Handler returns Prometheus exposition text format.
 func Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -319,6 +426,46 @@ func Handler() http.Handler {
 		for queue, val := range queueDroppedTotal {
 			_, _ = fmt.Fprintf(w, "parser_queue_dropped_total{queue=\"%s\"} %d\n", queue, val)
 		}
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_proxy_cf_block_total Proxy endpoints cooled down after block responses")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_proxy_cf_block_total counter")
+		for key, val := range proxyCfBlockTotal {
+			parts := strings.SplitN(key, "|", 2)
+			source, reason := parts[0], parts[1]
+			_, _ = fmt.Fprintf(w, "parser_proxy_cf_block_total{source=\"%s\",reason=\"%s\"} %d\n", source, reason, val)
+		}
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_proxy_cooldown_wait_total Proxy pool sleeps while all endpoints cool down")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_proxy_cooldown_wait_total counter")
+		for source, val := range proxyCooldownWaitTotal {
+			_, _ = fmt.Fprintf(w, "parser_proxy_cooldown_wait_total{source=\"%s\"} %d\n", source, val)
+		}
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_proxy_transport_fail_total Proxy RoundTrip transport errors")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_proxy_transport_fail_total counter")
+		for source, val := range proxyTransportFailTotal {
+			_, _ = fmt.Fprintf(w, "parser_proxy_transport_fail_total{source=\"%s\"} %d\n", source, val)
+		}
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_crawl_http_fail_total Final non-OK HTTP responses by source and status")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_crawl_http_fail_total counter")
+		for key, val := range crawlHTTPFailTotal {
+			parts := strings.SplitN(key, "|", 2)
+			source, status := parts[0], parts[1]
+			_, _ = fmt.Fprintf(w, "parser_crawl_http_fail_total{source=\"%s\",status=\"%s\"} %d\n", source, status, val)
+		}
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_serp_harvest_failed_total SERP dork searches that failed after retries")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_serp_harvest_failed_total counter")
+		_, _ = fmt.Fprintf(w, "parser_serp_harvest_failed_total %d\n", serpHarvestFailedTotal)
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_gemini_junk_batch_failed_total Cold-path junk Gemini batch failures")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_gemini_junk_batch_failed_total counter")
+		_, _ = fmt.Fprintf(w, "parser_gemini_junk_batch_failed_total %d\n", geminiJunkBatchFailed)
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_telethon_sidecar_failed_total Telethon scrape/discover sidecar failures")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_telethon_sidecar_failed_total counter")
+		_, _ = fmt.Fprintf(w, "parser_telethon_sidecar_failed_total %d\n", telethonSidecarFailed)
 	})
 }
 

@@ -13,7 +13,7 @@ const analyzerSystemPrompt = `You analyze rejected affiliate/iGaming lead candid
 Audience: media buyers outside Russia/Belarus looking for tracker alternatives (Voluum, Keitaro, RedTrack, etc.).
 Contacts in input are already masked - never ask for or invent PII.
 Classify each item:
-- true_junk: spam, off-topic, newbie with no spend, job seeker, course seller, white AdTech, RU/BY geo signals
+- true_junk: spam, off-topic, newbie with no spend, job seeker, course seller, programmatic/SSP/DOOH/brand AdTech, white-label exchange sellers, RU/BY geo signals
 - false_negative: likely real buyer pain we should not have dropped (tune keywords/scoring/geo)
 - borderline: weak signal but not clearly junk
 

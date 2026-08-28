@@ -11,7 +11,7 @@ Copy `.env.example` to `.env`. Validate with `docker compose run --rm parser con
 | `forum` | `data/seeds/forum_threads.csv` | - |
 | `supply` | `data/seeds/domains.csv` | - |
 | `lander` | `data/seeds/lander_urls.csv` | - |
-| `warrior` | `data/seeds/warrior_threads.csv` | - |
+| `warrior` | `data/seeds/warrior_threads.csv` (merged into forum crawl) | - |
 | `reddit` | [PullPush API](https://api.pullpush.io/reddit/search/submission/) | - |
 | `reviews`, `ct`, `serp` | seed files / public HTTP | - |
 
@@ -214,7 +214,8 @@ PullPush may rate-limit without registration: [pullpush.io](https://api.pullpush
 | Variable | Purpose |
 |----------|---------|
 | `PARSER_PROXY_LIST` | Comma-separated HTTP proxies - see [OPS.md](OPS.md#proxy) |
-| `PARSER_MX_CHECK` | MX validation for email leads |
+| `PARSER_MX_CHECK` | MX validation for email leads (default `true`; set `false` to skip DNS gate) |
+| `PARSER_ENRICH_SMTP_VERIFY` | Optional SMTP RCPT check on enrich (default `false`; slow, egress-dependent) |
 | `PARSER_LEAD_STATUS_ENABLED` | Set `true` before CRM inbox - parser writes `status: new` on accept |
 | `PARSER_ENRICH_RDAP` / `DNS` / `EMAIL` | RDAP/DNS enrichment |
 | `SUPPLY_BASE_URL` | HTTP rewrite base for supply crawler (tests) |

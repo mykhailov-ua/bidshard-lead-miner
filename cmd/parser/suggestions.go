@@ -6,6 +6,7 @@ import (
 
 	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/discover"
+	"github.com/bidshard/parser/internal/pretty"
 	"github.com/bidshard/parser/internal/suggestions"
 	"github.com/spf13/cobra"
 )
@@ -45,13 +46,19 @@ func newSuggestionsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			out := cmd.OutOrStdout()
+			color := cliColor(out)
 			if len(files) == 0 {
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "no pending suggestion files")
+				pretty.StatusNote(out, color, "no pending suggestion files")
 				return nil
 			}
+			pretty.Section(out, color, "Pending suggestions")
+			header := []string{"kind", "status", "path"}
+			rows := make([][]string, 0, len(files))
 			for _, f := range files {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\n", f.Kind, f.Status, f.Path)
+				rows = append(rows, []string{string(f.Kind), f.Status, f.Path})
 			}
+			pretty.PrintTable(out, color, header, rows)
 			return nil
 		},
 	}
@@ -136,14 +143,16 @@ func newSuggestionsApplyCmd() *cobra.Command {
 					if err != nil {
 						return err
 					}
-					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "ok %s\n", summary)
+					out := cmd.OutOrStdout()
+					pretty.StatusOK(out, cliColor(out), "%s", summary)
 					return nil
 				}
 				summary, err := suggestions.ApplyKeywords(file, keywordsPath, dryRun)
 				if err != nil {
 					return err
 				}
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "ok %s\n", summary)
+				out := cmd.OutOrStdout()
+				pretty.StatusOK(out, cliColor(out), "%s", summary)
 				return nil
 			case suggestions.KindDiscover:
 				if icpPath == "" {
@@ -160,14 +169,16 @@ func newSuggestionsApplyCmd() *cobra.Command {
 					if err != nil {
 						return err
 					}
-					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "ok %s\n", summary)
+					out := cmd.OutOrStdout()
+					pretty.StatusOK(out, cliColor(out), "%s", summary)
 					return nil
 				}
 				summary, err := suggestions.ApplyDiscover(file, icpPath, dryRun)
 				if err != nil {
 					return err
 				}
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "ok %s\n", summary)
+				out := cmd.OutOrStdout()
+				pretty.StatusOK(out, cliColor(out), "%s", summary)
 				return nil
 			default:
 				return fmt.Errorf("unsupported pending kind %q", kind)
@@ -195,7 +206,8 @@ func newSuggestionsRejectCmd() *cobra.Command {
 			if err := suggestions.RejectPending(file); err != nil {
 				return err
 			}
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "rejected %s\n", file)
+			out := cmd.OutOrStdout()
+			pretty.StatusNote(out, cliColor(out), "rejected %s", file)
 			return nil
 		},
 	}

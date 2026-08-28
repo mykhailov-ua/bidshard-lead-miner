@@ -29,13 +29,28 @@ func Evaluate(stats []sink.SourceStatsDoc, minRaw int) []string {
 		if key == "" {
 			continue
 		}
+		threshold := MinRawForFamily(key, minRaw)
 		total := doc.Accepted + doc.Junk
-		if total < minRaw || doc.Accepted > 0 {
+		if total < threshold || doc.Accepted > 0 {
 			continue
 		}
 		out = append(out, key)
 	}
 	return out
+}
+
+// MinRawForFamily lowers the governor bar for chronically noisy crawl families.
+func MinRawForFamily(family string, defaultMin int) int {
+	switch strings.ToLower(strings.TrimSpace(family)) {
+	case "lander", "github", "webpain":
+		if defaultMin > 40 {
+			return 40
+		}
+	}
+	if strings.HasPrefix(strings.ToLower(family), "telegram:invite") && defaultMin > 40 {
+		return 40
+	}
+	return defaultMin
 }
 
 func Load(path string) map[string]struct{} {

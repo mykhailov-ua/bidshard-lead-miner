@@ -170,6 +170,8 @@ func (c *Coordinator) runRound(
 		"raw", stats.RawTotal,
 		"accepted", stats.Accepted,
 		"rejected_geo", stats.RejectedGeo,
+		"hard_rejected", stats.HardRejected,
+		"dedup", stats.Dedup,
 		"dropped", stats.Dropped,
 		"high", stats.High,
 		"medium", stats.Medium,

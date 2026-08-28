@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/dorkdisable"
 	"github.com/bidshard/parser/internal/extract"
 	"github.com/bidshard/parser/internal/geo"
 	"github.com/bidshard/parser/internal/httpclient"
@@ -19,10 +20,11 @@ import (
 type EmitFunc func(ctx context.Context, item model.RawItem) error
 
 type Crawler struct {
-	client     *http.Client
-	dorks      []string
-	maxResults int
-	baseURL    string
+	client            *http.Client
+	dorks             []string
+	maxResults        int
+	baseURL           string
+	disabledDorksPath string
 }
 
 func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
@@ -40,11 +42,16 @@ func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 		`site:tgstat.com affiliate`,
 		`telegram channel affiliate marketing tracker`,
 	}
+	path := cfg.DisabledDorksPath
+	if path == "" {
+		path = dorkdisable.DefaultPath
+	}
 	return &Crawler{
-		client:     client,
-		dorks:      dorks,
-		maxResults: 20,
-		baseURL:    "https://html.duckduckgo.com/html/",
+		client:            client,
+		dorks:             dorkdisable.FilterActiveDorks(path, dorks),
+		maxResults:        20,
+		baseURL:           "https://html.duckduckgo.com/html/",
+		disabledDorksPath: path,
 	}
 }
 
@@ -64,34 +71,11 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		default:
 		}
 
-		params := url.Values{}
-		params.Set("q", dork)
-		reqURL := c.baseURL
-		if !strings.HasSuffix(reqURL, "/") {
-			reqURL += "/"
-		}
-		if !strings.Contains(reqURL, "?") {
-			reqURL += "?" + params.Encode()
-		}
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
-		if err != nil {
-			slog.Warn("serp request build failed", "dork", dork, "error", err)
-			continue
-		}
-		req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-
-		body, status, err := httpclient.DoBytes(c.client, req, 2<<20)
+		results, err := c.searchDork(ctx, dork)
 		if err != nil {
 			slog.Warn("serp fetch failed", "dork", dork, "error", err)
 			continue
 		}
-		if status != http.StatusOK {
-			slog.Warn("serp bad status", "dork", dork, "status", status)
-			continue
-		}
-
-		results := parseSERPResults(string(body))
 		if err := appendTelegramChannelDiscoveries(defaultTGChannelsPath, dork, results); err != nil {
 			slog.Warn("serp telegram channel registry write failed", "error", err)
 		}

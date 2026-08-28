@@ -8,16 +8,18 @@ import (
 )
 
 type RawItem struct {
-	Source       string
-	Raw          string
-	Contact      string
-	Title        string
-	Username     string
-	ForumUserID  string
-	MessageID    int64
-	ChannelAbout string
-	CrawlHTML    string
-	PostedAt     time.Time
+	Source           string
+	Raw              string
+	Contact          string
+	Title            string
+	Username         string
+	ForumUserID      string
+	MessageID        int64
+	ReplyToMessageID int64
+	ChatType         string
+	ChannelAbout     string
+	CrawlHTML        string
+	PostedAt         time.Time
 }
 
 func (r RawItem) Text() string {
@@ -25,8 +27,10 @@ func (r RawItem) Text() string {
 	if r.Raw != "" {
 		text = r.Raw
 	}
-	if r.CrawlHTML != "" {
-		if hint := scoring.FormatStackHint(scoring.DetectCompetitorStack(r.CrawlHTML)); hint != "" {
+	// Lander HTML often embeds competitor stack fingerprints; do not inflate scoring text.
+	if r.CrawlHTML != "" && !strings.HasPrefix(strings.ToLower(strings.TrimSpace(r.Source)), "lander:") {
+		stack, _ := scoring.CollectStack(r.CrawlHTML)
+		if hint := scoring.FormatStackHint(stack); hint != "" {
 			text = text + " " + hint
 		}
 	}
@@ -108,6 +112,7 @@ type Lead struct {
 	Status              string
 	StatusAt            time.Time
 	OutreachChannel     string
+	OutreachSubject     string
 	OutreachAngle       string
 	OutreachDraft       string
 	EntityProof         string
@@ -126,5 +131,9 @@ type Lead struct {
 	DuplicateOf         string
 	DuplicateSuggest    string
 	ContactQuality      string
+	ContactChannel      string
+	NextAction          string
+	EngagePriority      int
+	DisplacementTier    string
 	Stale               bool
 }

@@ -82,7 +82,7 @@ func (r *Recorder) RecordAccepted(in AcceptInput) int {
 		}
 		ok, err := sourceregistry.Upsert(r.cfg.RegistryPath, sourceregistry.Entry{
 			Domain:       domain,
-			Types:        []string{sourceregistry.TypeTGWeb, sourceregistry.TypeSupply},
+			Types:        append([]string(nil), sourceregistry.CascadeTypes...),
 			DiscoveredBy: discoveredBy,
 			Source:       in.Lead.Source,
 			Channel:      in.Lead.Source,

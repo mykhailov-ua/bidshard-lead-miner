@@ -17,6 +17,13 @@ ICP: starter | pro | none; hot=true only for clear buyer pain with spend or comp
 Pilot signals (high priority only): spend_budget, competitor_stack, tracker_pain, infra_vps, usdt_ok, buyer_role, high_volume, migration_intent.
 pilot_qualified=true when >=3 independent signals.
 
+Outreach (high priority only): pick channel from contact_types only.
+Prefer email for supply/lander/ads_txt/tgweb and partnerships@/ads@ mailboxes.
+Prefer telegram for forum/reddit when both telegram and email exist.
+When outreach_channel=email: outreach_subject (max 80 chars) + 2-4 sentence cold email body.
+When telegram: empty outreach_subject, 1-2 sentence DM.
+When forum: empty outreach_subject, manual reply angle.
+
 Enrichment (high priority only): company_type, geo_confidence, summary (2 sentences max).`
 
 const leadBatchICPSystemPrompt = `You analyze accepted affiliate/iGaming leads for BidShard (self-hosted ad tracker).
@@ -27,6 +34,13 @@ ICP: starter | pro | none; hot=true only for clear buyer pain with spend or comp
 
 Pilot signals (high priority only): spend_budget, competitor_stack, tracker_pain, infra_vps, usdt_ok, buyer_role, high_volume, migration_intent.
 pilot_qualified=true when >=3 independent signals.
+
+Outreach (high priority only): pick channel from contact_types only.
+Prefer email for supply/lander/ads_txt/tgweb and partnerships@/ads@ mailboxes.
+Prefer telegram for forum/reddit when both telegram and email exist.
+When outreach_channel=email: outreach_subject (max 80 chars) + 2-4 sentence cold email body.
+When telegram: empty outreach_subject, 1-2 sentence DM.
+When forum: empty outreach_subject, manual reply angle.
 
 Enrichment (high priority only): company_type, geo_confidence, summary (2 sentences max).`
 
@@ -82,8 +96,9 @@ var leadBatchSchema = map[string]any{
 						"type": "string",
 						"enum": []any{"telegram", "email", "forum", "other"},
 					},
-					"outreach_angle": map[string]any{"type": "string"},
-					"outreach_draft": map[string]any{"type": "string"},
+					"outreach_subject": map[string]any{"type": "string"},
+					"outreach_angle":   map[string]any{"type": "string"},
+					"outreach_draft":   map[string]any{"type": "string"},
 					"company_type": map[string]any{
 						"type": "string",
 						"enum": []any{"media_buyer", "affiliate_network", "tool_vendor", "agency", "unknown"},
@@ -136,8 +151,9 @@ var leadBatchICPSchema = map[string]any{
 						"type": "string",
 						"enum": []any{"telegram", "email", "forum", "other"},
 					},
-					"outreach_angle": map[string]any{"type": "string"},
-					"outreach_draft": map[string]any{"type": "string"},
+					"outreach_subject": map[string]any{"type": "string"},
+					"outreach_angle":   map[string]any{"type": "string"},
+					"outreach_draft":   map[string]any{"type": "string"},
 					"company_type": map[string]any{
 						"type": "string",
 						"enum": []any{"media_buyer", "affiliate_network", "tool_vendor", "agency", "unknown"},
@@ -207,6 +223,7 @@ type leadBatchItem struct {
 	PilotQualified      bool     `json:"pilot_qualified"`
 	PilotWhy            string   `json:"pilot_why"`
 	OutreachChannel     string   `json:"outreach_channel"`
+	OutreachSubject     string   `json:"outreach_subject"`
 	OutreachAngle       string   `json:"outreach_angle"`
 	OutreachDraft       string   `json:"outreach_draft"`
 	CompanyType         string   `json:"company_type"`
@@ -238,13 +255,17 @@ func (c *Client) AnalyzeLeadBatch(ctx context.Context, items []LeadBatchInput, g
 	}
 
 	out := make([]LeadBatchResult, 0, len(parsed.Items))
+	byID := make(map[string]LeadBatchInput, len(items))
+	for _, in := range items {
+		byID[in.ID] = in
+	}
 	for _, item := range parsed.Items {
-		out = append(out, leadBatchResultFromItem(item, geoClassify))
+		out = append(out, leadBatchResultFromItem(item, geoClassify, byID[strings.TrimSpace(item.ID)]))
 	}
 	return out, nil
 }
 
-func leadBatchResultFromItem(item leadBatchItem, geoClassify bool) LeadBatchResult {
+func leadBatchResultFromItem(item leadBatchItem, geoClassify bool, in LeadBatchInput) LeadBatchResult {
 	var geo GeoResult
 	if geoClassify {
 		geo = normalizeGeoResult(geoResponse{
@@ -263,9 +284,11 @@ func leadBatchResultFromItem(item leadBatchItem, geoClassify bool) LeadBatchResu
 		PilotQualified:  item.PilotQualified,
 		PilotWhy:        strings.TrimSpace(item.PilotWhy),
 		OutreachChannel: normalizeOutreachChannel(item.OutreachChannel),
+		OutreachSubject: strings.TrimSpace(item.OutreachSubject),
 		OutreachAngle:   strings.TrimSpace(item.OutreachAngle),
 		OutreachDraft:   strings.TrimSpace(item.OutreachDraft),
 	}
+	engage = ReconcileEngagement(engage, in.ContactTypes, in.Source)
 	qualified, tags := ApplyEngagementPilot(engage)
 	return LeadBatchResult{
 		HashID: strings.TrimSpace(item.ID),

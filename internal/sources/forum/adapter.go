@@ -18,11 +18,12 @@ import (
 type EmitFunc func(ctx context.Context, item model.RawItem) error
 
 type Adapter struct {
-	seedPath     string
-	registryPath string
-	fetcher      *Fetcher
-	workers      int
-	usesProxy    bool
+	seedPath        string
+	warriorSeedPath string
+	registryPath    string
+	fetcher         *Fetcher
+	workers         int
+	usesProxy       bool
 }
 
 func NewAdapter(cfg config.Config, fetcher *Fetcher) *Adapter {
@@ -33,12 +34,17 @@ func NewAdapter(cfg config.Config, fetcher *Fetcher) *Adapter {
 	if workers <= 0 {
 		workers = 10
 	}
+	warriorPath := cfg.WarriorSeedPath
+	if warriorPath == "" {
+		warriorPath = "data/seeds/warrior_threads.csv"
+	}
 	return &Adapter{
-		seedPath:     cfg.ForumSeedPath,
-		registryPath: cfg.ForumRegistryPath,
-		fetcher:      fetcher,
-		workers:      workers,
-		usesProxy:    len(cfg.ProxyURLsForSource("forum")) > 0,
+		seedPath:        cfg.ForumSeedPath,
+		warriorSeedPath: warriorPath,
+		registryPath:    cfg.ForumRegistryPath,
+		fetcher:         fetcher,
+		workers:         workers,
+		usesProxy:       len(cfg.ProxyURLsForSource("forum")) > 0,
 	}
 }
 
@@ -51,7 +57,7 @@ func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
 		slog.Info("forum crawl skipped", "reason", reason)
 		return nil
 	}
-	seeds, err := LoadThreadSeedsCombined(a.seedPath, a.registryPath)
+	seeds, err := LoadThreadSeedsCombined(a.seedPath, a.registryPath, a.warriorSeedPath)
 	if err != nil {
 		return err
 	}
@@ -100,9 +106,6 @@ func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
 			}
 
 			for _, post := range ParsePostsFromHTML(html) {
-				if !HasPainSignal(post.Body) {
-					continue
-				}
 				contacts := extract.Extract(post.Body)
 				if contacts.Rejected {
 					continue
@@ -110,7 +113,7 @@ func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
 				primary := ""
 				if len(contacts.Contacts) > 0 {
 					primary = extract.FormatAll(contacts.Contacts)[0]
-				} else if post.Author != "" {
+				} else if post.Author != "" && !strings.EqualFold(post.Author, "anonymous") {
 					primary = "forum:user/" + post.Author
 				} else {
 					continue

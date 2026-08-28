@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/bidshard/parser/internal/pretty"
+	"github.com/bidshard/parser/internal/scoring"
 )
 
 const engageSystemPrompt = `You evaluate accepted affiliate/iGaming leads for BidShard (self-hosted ad tracker).
@@ -23,10 +24,26 @@ Pilot checklist - emit only signals clearly supported by the snippet (max 8):
 
 pilot_qualified=true only when at least 3 independent checklist signals are present.
 
-Outreach:
-- outreach_channel: best first-touch channel given available contact types (telegram > email > forum > other)
-- outreach_angle: one sentence hook referencing their pain/stack (no PII, no fake familiarity)
-- outreach_draft: 1-2 short sentences for first message; professional, specific to their pain; no links unless snippet mentions one
+Outreach channel rules (contact_types lists what is available - never pick unavailable channel):
+- telegram: only if contact_types includes telegram
+- email: only if contact_types includes email
+- forum: only if contact_types includes forum_user and no telegram/email
+- Prefer telegram for forum/reddit buyer pain when both telegram and email exist.
+- Prefer email for supply/lander/ads_txt/tgweb B2B surfaces and partnerships@ or ads@ mailboxes.
+
+When outreach_channel=email:
+- outreach_subject: specific cold email subject line (max 80 chars, no fake RE:)
+- outreach_draft: 2-4 sentence professional email body; reference tracker pain; no invented names
+
+When outreach_channel=telegram:
+- outreach_subject: empty string
+- outreach_draft: 1-2 short DM sentences
+
+When outreach_channel=forum:
+- outreach_subject: empty string
+- outreach_draft: manual forum reply angle, not a DM
+
+outreach_angle: one sentence hook referencing pain/stack (no PII).
 
 Contacts are masked. Never invent PII.`
 
@@ -49,8 +66,9 @@ var engageSchema = map[string]any{
 			"type": "string",
 			"enum": []any{"telegram", "email", "forum", "other"},
 		},
-		"outreach_angle": map[string]any{"type": "string"},
-		"outreach_draft": map[string]any{"type": "string"},
+		"outreach_subject": map[string]any{"type": "string"},
+		"outreach_angle":   map[string]any{"type": "string"},
+		"outreach_draft":   map[string]any{"type": "string"},
 	},
 	"required": []any{"pilot_signals", "pilot_qualified", "outreach_channel", "outreach_angle", "outreach_draft"},
 }
@@ -70,6 +88,7 @@ type EngagementResult struct {
 	PilotQualified  bool
 	PilotWhy        string
 	OutreachChannel string
+	OutreachSubject string
 	OutreachAngle   string
 	OutreachDraft   string
 }
@@ -79,6 +98,7 @@ type engagementResponse struct {
 	PilotQualified  bool     `json:"pilot_qualified"`
 	PilotWhy        string   `json:"pilot_why"`
 	OutreachChannel string   `json:"outreach_channel"`
+	OutreachSubject string   `json:"outreach_subject"`
 	OutreachAngle   string   `json:"outreach_angle"`
 	OutreachDraft   string   `json:"outreach_draft"`
 }
@@ -129,14 +149,31 @@ func (c *Client) ClassifyEngagement(ctx context.Context, in EngagementInput) (En
 		signals = append(signals, sig)
 	}
 
-	return EngagementResult{
+	result := EngagementResult{
 		PilotSignals:    signals,
 		PilotQualified:  parsed.PilotQualified,
 		PilotWhy:        strings.TrimSpace(parsed.PilotWhy),
 		OutreachChannel: normalizeOutreachChannel(parsed.OutreachChannel),
+		OutreachSubject: strings.TrimSpace(parsed.OutreachSubject),
 		OutreachAngle:   strings.TrimSpace(parsed.OutreachAngle),
 		OutreachDraft:   strings.TrimSpace(parsed.OutreachDraft),
-	}, nil
+	}
+	return ReconcileEngagement(result, in.ContactTypes, in.Source), nil
+}
+
+// ReconcileEngagement aligns channel/subject with available contacts and B2B source hints.
+func ReconcileEngagement(r EngagementResult, contactTypes []string, source string) EngagementResult {
+	avail := scoring.ChannelsFromContactTypes(contactTypes)
+	pref := r.OutreachChannel
+	if scoring.SourcePrefersEmailOutreach(source, avail) {
+		pref = scoring.ContactChannelEmail
+	}
+	ch := scoring.PickContactChannel(avail, pref)
+	r.OutreachChannel = ch
+	if ch != scoring.ContactChannelEmail {
+		r.OutreachSubject = ""
+	}
+	return r
 }
 
 func normalizePilotSignal(v string) string {

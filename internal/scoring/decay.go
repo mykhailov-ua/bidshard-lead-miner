@@ -4,12 +4,15 @@ import "time"
 
 const (
 	timeDecayFreshBoost   = 10
+	timeDecayRecentBoost  = 5
+	timeDecayAgedPenalty  = 5
 	timeDecayStalePenalty = 10
 )
 
 type ScoreOpts struct {
-	PostedAt  time.Time
-	TimeDecay bool
+	PostedAt        time.Time
+	TimeDecay       bool
+	StructuredStack bool
 }
 
 func ApplyTimeDecay(score int, postedAt time.Time, now time.Time) int {
@@ -18,14 +21,22 @@ func ApplyTimeDecay(score int, postedAt time.Time, now time.Time) int {
 	}
 	age := now.Sub(postedAt)
 	switch {
-	case age <= 24*time.Hour:
+	case age <= 48*time.Hour:
 		return score + timeDecayFreshBoost
-	case age > 7*24*time.Hour:
-		if score > timeDecayStalePenalty {
-			return score - timeDecayStalePenalty
-		}
-		return 0
-	default:
+	case age <= 7*24*time.Hour:
+		return score + timeDecayRecentBoost
+	case age <= 30*24*time.Hour:
 		return score
+	case age <= 180*24*time.Hour:
+		return clampNonNegative(score - timeDecayAgedPenalty)
+	default:
+		return clampNonNegative(score - timeDecayStalePenalty)
 	}
+}
+
+func clampNonNegative(score int) int {
+	if score < 0 {
+		return 0
+	}
+	return score
 }

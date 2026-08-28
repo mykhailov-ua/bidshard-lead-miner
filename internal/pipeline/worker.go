@@ -89,7 +89,12 @@ func (p *Pool) process(ctx context.Context, id int, task Task) {
 		task.Stats.Dedup.Add(1)
 		return
 	}
+	if outcome.DroppedMX {
+		task.Stats.Dropped.Add(1)
+		return
+	}
 	if !outcome.Accepted {
+		task.Stats.Dropped.Add(1)
 		return
 	}
 

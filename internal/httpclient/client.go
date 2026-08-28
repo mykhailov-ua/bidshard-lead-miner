@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,6 +15,7 @@ import (
 	utls "github.com/refraction-networking/utls"
 	"golang.org/x/net/http2"
 
+	"github.com/bidshard/parser/internal/config"
 	"github.com/bidshard/parser/internal/metrics"
 )
 
@@ -43,15 +43,12 @@ var (
 const defaultSharedTimeout = 30 * time.Second
 
 // RotatingProxyTransport implements http.RoundTripper with lock-free proxy selection,
-// uTLS TLS fingerprinting (Chrome_Auto), browser header mirroring, and 10-min Cloudflare cooldowns.
+// per-proxy rate limits, uTLS TLS fingerprinting, browser header mirroring, and block cooldowns.
 type RotatingProxyTransport struct {
-	counter      uint64
-	proxies      []*url.URL
+	pool         *proxyPool
 	baseTrans    http.RoundTripper
 	transport    *http.Transport
 	currentProxy atomic.Pointer[url.URL]
-	cooldowns    map[string]time.Time
-	coolMu       sync.Mutex
 	sourceID     string
 }
 
@@ -59,7 +56,10 @@ func NewRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper) 
 	return newRotatingProxyTransport(proxyURLs, baseTrans, "")
 }
 
-func newRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper, sourceID string) (*RotatingProxyTransport, error) {
+func newRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper, sourceID string, poolCfg ...ProxyPoolConfig) (*RotatingProxyTransport, error) {
+	if err := config.ValidateProxyURLs(proxyURLs); err != nil {
+		return nil, err
+	}
 	if baseTrans == nil {
 		tTrans := &http.Transport{
 			MaxIdleConns:        100,
@@ -108,9 +108,8 @@ func newRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper, 
 		parsed = append(parsed, u)
 	}
 	t := &RotatingProxyTransport{
-		proxies:   parsed,
+		pool:      newProxyPool(parsed, activePoolConfig(poolCfg...), sourceID),
 		baseTrans: baseTrans,
-		cooldowns: make(map[string]time.Time),
 		sourceID:  strings.TrimSpace(sourceID),
 	}
 	if tTrans, ok := baseTrans.(*http.Transport); ok {
@@ -122,31 +121,46 @@ func newRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper, 
 }
 
 func (t *RotatingProxyTransport) proxyFunc(req *http.Request) (*url.URL, error) {
-	if len(t.proxies) == 0 {
+	if t.pool == nil || len(t.pool.endpoints) == 0 {
 		return nil, nil
 	}
-	proxy := t.selectActiveProxy()
-	t.currentProxy.Store(proxy)
+	proxy := t.currentProxy.Load()
+	if proxy == nil {
+		return nil, nil
+	}
 	return proxy, nil
 }
 
 func (t *RotatingProxyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if len(t.proxies) > 0 && budgetGovernor != nil && !budgetGovernor.Allow() {
+	if len(t.pool.endpoints) > 0 && budgetGovernor != nil && !budgetGovernor.Allow() {
 		metrics.RecordProxyBudgetSkipped(t.sourceID)
 		return nil, ErrProxyBudgetExceeded
 	}
+
+	proxy, err := t.pool.acquire(req.Context())
+	if err != nil {
+		return nil, err
+	}
+	t.currentProxy.Store(proxy)
+
 	cloned := req.Clone(req.Context())
 	applyBrowserHeaders(cloned)
 
 	if t.transport != nil {
 		resp, err := t.transport.RoundTrip(cloned)
-		proxy := t.currentProxy.Load()
-		t.checkCloudflareCooldown(proxy, resp)
+		if err != nil && t.sourceID != "" {
+			metrics.RecordProxyTransportFail(t.sourceID)
+		}
+		t.checkProxyBlockCooldown(proxy, resp)
 		t.recordEgress(resp)
 		return resp, err
 	}
 
 	resp, err := t.baseTrans.RoundTrip(cloned)
+	if err != nil && t.sourceID != "" {
+		metrics.RecordProxyTransportFail(t.sourceID)
+	}
+	t.checkProxyBlockCooldown(proxy, resp)
 	t.recordEgress(resp)
 	return resp, err
 }
@@ -163,41 +177,25 @@ func (t *RotatingProxyTransport) recordEgress(resp *http.Response) {
 	}
 }
 
-func (t *RotatingProxyTransport) selectActiveProxy() *url.URL {
-	t.coolMu.Lock()
-	now := time.Now()
-	var available []*url.URL
-	for _, p := range t.proxies {
-		if until, ok := t.cooldowns[p.String()]; !ok || now.After(until) {
-			available = append(available, p)
-		}
-	}
-	t.coolMu.Unlock()
-
-	if len(available) == 0 {
-		// All proxies cooling down: fall back to full pool rather than failing the request.
-		idx := atomic.AddUint64(&t.counter, 1) % uint64(len(t.proxies))
-		return t.proxies[idx]
-	}
-
-	idx := atomic.AddUint64(&t.counter, 1) % uint64(len(available))
-	return available[idx]
-}
-
-func (t *RotatingProxyTransport) checkCloudflareCooldown(proxy *url.URL, resp *http.Response) {
+func (t *RotatingProxyTransport) checkProxyBlockCooldown(proxy *url.URL, resp *http.Response) {
 	if resp == nil || proxy == nil {
 		return
 	}
-	// Ban the proxy URL for 10m on Cloudflare 403/503; key is full proxy string for per-endpoint cooldown.
-	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusServiceUnavailable {
-		isCF := resp.Header.Get("CF-Ray") != "" || strings.Contains(strings.ToLower(resp.Header.Get("Server")), "cloudflare")
-		if isCF {
-			// Drain body before returning so idle conns are not poisoned when callers skip read on 403/503.
+	switch resp.StatusCode {
+	case http.StatusTooManyRequests:
+		DiscardResponseBody(resp, 64<<10)
+		t.pool.markCooldown(proxy, "http_429")
+		return
+	case http.StatusForbidden, http.StatusServiceUnavailable:
+		if resp.Header.Get("CF-Ray") != "" || strings.Contains(strings.ToLower(resp.Header.Get("Server")), "cloudflare") {
 			DiscardResponseBody(resp, 64<<10)
-			t.coolMu.Lock()
-			t.cooldowns[proxy.String()] = time.Now().Add(10 * time.Minute)
-			t.coolMu.Unlock()
-			slog.Warn("cloudflare block detected, proxy in 10m cooldown", "proxy", proxy.Redacted(), "status", resp.StatusCode)
+			t.pool.markCooldown(proxy, fmt.Sprintf("http_%d", resp.StatusCode))
+			return
+		}
+		prefix := peekBodyPrefix(resp, 8<<10)
+		if isProxyBlock(resp, prefix) {
+			DiscardResponseBody(resp, 64<<10)
+			t.pool.markCooldown(proxy, fmt.Sprintf("http_%d", resp.StatusCode))
 		}
 	}
 }

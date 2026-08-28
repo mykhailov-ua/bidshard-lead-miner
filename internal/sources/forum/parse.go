@@ -11,10 +11,12 @@ import (
 var (
 	postBodyRe    = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*postbody[^"]*"[^>]*>(.*?)</div>`)
 	xenforoBodyRe = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*bbWrapper[^"]*"[^>]*>(.*?)</div>`)
+	warriorBodyRe = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*post-content[^"]*"[^>]*>(.*?)</div>`)
 	usernameRe    = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*username[^"]*"[^>]*>(.*?)</div>`)
 	xenforoUserRe = regexp.MustCompile(`(?is)<a[^>]*class="[^"]*username[^"]*"[^>]*>(.*?)</a>`)
 	xenforoUIDRe  = regexp.MustCompile(`(?is)<a[^>]*class="[^"]*username[^"]*"[^>]*data-user-id="(\d+)"`)
 	datetimeAttr  = regexp.MustCompile(`(?i)datetime="([^"]+)"`)
+	postTimeRe    = regexp.MustCompile(`(?is)<time[^>]*datetime="([^"]+)"`)
 	dateTextRe    = regexp.MustCompile(`(?i)\b(\d{4}-\d{2}-\d{2}|\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\b`)
 	threadLinkRe  = regexp.MustCompile(`(?i)href="([^"]*(?:/threads/|/t/|thread-|\?t=)[^"]*)"`)
 	paginationRe  = regexp.MustCompile(`(?i)href="([^"]*(?:/page-\d+|[?&]page=\d+|[?&]start=\d+)[^"]*)"`)
@@ -26,16 +28,6 @@ type Post struct {
 	UserID   string
 	Body     string
 	PostedAt time.Time
-}
-
-var painSignals = []string{
-	"voluum alternative",
-	"postback failing",
-	"tracker too expensive",
-	"keitaro alternative",
-	"self-hosted tracker",
-	"missing ftd",
-	"postback",
 }
 
 func ParsePostsFromHTML(raw string) []Post {
@@ -87,6 +79,9 @@ func parseWithRegex(raw string) []Post {
 		bodies = xenforoBodyRe.FindAllStringSubmatch(raw, -1)
 	}
 	if len(bodies) == 0 {
+		bodies = warriorBodyRe.FindAllStringSubmatch(raw, -1)
+	}
+	if len(bodies) == 0 {
 		return nil
 	}
 	users := usernameRe.FindAllStringSubmatch(raw, -1)
@@ -94,7 +89,8 @@ func parseWithRegex(raw string) []Post {
 		users = xenforoUserRe.FindAllStringSubmatch(raw, -1)
 	}
 	uids := xenforoUIDRe.FindAllStringSubmatch(raw, -1)
-	postDate := parseDateFromRaw(raw)
+	times := postTimeRe.FindAllStringSubmatch(raw, -1)
+	defaultDate := parseDateFromRaw(raw)
 
 	var posts []Post
 	for i, match := range bodies {
@@ -107,10 +103,16 @@ func parseWithRegex(raw string) []Post {
 		if i < len(uids) {
 			userID = strings.TrimSpace(uids[i][1])
 		}
+		postedAt := defaultDate
+		if i < len(times) {
+			if t, err := time.Parse(time.RFC3339, times[i][1]); err == nil {
+				postedAt = t.UTC()
+			}
+		}
 		if body == "" {
 			continue
 		}
-		posts = append(posts, Post{Author: author, UserID: userID, Body: body, PostedAt: postDate})
+		posts = append(posts, Post{Author: author, UserID: userID, Body: body, PostedAt: postedAt})
 	}
 	return posts
 }
@@ -169,16 +171,6 @@ func parseDateFromRaw(raw string) time.Time {
 		}
 	}
 	return time.Time{}
-}
-
-func HasPainSignal(text string) bool {
-	lower := strings.ToLower(text)
-	for _, signal := range painSignals {
-		if strings.Contains(lower, signal) {
-			return true
-		}
-	}
-	return false
 }
 
 func stripTags(s string) string {

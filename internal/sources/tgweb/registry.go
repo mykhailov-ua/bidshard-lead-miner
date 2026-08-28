@@ -260,6 +260,40 @@ func writeDomainsUnlocked(path string, f DomainFile) error {
 	return os.Rename(tmp, path)
 }
 
+// QueueDomain appends a domain for tgweb crawl when missing (ads.txt / SERP cascade).
+func QueueDomain(path string, domain, source string) (added bool, err error) {
+	if path == "" {
+		path = DefaultDomainsPath
+	}
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	if domain == "" || !IsValidCrawlDomain(domain) {
+		return false, nil
+	}
+	source = strings.TrimSpace(source)
+	if source == "" {
+		source = "cascade"
+	}
+	err = withRegistryExclusiveLock(path, func() error {
+		f, loadErr := loadDomainsUnlocked(path)
+		if loadErr != nil {
+			return loadErr
+		}
+		for _, e := range f.Domains {
+			if strings.EqualFold(strings.TrimSpace(e.Domain), domain) {
+				return nil
+			}
+		}
+		f.Domains = append(f.Domains, DomainEntry{
+			Domain: domain,
+			Source: source,
+			At:     time.Now().UTC().Format(time.RFC3339),
+		})
+		added = true
+		return writeDomainsUnlocked(path, f)
+	})
+	return added, err
+}
+
 // PruneInvalidDomains removes blocked, file-like, and invalid TLD hosts from the registry file.
 func PruneInvalidDomains(path string) (kept, removed int, err error) {
 	if path == "" {

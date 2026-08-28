@@ -13,6 +13,8 @@ var (
 	footerClassRe = regexp.MustCompile(`(?is)<(?:div|section)[^>]+class=["'][^"']*\bfooter\b[^"']*["'][^>]*>(.*?)</(?:div|section)>`)
 	contentInfoRe = regexp.MustCompile(`(?is)<(?:footer|div|section)[^>]+role=["']contentinfo["'][^>]*>(.*?)</(?:footer|div|section)>`)
 	blockTagRe    = regexp.MustCompile(`(?is)<(script|style|noscript|svg)[^>]*>[\s\S]*?</(script|style|noscript|svg)>`)
+	// Inline style attrs leak @media/@keyframes into visible text after tag strip.
+	inlineStyleRe = regexp.MustCompile(`(?is)\sstyle\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)`)
 	headRe        = regexp.MustCompile(`(?is)<head[^>]*>.*?</head>`)
 )
 
@@ -55,9 +57,13 @@ func ExtractStaticLandingText(html string) string {
 			parts = append(parts, "skype:"+strings.ToLower(m[1]))
 		}
 	}
-	parts = append(parts, extractFooterSegments(html)...)
-	if body := extractVisibleBodyText(html); body != "" {
-		parts = append(parts, body)
+	footers := extractFooterSegments(html)
+	parts = append(parts, footers...)
+	// Footer/mailto/skype already carry LPR; skip 50k body to avoid keyword inflation.
+	if len(parts) == 0 {
+		if body := extractVisibleBodyText(html, 50000); body != "" {
+			parts = append(parts, body)
+		}
 	}
 	return strings.TrimSpace(strings.Join(parts, " "))
 }
@@ -107,12 +113,17 @@ func extractFooterSegments(html string) []string {
 	return out
 }
 
-func extractVisibleBodyText(html string) string {
+func extractVisibleBodyText(html string, maxLen int) string {
+	// maxLen caps Raw size for prescan; default 50000 matches prior lander behavior.
+	if maxLen <= 0 {
+		maxLen = 50000
+	}
 	html = headRe.ReplaceAllString(html, " ")
 	html = blockTagRe.ReplaceAllString(html, " ")
+	html = inlineStyleRe.ReplaceAllString(html, " ")
 	text := stripTags(html)
-	if len(text) > 50000 {
-		text = text[:50000]
+	if len(text) > maxLen {
+		text = text[:maxLen]
 	}
 	return text
 }

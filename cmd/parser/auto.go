@@ -1,10 +1,9 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/bidshard/parser/internal/app"
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/pretty"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +22,7 @@ func newAutoCmd() *cobra.Command {
 				return err
 			}
 			st := app.CollectAutoStatus(cmd.Context(), cfg)
-			app.WriteAutoStatus(cmd.OutOrStdout(), st)
+			printAutoStatus(cmd.OutOrStdout(), st)
 			return nil
 		},
 	})
@@ -38,15 +37,15 @@ func newAutoCmd() *cobra.Command {
 			}
 			st := app.CollectAutoStatus(cmd.Context(), cfg)
 			if dryRun, _ := cmd.Flags().GetBool("dry-run"); dryRun {
-				app.WriteAutoStatus(cmd.OutOrStdout(), st)
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "dry-run: report not written")
+				printAutoStatus(cmd.OutOrStdout(), st)
+				pretty.StatusNote(cmd.OutOrStdout(), cliColor(cmd.OutOrStdout()), "dry-run: report not written")
 				return nil
 			}
 			path := cfg.AutoReportPath
 			if err := app.WriteAutoReportJSONL(path, st); err != nil {
 				return err
 			}
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "ok  wrote %s\n", path)
+			pretty.StatusOK(cmd.OutOrStdout(), cliColor(cmd.OutOrStdout()), "wrote %s", path)
 			return nil
 		},
 	}

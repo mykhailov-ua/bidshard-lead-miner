@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# Local CLI for VPS ops: deploy, logs, stats, export pull.
+#
+# Usage:
+#   ./scripts/ops/lip deploy
+#   ./scripts/ops/lip logs -f
+#   ./scripts/ops/lip stats
+#   ./scripts/ops/lip export
+#   ./scripts/ops/lip ssh
+#   ./scripts/ops/lip install-shell
+#
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# shellcheck disable=SC1091
+source "$ROOT/scripts/lib/vps_ssh.sh"
+
+usage() {
+	cat <<'EOF'
+lip - lead-intent-processor VPS helper
+
+Commands:
+  deploy [--sync-only]     rsync repo to VPS and docker compose up
+  logs [-f] [--tail N]     parser container logs (default tail 50)
+  ps                       docker compose ps on VPS
+  stats                    crm-bot db stats (Mongo lead counts)
+  export [path]            pull data/export/leads.jsonl from VPS
+  check                    remote parser config check
+  backup                   remote make backup
+  ssh [cmd...]             SSH to VPS (shell if no cmd)
+  install-shell            append source line to ~/.zshrc
+
+Config: config/env/.env.vps-deploy.local (see .env.vps-deploy.example)
+EOF
+}
+
+cmd_deploy() {
+	local sync_only=0
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--sync-only) sync_only=1; shift ;;
+		-h | --help) usage; exit 0 ;;
+		*) printf 'lip deploy: unknown arg %s\n' "$1" >&2; exit 2 ;;
+		esac
+	done
+	if [[ "$sync_only" == 1 ]]; then
+		VPS_SYNC_ONLY=1 bash "$ROOT/scripts/ops/vps-deploy.sh"
+	else
+		bash "$ROOT/scripts/ops/vps-deploy.sh"
+	fi
+}
+
+cmd_logs() {
+	local follow=0 tail_n=50
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		-f | --follow) follow=1; shift ;;
+		--tail)
+			tail_n="${2:?--tail needs a number}"
+			shift 2
+			;;
+		-h | --help) usage; exit 0 ;;
+		*) printf 'lip logs: unknown arg %s\n' "$1" >&2; exit 2 ;;
+		esac
+	done
+	vps_load_config "$ROOT"
+	if [[ "$follow" == 1 ]]; then
+		vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose logs -f --tail=${tail_n} parser"
+	else
+		vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose logs --tail=${tail_n} parser"
+	fi
+}
+
+cmd_ps() {
+	vps_load_config "$ROOT"
+	vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose ps"
+}
+
+cmd_stats() {
+	vps_load_config "$ROOT"
+	vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose run --rm parser crm-bot db stats"
+}
+
+cmd_export() {
+	local dest="${1:-$ROOT/data/export/vps-leads.jsonl}"
+	vps_load_config "$ROOT"
+	vps_rsync_pull_export "$ROOT" "$dest"
+	printf 'lip export: %s\n' "$dest"
+	wc -l "$dest" 2>/dev/null || true
+}
+
+cmd_check() {
+	vps_load_config "$ROOT"
+	vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose run --rm parser config check"
+}
+
+cmd_backup() {
+	vps_load_config "$ROOT"
+	vps_ssh "cd '${VPS_REMOTE_DIR}' && make backup"
+}
+
+cmd_ssh() {
+	vps_load_config "$ROOT"
+	if [[ $# -eq 0 ]]; then
+		# shellcheck disable=SC2086
+		ssh $(vps_ssh_opts) "$(vps_ssh_target)"
+	else
+		vps_ssh "$@"
+	fi
+}
+
+cmd_install_shell() {
+	local line="source '${ROOT}/scripts/ops/lip-aliases.sh'"
+	local rc="${HOME}/.zshrc"
+	if [[ -f "$rc" ]] && grep -Fq "lip-aliases.sh" "$rc" 2>/dev/null; then
+		printf 'lip install-shell: already in %s\n' "$rc"
+		exit 0
+	fi
+	printf '\n# lead-intent-processor VPS CLI\n%s\n' "$line" >>"$rc"
+	printf 'lip install-shell: appended to %s\n' "$rc"
+	printf 'Run: source %s\n' "$rc"
+}
+
+main() {
+	local cmd="${1:-}"
+	shift || true
+	case "$cmd" in
+	deploy) cmd_deploy "$@" ;;
+	logs) cmd_logs "$@" ;;
+	ps) cmd_ps ;;
+	stats) cmd_stats ;;
+	export) cmd_export "$@" ;;
+	check) cmd_check ;;
+	backup) cmd_backup ;;
+	ssh) cmd_ssh "$@" ;;
+	install-shell) cmd_install_shell ;;
+	"" | -h | --help) usage ;;
+	*)
+		printf 'lip: unknown command %s\n' "$cmd" >&2
+		usage >&2
+		exit 2
+		;;
+	esac
+}
+
+main "$@"

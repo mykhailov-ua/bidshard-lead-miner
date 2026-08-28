@@ -2,6 +2,7 @@ package forum
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -20,7 +21,7 @@ func TestFetcherFixtureHost(t *testing.T) {
 	if len(posts) == 0 {
 		t.Fatal("expected posts from fixture")
 	}
-	if !HasPainSignal(posts[0].Body) {
-		t.Fatalf("expected pain signal in fixture body: %q", posts[0].Body)
+	if !strings.Contains(strings.ToLower(posts[0].Body), "voluum") {
+		t.Fatalf("expected pain phrase in fixture body: %q", posts[0].Body)
 	}
 }

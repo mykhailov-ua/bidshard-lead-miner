@@ -16,7 +16,7 @@ import (
 	"github.com/bidshard/parser/internal/sources/reviews"
 	"github.com/bidshard/parser/internal/sources/serp"
 	"github.com/bidshard/parser/internal/sources/supply"
-	"github.com/bidshard/parser/internal/sources/warrior"
+	"github.com/bidshard/parser/internal/sources/webpain"
 )
 
 func Build(cfg config.Config) []Source {
@@ -34,6 +34,9 @@ func Build(cfg config.Config) []Source {
 			out = append(out, src)
 		}
 	}
+	if cfg.ParserSourcePriority {
+		OrderByCollectPriority(out)
+	}
 	return out
 }
 
@@ -48,17 +51,32 @@ func parseSourceList(raw string) []string {
 		return nil
 	}
 	if raw == "all" {
-		return []string{"forum", "supply", "lander", "reddit", "discord", "warrior", "serp"}
+		// Precision default: omit lander (competitor HTML junk). Opt in: PARSER_SOURCE=...,lander
+		return []string{"forum", "supply", "reddit", "discord", "serp"}
 	}
 	parts := strings.Split(raw, ",")
+	seen := make(map[string]struct{}, len(parts))
 	out := make([]string, 0, len(parts))
 	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
+		p = canonicalSourceName(p)
+		if p == "" {
+			continue
 		}
+		if _, dup := seen[p]; dup {
+			continue
+		}
+		seen[p] = struct{}{}
+		out = append(out, p)
 	}
 	return out
+}
+
+func canonicalSourceName(name string) string {
+	name = strings.TrimSpace(strings.ToLower(name))
+	if name == "warrior" {
+		return "forum"
+	}
+	return name
 }
 
 func buildOne(cfg config.Config, name string) (Source, bool) {
@@ -77,8 +95,6 @@ func buildOne(cfg config.Config, name string) (Source, bool) {
 		return wrapReddit(reddit.NewCrawler(cfg)), true
 	case "discord":
 		return wrapDiscord(discord.NewCrawler(cfg)), true
-	case "warrior":
-		return wrapWarrior(warrior.NewCrawler(cfg, nil)), true
 	case "ct":
 		return wrapCT(ct.NewCrawler(cfg, nil)), true
 	case "reviews":
@@ -87,6 +103,8 @@ func buildOne(cfg config.Config, name string) (Source, bool) {
 		return wrapGitHub(github.NewCrawler(cfg)), true
 	case "serp":
 		return wrapSERP(serp.NewCrawler(cfg, nil)), true
+	case "webpain":
+		return wrapWebPain(webpain.NewAdapter(cfg, nil)), true
 	default:
 		return nil, false
 	}
@@ -164,24 +182,6 @@ func (s *ctSource) Collect(ctx context.Context, emit EmitFunc) error {
 	})
 }
 
-type warriorSource struct {
-	inner *warrior.Crawler
-}
-
-func wrapWarrior(inner *warrior.Crawler) Source {
-	return &warriorSource{inner: inner}
-}
-
-func (s *warriorSource) Name() string {
-	return s.inner.Name()
-}
-
-func (s *warriorSource) Collect(ctx context.Context, emit EmitFunc) error {
-	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
-		return emit(ctx, item)
-	})
-}
-
 type supplySource struct {
 	inner *supply.Crawler
 }
@@ -213,6 +213,24 @@ func (s *forumSource) Name() string {
 }
 
 func (s *forumSource) Collect(ctx context.Context, emit EmitFunc) error {
+	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
+		return emit(ctx, item)
+	})
+}
+
+type webPainSource struct {
+	inner *webpain.Adapter
+}
+
+func wrapWebPain(inner *webpain.Adapter) Source {
+	return &webPainSource{inner: inner}
+}
+
+func (s *webPainSource) Name() string {
+	return s.inner.Name()
+}
+
+func (s *webPainSource) Collect(ctx context.Context, emit EmitFunc) error {
 	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
 		return emit(ctx, item)
 	})

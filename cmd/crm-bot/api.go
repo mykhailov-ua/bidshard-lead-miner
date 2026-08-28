@@ -36,6 +36,8 @@ Examples:
   crm-bot api search --q voluum
   crm-bot api show --hash abcdef12
   crm-bot api set-status --hash abcdef12 --status contacted
+  crm-bot api set-outcome --hash abcdef12 --outcome pilot_started
+  crm-bot api list --outcome pilot_started --source-prefix forum:
   crm-bot api delete --hash abcdef12 --yes
   crm-bot api purge --status spam --yes`,
 	}
@@ -46,6 +48,7 @@ Examples:
 		newAPIShowCmd(),
 		newAPIEntitiesCmd(),
 		newAPISetStatusCmd(),
+		newAPISetOutcomeCmd(),
 		newAPIDeleteCmd(),
 		newAPIPurgeCmd(),
 	)
@@ -77,13 +80,17 @@ func newAPIStatsCmd() *cobra.Command {
 
 func newAPIListCmd() *cobra.Command {
 	var (
-		status       string
-		sourcePrefix string
-		scoreMax     int
-		limit        int
-		sortBy       string
-		asJSON       bool
-		skipInbox    bool
+		status         string
+		sourcePrefix   string
+		contactChannel string
+		nextAction     string
+		outcome        string
+		scoreMax       int
+		engageMin      int
+		limit          int
+		sortBy         string
+		asJSON         bool
+		skipInbox      bool
 	)
 	c := &cobra.Command{
 		Use:   "list",
@@ -101,8 +108,20 @@ func newAPIListCmd() *cobra.Command {
 				if p := strings.TrimSpace(sourcePrefix); p != "" {
 					qs.Set("source_prefix", p)
 				}
+				if ch := strings.TrimSpace(contactChannel); ch != "" {
+					qs.Set("contact_channel", ch)
+				}
+				if act := strings.TrimSpace(nextAction); act != "" {
+					qs.Set("next_action", act)
+				}
+				if oc := strings.TrimSpace(outcome); oc != "" {
+					qs.Set("outcome", oc)
+				}
 				if scoreMax > 0 {
 					qs.Set("score_max", strconv.Itoa(scoreMax))
+				}
+				if engageMin >= 0 {
+					qs.Set("engage_min", strconv.Itoa(engageMin))
 				}
 				if skipInbox {
 					qs.Set("inbox", "false")
@@ -127,9 +146,13 @@ func newAPIListCmd() *cobra.Command {
 	}
 	c.Flags().StringVar(&status, "status", "", "filter by status")
 	c.Flags().StringVar(&sourcePrefix, "source-prefix", "", "filter by source prefix")
+	c.Flags().StringVar(&contactChannel, "contact-channel", "", "filter by contact_channel (telegram, email, forum, ...)")
+	c.Flags().StringVar(&nextAction, "next-action", "", "filter by next_action (telegram_dm, cold_email, ...)")
+	c.Flags().StringVar(&outcome, "outcome", "", "filter by outcome (pilot_started, migration_imported, ...)")
 	c.Flags().IntVar(&scoreMax, "score-max", 0, "filter score <= N")
+	c.Flags().IntVar(&engageMin, "engage-min", -1, "minimum engage_priority (default from CRM_ENGAGE_PRIORITY_MIN when inbox)")
 	c.Flags().IntVar(&limit, "limit", 50, "max rows")
-	c.Flags().StringVar(&sortBy, "sort", "", "sort: heat (default for status=new) or score")
+	c.Flags().StringVar(&sortBy, "sort", "", "sort: engage (default for status=new), heat, or score")
 	c.Flags().BoolVar(&skipInbox, "all", false, "include pending/deferred leads (skip inbox filter)")
 	c.Flags().BoolVar(&asJSON, "json", false, "print JSON")
 	return c
@@ -180,8 +203,105 @@ func newAPIEntitiesCmd() *cobra.Command {
 		Use:   "entities",
 		Short: "Entity graph admin (heat-ranked buyers)",
 	}
-	cmd.AddCommand(newAPIEntitiesListCmd(), newAPIEntitiesGetCmd(), newAPIEntitiesLeadsCmd())
+	cmd.AddCommand(newAPIEntitiesListCmd(), newAPIEntitiesInboxCmd(), newAPIEntitiesGetCmd(), newAPIEntitiesLeadsCmd(), newAPIEntitiesSuggestionsCmd())
 	return cmd
+}
+
+func newAPIEntitiesInboxCmd() *cobra.Command {
+	var (
+		minTier      string
+		minSightings int
+		engageMin    int
+		needsWork    bool
+		entityID     string
+		limit        int
+		asJSON       bool
+	)
+	c := &cobra.Command{
+		Use:   "inbox",
+		Short: "Entity sales inbox (multi-sighting buyers)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return withAPIClient(cmd.Context(), func(ctx context.Context, client *apiclient.Client) error {
+				qs := url.Values{}
+				if limit <= 0 {
+					limit = 20
+				}
+				qs.Set("limit", strconv.Itoa(limit))
+				if t := strings.TrimSpace(minTier); t != "" {
+					qs.Set("min_tier", t)
+				}
+				if minSightings > 0 {
+					qs.Set("min_sightings", strconv.Itoa(minSightings))
+				}
+				if engageMin >= 0 {
+					qs.Set("engage_min", strconv.Itoa(engageMin))
+				}
+				if needsWork {
+					qs.Set("needs_work", "true")
+				}
+				if id := strings.TrimSpace(entityID); id != "" {
+					qs.Set("entity_id", id)
+					var card entity.InboxCard
+					if err := client.GetJSON(ctx, "/v1/admin/entities/inbox?"+qs.Encode(), &card); err != nil {
+						return err
+					}
+					if asJSON {
+						return writeJSON(cmd.OutOrStdout(), card)
+					}
+					apiclient.WriteEntityInboxCard(cmd.OutOrStdout(), card)
+					return nil
+				}
+				var result store.EntityInboxResult
+				if err := client.GetJSON(ctx, "/v1/admin/entities/inbox?"+qs.Encode(), &result); err != nil {
+					return err
+				}
+				if asJSON {
+					return writeJSON(cmd.OutOrStdout(), result)
+				}
+				apiclient.WriteEntityInboxTable(cmd.OutOrStdout(), result.Entities)
+				return nil
+			})
+		},
+	}
+	c.Flags().StringVar(&minTier, "min-tier", "warm", "minimum heat tier: warm|hot|blazing")
+	c.Flags().IntVar(&minSightings, "min-sightings", 2, "minimum sightings")
+	c.Flags().IntVar(&engageMin, "engage-min", -1, "minimum engage_priority (default from CRM_ENGAGE_PRIORITY_MIN)")
+	c.Flags().BoolVar(&needsWork, "needs-work", false, "only entities needing ops review")
+	c.Flags().StringVar(&entityID, "id", "", "show one entity inbox card")
+	c.Flags().IntVar(&limit, "limit", 20, "max rows")
+	c.Flags().BoolVar(&asJSON, "json", false, "print JSON")
+	return c
+}
+
+func newAPIEntitiesSuggestionsCmd() *cobra.Command {
+	var limit int
+	var asJSON bool
+	c := &cobra.Command{
+		Use:   "suggestions",
+		Short: "Pending entity merge/split suggestions",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return withAPIClient(cmd.Context(), func(ctx context.Context, client *apiclient.Client) error {
+				if limit <= 0 {
+					limit = 20
+				}
+				qs := url.Values{"limit": {strconv.Itoa(limit)}}
+				var result struct {
+					Entities []entity.EntityDoc `json:"entities"`
+				}
+				if err := client.GetJSON(ctx, "/v1/admin/entities/suggestions?"+qs.Encode(), &result); err != nil {
+					return err
+				}
+				if asJSON {
+					return writeJSON(cmd.OutOrStdout(), result)
+				}
+				apiclient.WriteEntitySuggestionsTable(cmd.OutOrStdout(), result.Entities)
+				return nil
+			})
+		},
+	}
+	c.Flags().IntVar(&limit, "limit", 20, "max entities")
+	c.Flags().BoolVar(&asJSON, "json", false, "print JSON")
+	return c
 }
 
 func newAPIEntitiesListCmd() *cobra.Command {
@@ -334,6 +454,39 @@ func newAPISetStatusCmd() *cobra.Command {
 	}
 	c.Flags().StringVar(&hashID, "hash", "", "lead hash_id or unique prefix")
 	c.Flags().StringVar(&status, "status", "", "new|contacted|won|lost|spam|archived")
+	return c
+}
+
+func newAPISetOutcomeCmd() *cobra.Command {
+	var hashID, outcome, note string
+	c := &cobra.Command{
+		Use:   "set-outcome",
+		Short: "Record downstream outcome (pilot, migration, reply)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			hashID = strings.TrimSpace(hashID)
+			if hashID == "" {
+				return fmt.Errorf("--hash required")
+			}
+			return withAPIClient(cmd.Context(), func(ctx context.Context, client *apiclient.Client) error {
+				var out map[string]string
+				body := map[string]string{
+					"hash_id": hashID,
+					"outcome": outcome,
+				}
+				if n := strings.TrimSpace(note); n != "" {
+					body["note"] = n
+				}
+				if err := client.PostJSON(ctx, "/v1/admin/leads/outcome", body, &out); err != nil {
+					return err
+				}
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "updated hash_id=%s outcome=%s\n", out["hash_id"], out["outcome"])
+				return nil
+			})
+		},
+	}
+	c.Flags().StringVar(&hashID, "hash", "", "lead hash_id or unique prefix")
+	c.Flags().StringVar(&outcome, "outcome", "", "contacted|replied|pilot_started|migration_imported")
+	c.Flags().StringVar(&note, "note", "", "optional operator note")
 	return c
 }
 

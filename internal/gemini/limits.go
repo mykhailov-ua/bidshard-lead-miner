@@ -41,7 +41,8 @@ func LimitsForModel(model string) ModelLimits {
 		return ModelLimits{RPM: 20, TPM: 250_000, RPD: 250, MaxRetries: 4, RetryBase: 2 * time.Second, RetryMax: 60 * time.Second}
 	case strings.Contains(m, "2.5-pro"), strings.Contains(m, "2.5_pro"):
 		return ModelLimits{RPM: 5, TPM: 250_000, RPD: 100, MaxRetries: 3, RetryBase: 3 * time.Second, RetryMax: 90 * time.Second}
-	case strings.Contains(m, "3.6-flash"), strings.Contains(m, "3.6_flash"):
+	case strings.Contains(m, "3.7-flash"), strings.Contains(m, "3.6-flash"), strings.Contains(m, "3.5-flash"),
+		strings.Contains(m, "3.7_flash"), strings.Contains(m, "3.6_flash"), strings.Contains(m, "3.5_flash"):
 		return ModelLimits{RPM: 15, TPM: 1_000_000, RPD: 1500, MaxRetries: 4, RetryBase: 2 * time.Second, RetryMax: 60 * time.Second}
 	case strings.Contains(m, "2.0-flash"), strings.Contains(m, "2.0_flash"):
 		return ModelLimits{RPM: 15, TPM: 1_000_000, RPD: 1500, MaxRetries: 4, RetryBase: 2 * time.Second, RetryMax: 60 * time.Second}

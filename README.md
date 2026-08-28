@@ -78,7 +78,7 @@ CLI:
 
 - **uTLS:** ClientHello mimics Chrome (TLS fingerprint).
 - **Headers:** browser-like defaults on outbound HTTP.
-- **Proxy rotation + CF cooldown:** on 403/503 via proxy - ~10m cooldown, failover to next URL in `PARSER_PROXY_LIST`. Profiles: `config/env/`, preflight `make preflight-tgweb`, crawl `make tgweb-crawl`. See [docs/OPS.md](docs/OPS.md#proxy).
+- **Proxy rotation + rate limits:** per-proxy RPS/burst (`PARSER_PROXY_RPS`, `PARSER_PROXY_BURST`), block cooldown (`PARSER_PROXY_COOLDOWN`, default 10m), round-robin across `PARSER_PROXY_LIST`. Pool waits when all endpoints cool down (no reuse of blocked IPs). See [docs/OPS.md](docs/OPS.md#proxy).
 - **eBPF dev probe (Linux):** syscall/sched/net probe for tgweb crawl analysis - [docs/OPS.md](docs/OPS.md#ebpf-dev-probe-linux), `make bpf-dev`, `sudo make bpf-session-start`.
 
 ---
@@ -94,9 +94,9 @@ CLI:
 | `supply` | HTTP | - | ads.txt / sellers.json |
 | `lander` | HTTP (+ optional headless) | - | Next.js `__NEXT_DATA__` / RSC flight |
 | `discord` | Bot API | `DISCORD_BOT_TOKEN` | channel IDs |
-| `warrior`, `reviews`, `ct`, `serp` | HTTP | - | opt-in / seeds |
+| `reviews`, `ct`, `serp` | HTTP | - | opt-in / seeds |
 
-Default `PARSER_SOURCE=all`: forum, supply, lander, reddit, discord, warrior, serp.
+Default `PARSER_SOURCE=all`: forum, supply, reddit, discord, serp (lander opt-in; warriorforum.com via forum + `WARRIOR_SEED_PATH`). Accept-quality preset: `config/env/.env.precision.example`.
 
 ---
 

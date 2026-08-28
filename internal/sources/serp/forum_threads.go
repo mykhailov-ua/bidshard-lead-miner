@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/bidshard/parser/internal/discover"
+	"github.com/bidshard/parser/internal/dorkdisable"
 	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/sources/forum"
 )
@@ -22,10 +23,11 @@ func (c *Crawler) HarvestForumThreads(ctx context.Context, registryPath string) 
 	if err != nil {
 		slog.Warn("forum discover icp load failed, using fallback dorks", "path", icpPath, "error", err)
 	}
-	dorks := forumDorksFromICP(icp.SerpDorks)
+	dorks := serpHarvestDorksFromICP(icp.SerpDorks)
 	if len(dorks) == 0 {
 		dorks = fallbackForumDorks()
 	}
+	dorks = dorkdisable.FilterActiveDorks(c.disabledDorksPath, dorks)
 
 	var added int
 	for _, dork := range dorks {
@@ -54,17 +56,22 @@ func (c *Crawler) HarvestForumThreads(ctx context.Context, registryPath string) 
 	return nil
 }
 
-func forumDorksFromICP(dorks []string) []string {
-	var out []string
+// serpHarvestDorksFromICP returns all ICP SERP dorks for forum harvest.
+// Thread URLs are filtered later via forum.IsForumThreadURL on SERP hits.
+func serpHarvestDorksFromICP(dorks []string) []string {
+	seen := make(map[string]struct{}, len(dorks))
+	out := make([]string, 0, len(dorks))
 	for _, dork := range dorks {
-		lower := strings.ToLower(dork)
-		if strings.Contains(lower, "site:affiliatefix.com") ||
-			strings.Contains(lower, "site:stmforum.com") ||
-			strings.Contains(lower, "site:blackhatworld.com") ||
-			strings.Contains(lower, "site:warriorforum.com") ||
-			strings.Contains(lower, "site:afflift.com") {
-			out = append(out, dork)
+		dork = strings.TrimSpace(dork)
+		if dork == "" {
+			continue
 		}
+		key := strings.ToLower(dork)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, dork)
 	}
 	return out
 }

@@ -39,6 +39,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == http.MethodGet && path == "/v1/admin/stats":
 		h.handleStats(w, r)
+	case r.Method == http.MethodGet && path == "/v1/admin/feedback":
+		h.handleFeedback(w, r)
 	case r.Method == http.MethodGet && path == "/v1/admin/leads/explain":
 		h.handleExplainLead(w, r)
 	case r.Method == http.MethodGet && path == "/v1/admin/leads/search":
@@ -59,12 +61,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handleDeleteOne(w, r)
 	case r.Method == http.MethodPatch && path == "/v1/admin/leads":
 		h.handlePatchLead(w, r)
+	case r.Method == http.MethodPost && path == "/v1/admin/leads/outcome":
+		h.handleSetOutcome(w, r)
 	case r.Method == http.MethodGet && path == "/v1/admin/entities/list":
 		h.handleListEntities(w, r)
 	case r.Method == http.MethodGet && path == "/v1/admin/entities/get":
 		h.handleGetEntity(w, r)
 	case r.Method == http.MethodGet && path == "/v1/admin/entities/leads":
 		h.handleListEntityLeads(w, r)
+	case r.Method == http.MethodGet && path == "/v1/admin/entities/inbox":
+		h.handleEntityInbox(w, r)
+	case r.Method == http.MethodGet && path == "/v1/admin/entities/suggestions":
+		h.handleEntitySuggestions(w, r)
 	default:
 		http.NotFound(w, r)
 	}
@@ -79,16 +87,38 @@ func (h *Handler) handleStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, stats)
 }
 
+func (h *Handler) handleFeedback(w http.ResponseWriter, r *http.Request) {
+	channels := strings.TrimSpace(r.URL.Query().Get("channels"))
+	if channels == "" {
+		channels = "data/runtime/discovered_telegram_channels.json"
+	}
+	disabledDorks := strings.TrimSpace(r.URL.Query().Get("disabled_dorks"))
+	if disabledDorks == "" {
+		disabledDorks = "data/runtime/disabled_dorks.json"
+	}
+	report, err := h.store.FeedbackReport(r.Context(), channels, disabledDorks)
+	if err != nil {
+		http.Error(w, "feedback failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, report)
+}
+
 func (h *Handler) handleListLeads(w http.ResponseWriter, r *http.Request) {
 	limit := parseLimit(r.URL.Query().Get("limit"), 50)
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
+	inbox := parseInboxOnly(r.URL.Query().Get("inbox"), status)
 	filter := store.ListFilter{
-		Status:       status,
-		SourcePrefix: strings.TrimSpace(r.URL.Query().Get("source_prefix")),
-		ScoreMax:     parseScoreMax(r.URL.Query().Get("score_max")),
-		Limit:        limit,
-		InboxOnly:    parseInboxOnly(r.URL.Query().Get("inbox"), status),
-		Sort:         parseListSort(r.URL.Query().Get("sort"), status),
+		Status:            status,
+		SourcePrefix:      strings.TrimSpace(r.URL.Query().Get("source_prefix")),
+		ContactChannel:    strings.TrimSpace(r.URL.Query().Get("contact_channel")),
+		NextAction:        strings.TrimSpace(r.URL.Query().Get("next_action")),
+		Outcome:           strings.TrimSpace(r.URL.Query().Get("outcome")),
+		ScoreMax:          parseScoreMax(r.URL.Query().Get("score_max")),
+		Limit:             limit,
+		InboxOnly:         inbox,
+		MinEngagePriority: store.ResolveEngagePriorityMin(r.URL.Query().Get("engage_min"), inbox),
+		Sort:              parseListSort(r.URL.Query().Get("sort"), status),
 	}
 	result, err := h.store.List(r.Context(), filter)
 	if err != nil {
@@ -306,6 +336,39 @@ func (h *Handler) handlePatchLead(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"hash_id": hashID, "status": strings.TrimSpace(req.Status)})
 }
 
+type setOutcomeRequest struct {
+	HashID  string `json:"hash_id"`
+	Outcome string `json:"outcome"`
+	Note    string `json:"note,omitempty"`
+}
+
+func (h *Handler) handleSetOutcome(w http.ResponseWriter, r *http.Request) {
+	var req setOutcomeRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	hashID := strings.TrimSpace(req.HashID)
+	if hashID == "" {
+		http.Error(w, "hash_id required", http.StatusBadRequest)
+		return
+	}
+	if err := h.store.SetOutcome(r.Context(), hashID, req.Outcome, req.Note); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, store.ErrInvalidOutcome) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	outcome, _ := store.NormalizeOutcome(req.Outcome)
+	writeJSON(w, map[string]string{"hash_id": hashID, "outcome": outcome})
+}
+
 func (h *Handler) handleListEntities(w http.ResponseWriter, r *http.Request) {
 	if !h.store.EntitiesEnabled() {
 		http.Error(w, "entities not configured", http.StatusServiceUnavailable)
@@ -366,17 +429,74 @@ func (h *Handler) handleListEntityLeads(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, map[string]any{"entity_id": entityID, "leads": leads})
 }
 
-// parseListSort defaults to entity heat for sales inbox (status=new); use sort=score for legacy ordering.
+func (h *Handler) handleEntityInbox(w http.ResponseWriter, r *http.Request) {
+	if !h.store.EntitiesEnabled() {
+		http.Error(w, "entities not configured", http.StatusServiceUnavailable)
+		return
+	}
+	entityID := strings.TrimSpace(r.URL.Query().Get("entity_id"))
+	if entityID != "" {
+		card, err := h.store.GetEntityInbox(r.Context(), entityID)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				http.Error(w, "not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, "get failed", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, card)
+		return
+	}
+	minSightings := 2
+	if raw := strings.TrimSpace(r.URL.Query().Get("min_sightings")); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			minSightings = n
+		}
+	}
+	result, err := h.store.ListEntityInbox(r.Context(), store.EntityInboxFilter{
+		MinTier:           strings.TrimSpace(r.URL.Query().Get("min_tier")),
+		MinSightings:      minSightings,
+		OnlyNeedsWork:     parseQueryBool(r.URL.Query().Get("needs_work")),
+		MinEngagePriority: store.ResolveEngagePriorityMin(r.URL.Query().Get("engage_min"), true),
+		Limit:             parseLimit(r.URL.Query().Get("limit"), 20),
+	})
+	if err != nil {
+		http.Error(w, "inbox failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (h *Handler) handleEntitySuggestions(w http.ResponseWriter, r *http.Request) {
+	if !h.store.EntitiesEnabled() {
+		http.Error(w, "entities not configured", http.StatusServiceUnavailable)
+		return
+	}
+	docs, err := h.store.ListPendingReviewSuggestions(r.Context(), parseLimit(r.URL.Query().Get("limit"), 20))
+	if err != nil {
+		http.Error(w, "suggestions failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"entities": docs})
+}
+
+func parseQueryBool(raw string) bool {
+	v, err := strconv.ParseBool(strings.TrimSpace(raw))
+	return err == nil && v
+}
+
+// parseListSort defaults to engage_priority for sales inbox (status=new).
 func parseListSort(raw, status string) string {
 	raw = strings.ToLower(strings.TrimSpace(raw))
 	switch raw {
-	case "score", "heat":
+	case "score", "heat", "engage":
 		return raw
 	default:
-		if strings.EqualFold(strings.TrimSpace(status), "new") {
-			return "heat"
+		if strings.EqualFold(strings.TrimSpace(status), "new") || strings.TrimSpace(status) == "" {
+			return "engage"
 		}
-		return "score"
+		return "heat"
 	}
 }
 

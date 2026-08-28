@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -53,6 +54,9 @@ func TestCrawlerEmitsSellerContact(t *testing.T) {
 	}
 	if items[0].Source != "ads_txt:crawler-test.example" {
 		t.Fatalf("source=%q", items[0].Source)
+	}
+	if !strings.Contains(items[0].Raw, "voluum.com, 123, DIRECT") {
+		t.Fatalf("raw=%q want sample ads line", items[0].Raw)
 	}
 }
 

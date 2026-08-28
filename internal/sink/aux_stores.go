@@ -11,10 +11,14 @@ import (
 )
 
 type SourceStatsDoc struct {
-	Source   string    `bson:"source"`
-	Accepted int       `bson:"accepted"`
-	Junk     int       `bson:"junk"`
-	Updated  time.Time `bson:"updated"`
+	Source             string    `bson:"source"`
+	Accepted           int       `bson:"accepted"`
+	Junk               int       `bson:"junk"`
+	OutcomeContacted   int       `bson:"outcome_contacted,omitempty"`
+	OutcomeReplied     int       `bson:"outcome_replied,omitempty"`
+	OutcomePilot       int       `bson:"outcome_pilot,omitempty"`
+	OutcomeMigration   int       `bson:"outcome_migration,omitempty"`
+	Updated            time.Time `bson:"updated"`
 }
 
 type SourceStatsStore struct {
@@ -77,6 +81,83 @@ func (s *SourceStatsStore) ListAll(ctx context.Context) ([]SourceStatsDoc, error
 	return docs, cur.All(ctx, &docs)
 }
 
+func (s *SourceStatsStore) RecordOutcome(source, outcome string) {
+	RecordOutcomeOnCollection(s.coll, source, outcome)
+}
+
+func RecordOutcomeOnCollection(coll *mongo.Collection, source, outcome string) {
+	if coll == nil || source == "" {
+		return
+	}
+	field := outcomeField(outcome)
+	if field == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, _ = coll.UpdateOne(ctx,
+		bson.M{"source": source},
+		bson.M{
+			"$inc": bson.M{field: 1},
+			"$set": bson.M{"updated": time.Now().UTC()},
+		},
+		options.Update().SetUpsert(true),
+	)
+}
+
+func outcomeField(outcome string) string {
+	switch outcome {
+	case "contacted":
+		return "outcome_contacted"
+	case "replied":
+		return "outcome_replied"
+	case "pilot_started":
+		return "outcome_pilot"
+	case "migration_imported":
+		return "outcome_migration"
+	default:
+		return ""
+	}
+}
+
+func SourceStatsBoost(doc SourceStatsDoc) int {
+	total := doc.Accepted + doc.Junk
+	boost := 0
+	if total >= 20 {
+		ratio := float64(doc.Accepted) / float64(total)
+		switch {
+		case ratio >= 0.35:
+			boost = 8
+		case ratio >= 0.2:
+			boost = 4
+		case ratio < 0.08:
+			boost = -4
+		}
+	}
+	boost += outcomeBoost(doc)
+	return boost
+}
+
+func outcomeBoost(doc SourceStatsDoc) int {
+	boost := 0
+	if doc.OutcomeMigration > 0 {
+		boost += 10
+	}
+	if doc.OutcomePilot > 0 {
+		boost += 8
+	}
+	if doc.OutcomeReplied > 0 {
+		boost += 4
+	}
+	if doc.OutcomeContacted > 0 {
+		boost += 2
+	}
+	if boost > 12 {
+		return 12
+	}
+	return boost
+}
+
 func (s *SourceStatsStore) Boost(source string) int {
 	if s == nil {
 		return 0
@@ -88,21 +169,7 @@ func (s *SourceStatsStore) Boost(source string) int {
 	if err != nil {
 		return 0
 	}
-	total := doc.Accepted + doc.Junk
-	if total < 20 {
-		return 0
-	}
-	ratio := float64(doc.Accepted) / float64(total)
-	switch {
-	case ratio >= 0.35:
-		return 8
-	case ratio >= 0.2:
-		return 4
-	case ratio < 0.08:
-		return -4
-	default:
-		return 0
-	}
+	return SourceStatsBoost(doc)
 }
 
 type CrmBoostDoc struct {

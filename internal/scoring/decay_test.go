@@ -14,8 +14,10 @@ func TestApplyTimeDecay(t *testing.T) {
 		want int
 	}{
 		{"fresh", now.Add(-2 * time.Hour), 60},
-		{"week old", now.Add(-8 * 24 * time.Hour), 40},
-		{"mid age", now.Add(-3 * 24 * time.Hour), 50},
+		{"recent week", now.Add(-3 * 24 * time.Hour), 55},
+		{"mid age", now.Add(-20 * 24 * time.Hour), 50},
+		{"aged", now.Add(-60 * 24 * time.Hour), 45},
+		{"stale", now.Add(-200 * 24 * time.Hour), 40},
 		{"zero time", time.Time{}, 50},
 	}
 	for _, tc := range cases {

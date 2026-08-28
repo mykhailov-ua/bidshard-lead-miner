@@ -87,6 +87,35 @@ func TestNetworkLandingPathsPrioritizesAboutBeforeAffiliate(t *testing.T) {
 	}
 }
 
+func TestExtractStaticLandingTextSkipsBodyWhenContactRegionFound(t *testing.T) {
+	t.Parallel()
+
+	html := `<html><body>
+	<main><p>UNIQUE_MAIN_COPY_SHOULD_NOT_APPEAR_IN_RAW</p></main>
+	<footer>partnerships@example.com</footer>
+	</body></html>`
+	text := ExtractStaticLandingText(html)
+	if !strings.Contains(text, "partnerships@example.com") {
+		t.Fatalf("missing footer email in %q", text)
+	}
+	if strings.Contains(text, "UNIQUE_MAIN_COPY_SHOULD_NOT_APPEAR_IN_RAW") {
+		t.Fatalf("body copy should be skipped when footer contact found: %q", text)
+	}
+}
+
+func TestExtractVisibleBodyTextStripsInlineStyle(t *testing.T) {
+	t.Parallel()
+
+	html := `<div style="@media screen { color: red; }">visible copy only</div>`
+	text := extractVisibleBodyText(html, 50000)
+	if strings.Contains(text, "@media") {
+		t.Fatalf("inline style leaked into text: %q", text)
+	}
+	if !strings.Contains(text, "visible copy only") {
+		t.Fatalf("missing visible copy in %q", text)
+	}
+}
+
 func indexOf(items []string, want string) int {
 	for i, item := range items {
 		if item == want {
