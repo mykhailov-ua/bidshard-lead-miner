@@ -23,7 +23,7 @@ func TestLiveGeminiSmoke(t *testing.T) {
 
 	model := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
 	if model == "" {
-		model = "gemini-2.5-flash"
+		model = DefaultModel
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)

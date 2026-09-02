@@ -39,6 +39,17 @@ fi
 
 bash "$ROOT/scripts/proxy/preflight-tgweb.sh"
 
+# Fail early on deprecated Gemini models that return NOT_FOUND for new API keys.
+# parser config check also enforces this; this gate keeps the preflight loud and explicit.
+if [[ -n "${GEMINI_API_KEY:-}" ]]; then
+	model="${GEMINI_MODEL:-}"
+	if [[ "$model" == *"2.5-flash"* || "$model" == *"2.0-flash"* ]]; then
+		printf 'vps-preflight: FAIL GEMINI_MODEL=%s is deprecated for new API keys; use gemini-3.6-flash (see docs/OPS.md)\n' "$model" >&2
+		exit 1
+	fi
+fi
+
+# Propagate parser config check failures as non-zero so deploy preflight stops.
 "$ROOT/bin/parser" config check 2>&1 | tee "$ROOT/var/vps-preflight.log" || {
 	printf 'vps-preflight: FAIL config check\n' >&2
 	exit 1

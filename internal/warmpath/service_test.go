@@ -263,6 +263,39 @@ func TestProcessBatchRequeuesOnCancel(t *testing.T) {
 	}
 }
 
+func TestRescanPendingRequeuesStaleLeads(t *testing.T) {
+	t.Parallel()
+
+	scanner := &stubPendingScanner{
+		events: []Event{{HashID: "stale-1", Source: "forum", Score: 40}},
+		count:  3,
+	}
+	s := &Service{
+		cfg:            Config{BatchSize: 15},
+		pendingScanner: scanner,
+		buffer:         make([]Event, 0, 4),
+	}
+
+	s.rescanPending(context.Background())
+
+	if len(s.buffer) != 1 || s.buffer[0].HashID != "stale-1" {
+		t.Fatalf("buffer=%+v want stale-1 re-queued", s.buffer)
+	}
+}
+
+type stubPendingScanner struct {
+	events []Event
+	count  int64
+}
+
+func (s *stubPendingScanner) ListStalePendingLeads(_ context.Context, _ time.Duration, _ int) ([]Event, error) {
+	return append([]Event(nil), s.events...), nil
+}
+
+func (s *stubPendingScanner) CountPendingAnalysis(_ context.Context) (int64, error) {
+	return s.count, nil
+}
+
 func TestEnqueueDedupe(t *testing.T) {
 	t.Parallel()
 

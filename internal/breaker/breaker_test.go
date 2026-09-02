@@ -6,6 +6,25 @@ import (
 	"time"
 )
 
+func TestSourceBreakerOpensOnCF403(t *testing.T) {
+	t.Parallel()
+
+	b := NewSourceBreaker()
+	source := "forum"
+
+	for i := 0; i < 2; i++ {
+		b.RecordCloudflareBlock(source)
+		if !b.Allow(source) {
+			t.Fatalf("breaker opened early at %d", i+1)
+		}
+	}
+
+	b.RecordCloudflareBlock(source)
+	if b.Allow(source) {
+		t.Fatal("expected breaker open after 3 cloudflare blocks")
+	}
+}
+
 func TestSourceBreakerOpensAfterFive429(t *testing.T) {
 	t.Parallel()
 

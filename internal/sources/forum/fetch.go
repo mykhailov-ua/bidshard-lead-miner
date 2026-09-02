@@ -2,6 +2,7 @@ package forum
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -79,6 +80,12 @@ func (f *Fetcher) Get(ctx context.Context, rawURL string) (string, error) {
 		}
 		resp, err := f.client.Do(req)
 		if err != nil {
+			if errors.Is(err, httpclient.ErrProxyCooldown) {
+				if f.breaker != nil {
+					f.breaker.RecordCloudflareBlock("forum")
+				}
+				return "", err
+			}
 			if f.breaker != nil {
 				f.breaker.RecordTransportError("forum")
 			}

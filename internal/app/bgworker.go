@@ -99,6 +99,7 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 			bgworker.Job{
 				Name:          "telegram_scrape",
 				Interval:      cfg.BGTelegramScrapeInterval,
+				InitialDelay:  90 * time.Second,
 				SkipIfRunning: true,
 				Run: func(ctx context.Context) error {
 					return runTelegramSidecarOnce(ctx, cfg, deps)
@@ -124,6 +125,7 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 				Run: func(ctx context.Context) error {
 					return telethon.RunChannelTriage(ctx, telethon.ChannelTriageConfig{
 						ChannelsPath: cfg.TelegramChannelsPath,
+						CursorDBPath: cfg.TelegramCursorDBPath,
 					}, client)
 				},
 			})

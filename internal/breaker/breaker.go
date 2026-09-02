@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	defaultFailThreshold = 5
-	defaultOpenTimeout   = 60 * time.Second
+	defaultFailThreshold    = 5
+	cloudflareFailThreshold = 3
+	defaultOpenTimeout      = 60 * time.Second
 )
 
 type SourceBreaker struct {
@@ -69,6 +70,22 @@ func (b *SourceBreaker) RecordSuccess(source string) {
 }
 
 func (b *SourceBreaker) RecordFailure(source string, statusCode int, retryAfter time.Duration) {
+	b.recordFailure(source, statusCode, retryAfter, defaultFailThreshold)
+}
+
+func (b *SourceBreaker) RecordCloudflareBlock(source string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.failures[source]++
+	if b.failures[source] < cloudflareFailThreshold {
+		return
+	}
+	b.openUntil[source] = time.Now().Add(b.openTimeout)
+	slog.Warn("source circuit open", "source", source, "retry_after", b.openTimeout)
+}
+
+func (b *SourceBreaker) recordFailure(source string, statusCode int, retryAfter time.Duration, threshold int) {
 	if statusCode != http.StatusTooManyRequests && statusCode < 500 {
 		return
 	}
@@ -77,7 +94,7 @@ func (b *SourceBreaker) RecordFailure(source string, statusCode int, retryAfter 
 	defer b.mu.Unlock()
 
 	b.failures[source]++
-	if b.failures[source] < b.failThreshold {
+	if b.failures[source] < threshold {
 		return
 	}
 
@@ -119,5 +136,9 @@ func (b *SourceBreaker) RecordResponse(source string, resp *http.Response) {
 		return
 	}
 	retryAfter := ParseRetryAfter(resp.Header.Get("Retry-After"))
+	if resp.StatusCode == http.StatusForbidden && resp.Header.Get("CF-Ray") != "" {
+		b.RecordCloudflareBlock(source)
+		return
+	}
 	b.RecordFailure(source, resp.StatusCode, retryAfter)
 }

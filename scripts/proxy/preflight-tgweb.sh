@@ -34,6 +34,7 @@ failures=0
 note() { log "$1"; }
 
 # 1. Parser config check (keywords, mongo ping, gemini warnings)
+# Any failure here is counted and propagated as a non-zero exit at the end.
 note "running parser config check"
 if ! go run ./cmd/parser config check; then
 	failures=$((failures + 1))

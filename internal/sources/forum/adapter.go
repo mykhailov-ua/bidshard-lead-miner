@@ -107,6 +107,7 @@ func (a *Adapter) Collect(ctx context.Context, emit EmitFunc) error {
 
 			for _, post := range ParsePostsFromHTML(html) {
 				contacts := extract.Extract(post.Body)
+				contacts.Contacts = extract.FilterJunkContacts(contacts.Contacts)
 				if contacts.Rejected {
 					continue
 				}

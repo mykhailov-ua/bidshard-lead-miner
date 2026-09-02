@@ -14,8 +14,15 @@ def session_lock_path(session_path: str | Path) -> Path:
     return Path(str(session_path) + ".lock")
 
 
+def parent_holds_session_lock() -> bool:
+    return os.environ.get("TELETHON_PARENT_HOLDS_LOCK", "").strip() in ("1", "true", "yes")
+
+
 @contextlib.contextmanager
 def session_exclusive_lock(session_path: str | Path) -> Iterator[None]:
+    if parent_holds_session_lock():
+        yield
+        return
     if not sys.platform.startswith(("linux", "darwin")):
         yield
         return

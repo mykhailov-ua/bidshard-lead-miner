@@ -13,7 +13,7 @@ import (
 	"github.com/bidshard/parser/internal/metrics"
 )
 
-const serpMaxAttempts = 3
+const serpMaxAttempts = 6
 
 func isRetryableSERPStatus(code int) bool {
 	switch code {
@@ -28,7 +28,7 @@ func isRetryableSERPStatus(code int) bool {
 func (c *Crawler) searchDork(ctx context.Context, dork string) ([]SERPResult, error) {
 	var lastErr error
 	for attempt := 0; attempt < serpMaxAttempts; attempt++ {
-		body, status, err := c.fetchDorkHTML(ctx, dork, attempt > 0)
+		body, status, err := c.fetchDorkHTML(ctx, dork, attempt)
 		if err != nil {
 			lastErr = err
 			if attempt < serpMaxAttempts-1 {
@@ -58,7 +58,11 @@ func (c *Crawler) searchDork(ctx context.Context, dork string) ([]SERPResult, er
 }
 
 func sleepSERPRetry(ctx context.Context, attempt int) error {
-	d := time.Duration(attempt+1) * time.Second
+	sec := 1 << (attempt + 1)
+	if sec > 30 {
+		sec = 30
+	}
+	d := time.Duration(sec) * time.Second
 	timer := time.NewTimer(d)
 	defer timer.Stop()
 	select {
@@ -83,8 +87,8 @@ func (c *Crawler) duckDuckGoHTMLURL() string {
 	return base
 }
 
-func (c *Crawler) fetchDorkHTML(ctx context.Context, dork string, useGET bool) (string, int, error) {
-	if useGET {
+func (c *Crawler) fetchDorkHTML(ctx context.Context, dork string, attempt int) (string, int, error) {
+	if attempt%2 == 1 {
 		return c.fetchDorkGET(ctx, dork)
 	}
 	return c.fetchDorkPOST(ctx, dork)

@@ -62,6 +62,36 @@ func AcceptQualityBundleOK(cfg Config) bool {
 	return len(AcceptQualityBundleMissing(cfg)) == 0
 }
 
+// AcceptQualityBundleErrors are hard config check failures for defer+CRM without precision gates.
+func AcceptQualityBundleErrors(cfg Config, prodProfile bool) []string {
+	if !crmWebhookActive(cfg) || !cfg.ParserGeminiDefer || strings.TrimSpace(cfg.GeminiAPIKey) == "" {
+		return nil
+	}
+	if AcceptQualityBundleOK(cfg) {
+		return nil
+	}
+	if !prodProfile {
+		return nil
+	}
+	missing := AcceptQualityBundleMissing(cfg)
+	if len(missing) == 0 {
+		return nil
+	}
+	return []string{"prod accept-quality bundle incomplete: " + strings.Join(missing, ", ")}
+}
+
+// AcceptQualityGitHubErrors are hard config check failures when github is listed without opt-in.
+func AcceptQualityGitHubErrors(cfg Config, prodProfile bool) []string {
+	if !prodProfile {
+		return nil
+	}
+	active := parseSourceNamesSimple(cfg.Source)
+	if !containsSourceName(active, "github") || cfg.ParserGitHubEnabled {
+		return nil
+	}
+	return []string{"prod: github in PARSER_SOURCE requires PARSER_GITHUB_ENABLED=true"}
+}
+
 // AcceptQualitySourceWarnings flags high-junk source mixes on prod profiles.
 func AcceptQualitySourceWarnings(cfg Config, prodProfile bool) []string {
 	if !prodProfile {
@@ -72,11 +102,21 @@ func AcceptQualitySourceWarnings(cfg Config, prodProfile bool) []string {
 	if containsSourceName(active, "lander") {
 		warnings = append(warnings, "prod: lander in PARSER_SOURCE is intel-only unless PARSER_LANDER_OUTREACH=true")
 	}
+	if cfg.ParserLanderOutreach {
+		warnings = append(warnings, "prod: PARSER_LANDER_OUTREACH=true converts lander from intel-only to CRM leads; verify competitor domain blacklist is loaded")
+	}
 	if containsSourceName(active, "github") {
-		warnings = append(warnings, "prod: github is opt-in and noisy (CKAN/keitaroinc collisions); prefer forum,reddit,serp or deploy github pain gate")
+		if cfg.ParserGitHubEnabled {
+			warnings = append(warnings, "prod: github enabled but noisy (CKAN/keitaroinc collisions); pain gate active in processor")
+		} else {
+			warnings = append(warnings, "prod: github in PARSER_SOURCE requires PARSER_GITHUB_ENABLED=true")
+		}
 	}
 	if containsSourceName(active, "discord") && envDefaultEmpty("DISCORD_BOT_TOKEN") {
 		warnings = append(warnings, "prod: discord in PARSER_SOURCE but DISCORD_BOT_TOKEN unset")
+	}
+	if containsSourceName(active, "forum") && !containsSourceName(active, "reddit") && len(cfg.ProxyURLs) > 0 && cfg.ProxyEnabledForSource("forum") {
+		warnings = append(warnings, "prod: forum uses proxy but reddit is not in PARSER_SOURCE; reddit is direct-egress public coverage when proxies cool")
 	}
 	return warnings
 }

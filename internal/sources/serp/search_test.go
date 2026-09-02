@@ -43,7 +43,7 @@ func TestSearchDorkRetriesOn202(t *testing.T) {
 	var calls int
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		if calls == 1 {
+		if calls < 3 {
 			w.WriteHeader(http.StatusAccepted)
 			return
 		}
@@ -63,7 +63,7 @@ func TestSearchDorkRetriesOn202(t *testing.T) {
 	if len(results) == 0 {
 		t.Fatal("expected results after retry")
 	}
-	if calls < 2 {
-		t.Fatalf("calls=%d want retry", calls)
+	if calls < 3 {
+		t.Fatalf("calls=%d want >=3 retries", calls)
 	}
 }
