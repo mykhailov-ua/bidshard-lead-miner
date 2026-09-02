@@ -26,6 +26,7 @@ type Config struct {
 	IngestStdin               bool
 	IngestReader              io.Reader
 	TelegramSidecar           bool
+	TelegramRealtime          bool
 	TelegramDryRun            bool
 	TelegramConfigPath        string
 	TelethonPython            string
@@ -107,6 +108,7 @@ type Config struct {
 	BGDomainTriageInterval          time.Duration
 	DomainTriageCachePath           string
 	TelegramChannelsPath            string
+	TelegramCursorDBPath            string
 	GeminiEmbedPainMin              float64
 	GeminiEmbedSpamMin              float64
 	GeminiLeadAnalyzeInterval       time.Duration
@@ -125,6 +127,7 @@ type Config struct {
 	ParserICPClassify               bool
 	ParserICPClassifyTgWeb          bool // sync ICP on tgweb hot path even when ParserGeminiDefer is true
 	ParserLanderOutreach            bool
+	ParserGitHubEnabled             bool // opt-in: github in PARSER_SOURCE requires PARSER_GITHUB_ENABLED=true on prod
 	ParserSourcePriority            bool
 	ParserIntentClassify            bool
 	ParserIntentMinConfidence       float64
@@ -275,6 +278,7 @@ func Load() (Config, error) {
 		GeoBlockCountries:                 parseCSV(env("GEO_BLOCK_COUNTRIES", "RU,BY")),
 		DisposableDomainsPath:             env("DISPOSABLE_DOMAINS_PATH", "data/disposable_domains.txt"),
 		TelegramConfigPath:                env("TELEGRAM_CONFIG_PATH", "config/sources.telegram.yaml"),
+		TelegramRealtime:                  envBool("TELEGRAM_REALTIME", false),
 		TelethonPython:                    env("PARSER_TELETHON_PYTHON", ""),
 		Source:                            env("PARSER_SOURCE", "all"),
 		SupplySeedPath:                    env("SUPPLY_SEED_PATH", "data/seeds/domains.csv"),
@@ -338,6 +342,7 @@ func Load() (Config, error) {
 		BGDomainTriageInterval:            envDuration("PARSER_BG_DOMAIN_TRIAGE_INTERVAL", 6*time.Hour),
 		DomainTriageCachePath:             env("DOMAIN_TRIAGE_CACHE_PATH", "data/runtime/domain_triage_cache.json"),
 		TelegramChannelsPath:              env("TELEGRAM_CHANNELS_PATH", "data/runtime/discovered_telegram_channels.json"),
+		TelegramCursorDBPath:              env("TELEGRAM_CURSOR_DB_PATH", "data/runtime/crawler.db"),
 		GeminiEmbedPainMin:                envFloat("GEMINI_EMBED_PAIN_MIN", 0.78),
 		GeminiEmbedSpamMin:                envFloat("GEMINI_EMBED_SPAM_MIN", 0.82),
 		GeminiLeadAnalyzeInterval:         envDuration("GEMINI_LEAD_ANALYZE_INTERVAL", 5*time.Minute),
@@ -356,6 +361,7 @@ func Load() (Config, error) {
 		ParserICPClassify:                 envBool("PARSER_ICP_CLASSIFY", false),
 		ParserICPClassifyTgWeb:            envBool("PARSER_ICP_CLASSIFY_TGWEB", true),
 		ParserLanderOutreach:              envBool("PARSER_LANDER_OUTREACH", false),
+		ParserGitHubEnabled:               envBool("PARSER_GITHUB_ENABLED", false),
 		ParserSourcePriority:              envBool("PARSER_SOURCE_PRIORITY", true),
 		ParserIntentClassify:              envBool("PARSER_INTENT_CLASSIFY", false),
 		ParserIntentMinConfidence:         envFloat("PARSER_INTENT_MIN_CONFIDENCE", 0.8),

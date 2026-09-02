@@ -13,7 +13,7 @@
 #
 # Docs: README.md, docs/OPS.md, docs/CREDENTIALS.md, docs/DEPLOY.md
 
-.PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight vps-deploy vps-sync vps-export lip-install-shell deploy-preflight ci ci-deploy-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke docker-headless-build bpf-release-gate bpf-leak-gate tgweb-bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-domains-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop
+.PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight vps-deploy vps-sync vps-export lip-install-shell deploy-preflight ci ci-deploy-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke acceptance-soak warm-path-status docker-headless-build bpf-release-gate bpf-leak-gate tgweb-bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-domains-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop
 
 VENV := .venv
 VENV_PY := $(VENV)/bin/python
@@ -130,6 +130,14 @@ forum-live-check: build
 
 prod-source-smoke: build
 	bash ./scripts/sources/prod-source-smoke.sh
+
+# Epic J: jq gates on JSONL export (pending %, lander junk, CSS contacts, telegram High pain).
+acceptance-soak:
+	bash ./scripts/ops/acceptance-soak.sh
+
+# Warm-path pending/DLQ snapshot (requires mongosh + MONGO_URI).
+warm-path-status:
+	bash ./scripts/ops/warm-path-status.sh
 
 docker-headless-build:
 	docker compose -f docker-compose.headless.yaml build

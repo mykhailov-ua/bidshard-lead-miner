@@ -1,0 +1,36 @@
+# Optional long-running Telethon NewMessage listener (profile parser-telegram-realtime).
+#
+# Usage:
+#   docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime up -d
+#
+# Requires TELEGRAM_API_ID, TELEGRAM_API_HASH, and authorized telethon.session.
+# Shares session lock with bg telegram_scrape on the main parser container.
+
+include:
+  - docker-compose.yaml
+
+services:
+  parser-telegram-realtime:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bidshard-parser:local
+    container_name: parser-telegram-realtime
+    network_mode: host
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TELEGRAM_REALTIME: "1"
+      MONGO_URI: ${MONGO_URI:-mongodb://127.0.0.1:27017}
+    volumes:
+      - ./data:/app/data
+      - parser_runtime:/app/data/runtime
+      - ./config:/app/config:ro
+    command: ["telegram", "realtime"]
+    profiles:
+      - parser-telegram-realtime
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped

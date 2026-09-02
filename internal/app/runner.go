@@ -64,6 +64,10 @@ func Run(ctx context.Context, cfg config.Config) error {
 		return runIngestOnce(ctx, cfg, deps, cfg.IngestReader)
 	}
 
+	if cfg.TelegramRealtime {
+		return runTelegramRealtime(ctx, cfg, deps)
+	}
+
 	if cfg.TelegramSidecar {
 		return runTelegramSidecarOnce(ctx, cfg, deps)
 	}

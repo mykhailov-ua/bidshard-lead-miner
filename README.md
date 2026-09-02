@@ -70,6 +70,8 @@ CLI:
 | `parser scan` | single scan round |
 | `parser run` | polling loop (`PARSER_POLL_SEC`) |
 | `parser telegram` | Telethon sidecar + ingest |
+| `parser telegram realtime` | long-running NewMessage listener (`TELEGRAM_REALTIME=1`) |
+| `parser audit programmatic <file>` | offline export audit (would_drop programmatic) |
 | `parser ingest` | NDJSON/stdin ingest |
 
 ---
@@ -89,7 +91,7 @@ CLI:
 |----|-----------|------|-------|
 | `reddit` | PullPush API | - | subreddits + queries |
 | `github` | GitHub Search API | `GITHUB_TOKEN` | issue search |
-| `telegram` | MTProto (Telethon) | `TELEGRAM_API_*` | sidecar, yaml config |
+| `telegram` | MTProto (Telethon) | `TELEGRAM_API_*` | sidecar; yaml `config/sources.telegram.yaml`; SQLite registry (`crawler.db`); optional in-channel search, discussion scrape, global search, realtime listener - see [docs/OPS.md](docs/OPS.md#telegram-mtproto) |
 | `forum` | HTTP | - | seed CSV, host rate limit |
 | `supply` | HTTP | - | ads.txt / sellers.json |
 | `lander` | HTTP (+ optional headless) | - | Next.js `__NEXT_DATA__` / RSC flight |
@@ -149,6 +151,8 @@ Pipeline gates (before accept): geo filter, hard-reject phrases, keyword prescan
 
 **Mongo backup/restore:** `make backup`, `make restore DUMP=...` (see `scripts/ops/`).
 
+**Acceptance soak (Epic J):** `make acceptance-soak` after prod-like run (jq gates on JSONL export). **Warm path status:** `make warm-path-status`. See [docs/OPS.md](docs/OPS.md#acceptance-soak).
+
 **Integration tests:** `make test-integration` (requires `MONGO_URI`, tag `integration`).
 
 **Debug scan logs:**
@@ -168,7 +172,9 @@ docker compose run --rm \
 | Mongo connection error | `parser config check`, `docker compose ps`, `MONGO_URI` (host network -> `127.0.0.1`) |
 | Zero raw items | seed URLs (`data/seeds/*.csv`), source errors in logs, HTTP/CF blocks |
 | `json export open failed` | permissions on `data/export/` for parser UID (10001) |
-| Gemini skipped | `GEMINI_API_KEY`, `PARSER_ICP_CLASSIFY` / `PARSER_GEO_CLASSIFY` |
+| Gemini skipped / all leads `pending` | `GEMINI_API_KEY`, `GEMINI_MODEL` (use `gemini-3.6-flash` or unset default); `make vps-preflight` |
 | Forum `malformed HTTP response` | HTTP/2 vs HTTP/1 - CF/ALPN; proxy or uTLS path |
+| Forum blocked and reddit omitted | Add `reddit` to `PARSER_SOURCE` for direct-egress public coverage when proxies cool |
+| `parser config check` errors before run | Resolve before `parser run` or `parser scan` (P0-01 defer/DLQ and P0-02 config qualification) |
 
 **Tests:** `go test ./...`

@@ -242,6 +242,10 @@ Soak / smoke fail flags (`scripts/lib/soak_gate.sh`):
 | `leads_written=0` | No Mongo/export write (check `MONGO_URI`, `PARSER_EXPORT_JSON`) |
 | `raw_total=0` | Crawl blocked (proxy, CF, bad seeds) - WARN in gate, FAIL in source smoke |
 
+**Acceptance soak (Epic J):** after 2h prod-like `parser run`, `make acceptance-soak` runs jq gates on `data/export/leads.jsonl` (pending %, lander junk, CSS contacts, telegram High pain). See [OPS.md#acceptance-soak](OPS.md#acceptance-soak).
+
+**Warm path:** `make warm-path-status` shows pending/DLQ counts and rescan env. Set `GEMINI_MODEL=gemini-3.6-flash` (or unset) in prod `.env` - see `config/env/.env.prod.example`.
+
 Prometheus counters:
 
 - `parser_leads_accepted_total` - accept path
@@ -269,6 +273,7 @@ make deploy-preflight
 make tgweb-green-accept
 make forum-live-check
 make prod-source-smoke
+make acceptance-soak    # after 2h parser run on staging
 ```
 
 After deploy:

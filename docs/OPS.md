@@ -51,7 +51,30 @@ make tgweb-seed
 
 Default example: `buylink.pro`, `topxpartners.com` (used in processor/tgweb tests; pass geo + prescan when page content matches affiliate context). Soak script refreshes this fixture by default (`SOAK_DEV_FIXTURE=1`).
 
-**Host Telethon sidecar** (discover / scrape bg jobs):
+## Telegram MTProto
+
+Sidecar reads `config/sources.telegram.yaml`; channel registry is canonical in `data/runtime/crawler.db` (JSON export: `parser telegram export-registry`).
+
+| Env | Default | Purpose |
+| --- | --- | --- |
+| `TELEGRAM_CHANNEL_SEARCH_LIMIT` | 3 | in-channel `iter_messages(search=...)` queries per channel per day |
+| `TELEGRAM_DISCUSSION_SCRAPE` | 0 | scrape linked discussion groups (high FloodWait) |
+| `TELEGRAM_GLOBAL_SEARCH` | 0 | optional SearchGlobal pain queries at scrape start |
+| `TELEGRAM_GLOBAL_SEARCH_LIMIT` | 5 | max global search queries per UTC hour |
+| `TELEGRAM_INVITE_JOIN` | 0 | allow `ImportChatInvite` on scrape when not already joined |
+| `TELEGRAM_INVITE_JOIN_LIMIT` | 3 | max invite joins per day when join enabled |
+| `TELEGRAM_REALTIME` | 0 | long-running `NewMessage` listener (`parser telegram realtime`) |
+
+Optional realtime listener (shares session lock with bg scrape; do not run both on one session):
+
+```bash
+go run ./cmd/parser telegram realtime
+# or: docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime up -d
+```
+
+FloodWait on discover search is retried in CI via `sources/telegram/test_discover.py` (live invite flood wait is ops-only).
+
+Login and discover:
 
 ```bash
 make venv
@@ -130,6 +153,7 @@ Headless in default Alpine Docker image is not supported. Use `make docker-headl
 | Instant hard fail on all URLs | Remove placeholder from `PARSER_PROXY_LIST` |
 | Mongo ping failed | `docker compose up -d mongo` |
 | `--domains` ignores a host | Add domain to registry JSON first |
+| `parser config check` errors before `parser run` | Resolve all errors before running; P0-01 (defer/DLQ) and P0-02 (config qualification) must be green for deploy |
 
 Env profiles: `config/env/.env.local.example`, `.env.tgweb.example`, `.env.residential.example`, `.env.vps.example`, `.env.global.example`.
 
@@ -196,6 +220,10 @@ PARSER_SOURCE_DISABLE_GOVERNOR=true
 Do **not** add `github` to `PARSER_SOURCE` without the Tier1 pain gate (CKAN/`keitaroinc` false positives). `GITHUB_SEARCH_QUERIES` is fine for discovery only.
 
 Add `ct` / `reviews` when seeds are populated. Add `lander` only when LPR-only Tier1 gate is deployed.
+
+### Supply crawl emit expectations
+
+The `supply` source walks seed/registry domains and emits `ads_txt:*` items only when `/ads.txt`, `/app-ads.txt`, or `/sellers.json` yields outreach-grade contacts. When `PARSER_DOMAIN_TRIAGE=true`, most domains are skipped before fetch; `supply crawl finished` logs `emitted`, `skipped_triage`, and `top_skip_reasons` (for example `heuristic:noise_host:400`). `emitted=0` with a large `skipped_triage` is normal until registry triage prunes noise hosts or seeds include publishers with sellers.json mailboxes. Supply skips do not block other sources in the same scan round.
 
 ### Accept-quality Tier 1 (code gates)
 
@@ -302,6 +330,111 @@ PARSER_PROXY_LIST=http://user-country-us-session-abc:pass@gw.dataimpulse.com:823
 ```
 
 Verify before crawl: `make preflight-tgweb`. See [config/env/.env.residential.example](../config/env/.env.residential.example).
+
+---
+
+## Acceptance soak (Epic J)
+
+After J-P0 deploy (`GEMINI_MODEL=gemini-3.6-flash` or unset) run 2h `parser run` on prod profile, then:
+
+```bash
+make acceptance-soak
+# or: LEADS_JSONL=data/export/leads.jsonl bash scripts/ops/acceptance-soak.sh
+```
+
+Gates (`scripts/lib/soak_gate.sh`):
+
+| Gate | Pass |
+| --- | --- |
+| `pending_pct` | < 20% of export rows (`ACCEPTANCE_MAX_PENDING_PCT`) |
+| `lander_competitor_junk` | 0 rows with `lander:voluum` / `lander:keitaro` |
+| `css_contact_junk` | 0 rows with `@media` / `@keyframes` / `@supports` handles |
+| `telegram_high pain_pct` | >= 30% of High telegram rows hit tracker pain (`ACCEPTANCE_MIN_TG_PAIN_PCT`) |
+
+Manual review snippet dump prints at end of `acceptance-soak`. Replay fixture audit:
+
+```bash
+go run ./cmd/parser audit programmatic data/export/leads.jsonl
+```
+
+### Warm worker expectations
+
+When `PARSER_GEMINI_DEFER=true` and `GEMINI_API_KEY` is set, accepted leads start as `analysis_status=pending`. The warm path (`internal/warmpath`) drains the queue on `PARSER_WARM_ANALYZE_SEC` (default 5m).
+
+| Env | Default | Role |
+| --- | --- | --- |
+| `WARM_ANALYSIS_RETRY_MAX` | 3 | Gemini batch retries before DLQ |
+| `WARM_ANALYSIS_RETRY_BASE` | 5s | Initial backoff (doubled each retry) |
+| `WARM_ANALYSIS_PENDING_SCAN_INTERVAL` | 15m | Mongo rescan tick for stale pending |
+| `WARM_ANALYSIS_PENDING_STALE` | 1h | Min age before pending row is re-queued |
+| `WARM_ANALYSIS_DLQ_COLLECTION` | `warm_analysis_dlq` | Audit log after retries exhausted |
+| `WARM_ANALYSIS_SHUTDOWN_DRAIN` | 2m | Flush budget on shutdown |
+
+**Ops pass criteria (requires live VPS run):** within 2 warm intervals after valid `GEMINI_MODEL`, >= 80% of High-priority pending rows move to `done` or `failed`/`geo_rejected`. Check logs for `warm path re-queued stale pending leads` and no `NOT_FOUND` from Gemini.
+
+```bash
+make warm-path-status
+# pending count, recent DLQ rows, rescan env
+jq -r '.analysis_status' data/export/leads.jsonl | sort | uniq -c
+```
+
+Transient Gemini errors retry per `WARM_ANALYSIS_RETRY_MAX`. Persistent failures land in `warm_analysis_dlq` (hash_id audit); fix API/model, then wait for rescan or restart parser. Leads stay `pending` until warm path succeeds.
+
+Prometheus: `parser_warm_analysis_failed_total`, `parser_warm_analysis_pending`, `parser_leads_analysis_pending`.
+
+### Compose startup lock check (J-P0-02)
+
+Telethon uses a single session lock (`telethon.session.lock`). Go holds the lock while sidecar runs; `telegram_scrape` starts after 90s `InitialDelay` so discover does not race scrape at startup.
+
+```bash
+docker compose up -d
+sleep 120
+if docker compose logs parser 2>&1 | grep -qi 'database is locked'; then
+  echo 'FAIL: Telethon sqlite lock race'
+  exit 1
+fi
+echo 'ok: no sqlite lock in first 2m'
+```
+
+Unit proof: `go test ./internal/telethon/...`; `make test-py` (`test_session_lock.py`).
+
+### Staging smoke commands (live egress)
+
+Run on staging VPS with creds (not CI). Residential proxy required for forum on datacenter IP.
+
+```bash
+make vps-preflight
+make tgweb-green-accept
+make forum-live-check
+make prod-source-smoke
+make crm-bot-smoke
+make acceptance-soak    # after 2h parser run
+```
+
+| Item | Command | Live pass (VPS) |
+| --- | --- | --- |
+| J-P0-03 SERP | `go test ./internal/sources/serp/...` + bg discover logs | at least one dork `new_threads>0` / `new_entries>0` |
+| J-P0-04 forum | `make forum-live-check` | `raw>0` via residential proxy |
+| J-P1-02 bundle | `make vps-preflight` | `config check` ok; `icp_fit` populated after soak |
+
+Record run dirs: `var/green-accept-*`, `var/forum-live-*`, `var/prod-source-smoke-*`.
+
+### tgweb prune gate (J-P2-05 soak)
+
+Before tgweb soak, prune noise hosts from registry:
+
+```bash
+make tgweb-domains-prune
+make tgweb-prune
+```
+
+**Soak pass (requires VPS crawl):** tgweb `hard_fail` ratio < 30% on a 25-domain sample. Check crawl finish log for `hard_fail` vs `emitted`. Heuristic triage drops netflix/solscan/gmgn-class hosts in `internal/sourceregistry/heuristic.go`.
+
+### Reddit soak expectation (J-P3-02)
+
+Budget and prod profiles keep `reddit` in `PARSER_SOURCE` for direct-egress buyer coverage when forum is CF-blocked. Reddit uses datacenter VPS IP (no residential burn).
+
+**Soak pass (requires VPS run):** >= 1 reddit lead per week in export (`source` prefix `reddit:`). Floor alert: `raw=0` for 24h on enabled subreddits. Crawler unit proof: `go test ./internal/sources/reddit/...`.
 
 ---
 

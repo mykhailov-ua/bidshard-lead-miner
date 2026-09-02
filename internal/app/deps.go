@@ -661,3 +661,34 @@ func runTelegramSidecarOnce(ctx context.Context, cfg config.Config, deps *runtim
 	}
 	return nil
 }
+
+func runTelegramRealtime(ctx context.Context, cfg config.Config, deps *runtimeDeps) error {
+	pr, pw := io.Pipe()
+
+	sidecarCtx, sidecarCancel := context.WithCancel(ctx)
+	defer sidecarCancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		err := telethon.Run(sidecarCtx, telethon.Options{
+			ConfigPath: cfg.TelegramConfigPath,
+			PythonBin:  cfg.TelethonPython,
+			Realtime:   true,
+			ExtraEnv:   []string{"TELEGRAM_REALTIME=1"},
+		}, pw)
+		_ = pw.Close()
+		errCh <- err
+	}()
+
+	ingestErr := runIngestOnce(ctx, cfg, deps, pr)
+	sidecarErr := <-errCh
+
+	if ingestErr != nil {
+		return ingestErr
+	}
+	if sidecarErr != nil && sidecarErr != context.Canceled {
+		metrics.RecordTelethonSidecarFailed()
+		return sidecarErr
+	}
+	return nil
+}

@@ -77,6 +77,7 @@ func RunHeadlessDrain(ctx context.Context, cfg config.Config, deps *runtimeDeps)
 		}
 		text, _ := lander.TextForContactExtract(html)
 		contacts := extract.Extract(text)
+		contacts.Contacts = extract.FilterJunkContacts(contacts.Contacts)
 		if contacts.Rejected || len(contacts.Contacts) == 0 {
 			slog.Warn("headless drain no contacts", "url", item.URL)
 			_ = lander.BumpHeadlessQueueAttempts(cfg.LanderHeadlessQueuePath, item.URL)
