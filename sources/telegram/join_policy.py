@@ -4,6 +4,10 @@ Discover uses CheckChatInvite only (invites.py). Scrape calls resolve_invite_ent
 already-joined invites return chat without ImportChatInvite; preview-only hashes need
 TELEGRAM_INVITE_JOIN=1 and stay under TELEGRAM_INVITE_JOIN_LIMIT per day (crawler.db).
 """
+
+from __future__ import annotations
+
+import logging
 import os
 from typing import Any
 

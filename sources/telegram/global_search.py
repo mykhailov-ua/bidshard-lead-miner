@@ -3,6 +3,11 @@
 TELEGRAM_GLOBAL_SEARCH=1 runs iter_messages(None, search=...) before channel loop.
 Hourly query budget in telegram_runtime (TELEGRAM_GLOBAL_SEARCH_LIMIT, default 5/hour UTC).
 """
+
+from __future__ import annotations
+
+import json
+import logging
 import os
 import re
 from typing import Any, TextIO
