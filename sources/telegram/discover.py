@@ -11,6 +11,7 @@ from .domains import append_domains
 from .geo_heuristic import channel_geo_reject
 from .invites import discover_invite_hashes
 from .prefilter import channel_icp_relevant
+from .telethon_retry import call_with_flood_wait, is_flood_wait
 
 LOG = logging.getLogger("telegram.discover")
 
@@ -66,8 +67,21 @@ async def discover_via_search(
         if not query:
             continue
         try:
-            result = await client(SearchRequest(q=query, limit=limit_per_query))
+            result = await call_with_flood_wait(
+                f"search:{query}",
+                lambda: client(SearchRequest(q=query, limit=limit_per_query)),
+                attempts=2,
+            )
+            if result is None:
+                continue
         except Exception as exc:
+            if is_flood_wait(exc):
+                LOG.warning(
+                    "telegram search flood wait query=%s seconds=%s skip",
+                    query,
+                    getattr(exc, "seconds", 0),
+                )
+                continue
             LOG.warning("telegram search failed query=%s error=%s", query, exc)
             continue
 

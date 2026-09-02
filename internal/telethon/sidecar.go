@@ -21,6 +21,7 @@ type Options struct {
 	LoginQR      bool
 	LoginFresh   bool
 	DiscoverOnly bool
+	Realtime     bool
 	ExtraEnv     []string
 }
 
@@ -109,6 +110,44 @@ func RunDiscover(ctx context.Context, opts Options) error {
 	})
 }
 
+func RunExportRegistry(ctx context.Context, opts Options) error {
+	if opts.ConfigPath == "" {
+		opts.ConfigPath = "config/sources.telegram.yaml"
+	}
+	return runWithSessionLock(opts.ConfigPath, func() error {
+		if opts.WorkDir == "" {
+			wd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			opts.WorkDir = wd
+		}
+		workDir, err := filepath.Abs(opts.WorkDir)
+		if err != nil {
+			return err
+		}
+		workDir, err = resolveRepoRoot(workDir)
+		if err != nil {
+			return err
+		}
+		if opts.PythonBin == "" {
+			opts.PythonBin = defaultPythonBin(workDir)
+		}
+
+		args := []string{"-m", "sources.telegram.scraper", "--config", opts.ConfigPath, "--export-registry"}
+		cmd := exec.CommandContext(ctx, opts.PythonBin, args...)
+		cmd.Dir = workDir
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Env = buildEnv(workDir, opts.ExtraEnv)
+
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("telethon export registry: %w", err)
+		}
+		return nil
+	})
+}
+
 func Run(ctx context.Context, opts Options, stdout io.Writer) error {
 	if opts.ConfigPath == "" {
 		opts.ConfigPath = "config/sources.telegram.yaml"
@@ -135,7 +174,9 @@ func Run(ctx context.Context, opts Options, stdout io.Writer) error {
 		}
 
 		args := []string{"-m", "sources.telegram.scraper", "--config", opts.ConfigPath, "--stdout"}
-		if opts.Once {
+		if opts.Realtime {
+			args = append(args, "--realtime")
+		} else if opts.Once {
 			args = append(args, "--once")
 		}
 		if opts.DryRun {
@@ -203,6 +244,7 @@ func buildEnv(workDir string, extra []string) []string {
 	}
 	env = append(env, extra...)
 	env = append(env, "PYTHONPATH="+workDir)
+	env = append(env, "TELETHON_PARENT_HOLDS_LOCK=1")
 	return env
 }
 

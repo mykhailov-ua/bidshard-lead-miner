@@ -14,8 +14,10 @@ type ndjsonItem struct {
 	Contact          string `json:"contact"`
 	Title            string `json:"title"`
 	Username         string `json:"username"`
+	SenderUserID     int64  `json:"sender_user_id"`
 	MessageID        int64  `json:"message_id"`
 	ReplyToMessageID int64  `json:"reply_to_message_id"`
+	ReplyContext     string `json:"reply_context"`
 	ChatType         string `json:"chat_type"`
 	ChannelAbout     string `json:"channel_about"`
 }
@@ -32,6 +34,9 @@ func (item ndjsonItem) toRawItem() model.RawItem {
 	contact := item.Contact
 	if contact == "" && item.Username != "" {
 		contact = item.Username
+	}
+	if contact == "" && item.SenderUserID > 0 {
+		contact = fmt.Sprintf("telegram:user_id:%d", item.SenderUserID)
 	}
 	if contact == "" && strings.HasPrefix(item.Source, "telegram:") {
 		username := strings.TrimPrefix(item.Source, "telegram:")
@@ -52,6 +57,7 @@ func (item ndjsonItem) toRawItem() model.RawItem {
 		Username:         item.Username,
 		MessageID:        item.MessageID,
 		ReplyToMessageID: item.ReplyToMessageID,
+		ReplyContext:     item.ReplyContext,
 		ChatType:         item.ChatType,
 		ChannelAbout:     item.ChannelAbout,
 	}

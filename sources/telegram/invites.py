@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -7,8 +8,14 @@ from .config import ChatConfig
 
 LOG = logging.getLogger("telegram.invites")
 
+from .telethon_retry import is_flood_wait, sleep_flood_wait
 
-async def discover_invite_hashes(client: Any, hashes: list[str]) -> list[ChatConfig]:
+
+async def discover_invite_hashes(
+    client: Any,
+    hashes: list[str],
+    rate_limit_qps: float = 1.0,
+) -> list[ChatConfig]:
     from telethon.tl.functions.messages import CheckChatInviteRequest
 
     out: list[ChatConfig] = []
@@ -30,6 +37,17 @@ async def discover_invite_hashes(client: Any, hashes: list[str]) -> list[ChatCon
                 chat_id = getattr(checked.chat, "id", None)
                 title = getattr(checked.chat, "title", title) or title
         except Exception as exc:
+            if is_flood_wait(exc):
+                wait = await sleep_flood_wait(
+                    getattr(exc, "seconds", 0),
+                    label=f"invite:{invite_hash}",
+                )
+                LOG.warning(
+                    "invite check flood wait hash=%s slept=%d",
+                    invite_hash,
+                    wait,
+                )
+                continue
             LOG.warning("invite check failed hash=%s error=%s", invite_hash, exc)
             continue
         out.append(
@@ -41,4 +59,6 @@ async def discover_invite_hashes(client: Any, hashes: list[str]) -> list[ChatCon
                 chat_id=chat_id,
             )
         )
+        if rate_limit_qps > 0:
+            await asyncio.sleep(1.0 / rate_limit_qps)
     return out

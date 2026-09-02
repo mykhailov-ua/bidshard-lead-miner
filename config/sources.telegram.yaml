@@ -25,6 +25,9 @@ discover:
 
 # Manual additions (public channels only). geo is metadata for ops; loader skips geo: ru.
 # Prefer buyer/community chats over news digests. SERP discover fills the rest; triage drops noise.
+#
+# Intel-only (do not add to chats[]): news digests and job boards - processor rejects as intel_only:
+#   igaming_news, partnerkin_job, affiliatechannel_igaming, *_news, *_job*
 chats:
   - name: voluum_community
     username: voluum
@@ -43,3 +46,19 @@ session: data/runtime/telethon.session
 cursor_db: data/runtime/crawler.db
 poll_delay_sec: 2
 message_limit: 500
+
+# In-channel pain search (K-TG-05): iter_messages(search=...) on seed channels.
+channel_search:
+  enabled: true
+  messages_per_term: 20
+  # channels: []  # empty = all manual chats[] with username; or list usernames
+  # terms: []  # default pain terms from scraper config loader
+
+# Optional global pain search (off by default; enable via TELEGRAM_GLOBAL_SEARCH=1)
+global_search:
+  enabled: false
+  messages_per_query: 20
+  # terms: []  # default ICP pain phrases from config loader
+
+# Sidecar env (not yaml): TELEGRAM_DISCUSSION_SCRAPE, TELEGRAM_INVITE_JOIN,
+# TELEGRAM_REALTIME - see .env.example and docs/OPS.md#telegram-mtproto

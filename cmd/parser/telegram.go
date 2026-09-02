@@ -33,9 +33,27 @@ Use --dry-run to test without an MTProto session.`,
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Telethon dry-run (no MTProto session)")
 	cmd.AddCommand(newTelegramLoginCmd())
 	cmd.AddCommand(newTelegramDiscoverCmd())
+	cmd.AddCommand(newTelegramExportRegistryCmd())
 	cmd.AddCommand(newTelegramWebCmd())
 	cmd.AddCommand(newTelegramDomainsCmd())
+	cmd.AddCommand(newTelegramRealtimeCmd())
 	return cmd
+}
+
+func newTelegramRealtimeCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "realtime",
+		Short: "Run Telethon NewMessage listener and ingest NDJSON",
+		Long: `Long-running MTProto listener for configured Telegram channels.
+
+Requires TELEGRAM_API_ID, TELEGRAM_API_HASH, authorized session, and TELEGRAM_REALTIME=1.
+Shares session lock with scrape/discover; do not run both against the same session.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts := globalOpts
+			opts.telegramRealtime = true
+			return opts.run(cmd.Context())
+		},
+	}
 }
 
 func newTelegramDomainsCmd() *cobra.Command {
@@ -132,6 +150,26 @@ func newTelegramDiscoverCmd() *cobra.Command {
 				return err
 			}
 			return telethon.RunDiscover(cmd.Context(), telethon.Options{
+				ConfigPath: cfg.TelegramConfigPath,
+				PythonBin:  cfg.TelethonPython,
+			})
+		},
+	}
+}
+
+func newTelegramExportRegistryCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "export-registry",
+		Short: "Export discovered_telegram_channels.json from crawler.db",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+			if err := globalOpts.apply(&cfg); err != nil {
+				return err
+			}
+			return telethon.RunExportRegistry(cmd.Context(), telethon.Options{
 				ConfigPath: cfg.TelegramConfigPath,
 				PythonBin:  cfg.TelethonPython,
 			})

@@ -37,6 +37,7 @@ type triageCacheFile struct {
 type ChannelTriageConfig struct {
 	ChannelsPath string
 	CachePath    string
+	CursorDBPath string
 	BatchSize    int
 }
 
@@ -51,6 +52,9 @@ func RunChannelTriage(ctx context.Context, cfg ChannelTriageConfig, client *gemi
 	}
 	if cfg.CachePath == "" {
 		cfg.CachePath = defaultTriageCachePath
+	}
+	if cfg.CursorDBPath == "" {
+		cfg.CursorDBPath = defaultCursorDBPath
 	}
 	if cfg.BatchSize <= 0 {
 		cfg.BatchSize = 20
@@ -119,11 +123,15 @@ func RunChannelTriage(ctx context.Context, cfg ChannelTriageConfig, client *gemi
 	applyBatch()
 
 	kept := make([]channelEntry, 0, len(file.Channels))
+	disableKeys := make([]string, 0)
 	dropped := 0
 	for _, ch := range file.Channels {
 		id := channelID(ch)
 		if action, ok := cache.Decisions[id]; ok && action == "drop" {
 			dropped++
+			if key := channelIDToCursorKey(id); key != "" {
+				disableKeys = append(disableKeys, key)
+			}
 			continue
 		}
 		kept = append(kept, ch)
@@ -134,6 +142,14 @@ func RunChannelTriage(ctx context.Context, cfg ChannelTriageConfig, client *gemi
 	}
 	if err := writeTriageCache(cfg.CachePath, cache); err != nil {
 		return err
+	}
+	if len(disableKeys) > 0 {
+		if err := setChannelsEnabled(cfg.CursorDBPath, disableKeys, false); err != nil {
+			slog.Warn("channel triage cursor disable failed", "error", err, "count", len(disableKeys))
+		}
+	}
+	if err := ExportChannelsJSON(cfg.CursorDBPath, cfg.ChannelsPath); err != nil {
+		slog.Warn("channel triage registry export failed", "error", err)
 	}
 	if dropped > 0 {
 		metrics.RecordSourcesTriagedDropped(dropped)

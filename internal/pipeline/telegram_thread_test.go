@@ -40,6 +40,23 @@ func msgForThread(i int) string {
 	}[i-1]
 }
 
+func TestTelegramThreadTextIncludesReplyContext(t *testing.T) {
+	t.Parallel()
+	p := &Processor{TelegramThread: entity.NewThreadBuffer(6)}
+	task := Task{Item: model.RawItem{
+		Source:       "telegram:@affnet",
+		Contact:      "telegram:@buyer_mx",
+		ReplyContext: "parent needs voluum alternative",
+	}}
+	got := p.telegramThreadText(task, "same tracker pain here")
+	if !strings.Contains(got, "reply_to: parent needs voluum alternative") {
+		t.Fatalf("missing reply context in %q", got)
+	}
+	if !strings.Contains(got, "same tracker pain here") {
+		t.Fatalf("missing message text in %q", got)
+	}
+}
+
 func TestTelegramThreadTextNonTelegramPassthrough(t *testing.T) {
 	t.Parallel()
 	p := &Processor{TelegramThread: entity.NewThreadBuffer(6)}

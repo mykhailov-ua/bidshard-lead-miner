@@ -6,7 +6,9 @@ from typing import Any
 from .config import ChatConfig, CrossMentionConfig
 from .domains import RegistryEntry
 from .invites import discover_invite_hashes
+from .message_text import combined_message_text
 from .prefilter import channel_icp_relevant
+from .telethon_retry import call_with_flood_wait, is_flood_wait
 from .tglinks import extract_from_texts, web_domains
 
 LOG = logging.getLogger("telegram.crossmention")
@@ -17,14 +19,33 @@ async def resolve_seed_entity(client: Any, chat: ChatConfig) -> Any | None:
 
     try:
         if chat.username:
-            return await client.get_entity(chat.username)
+            return await call_with_flood_wait(
+                f"crossmention:resolve:{chat.channel_key()}",
+                lambda: client.get_entity(chat.username),
+                attempts=2,
+            )
         if chat.chat_id is not None:
-            return await client.get_entity(chat.chat_id)
+            return await call_with_flood_wait(
+                f"crossmention:resolve:{chat.channel_key()}",
+                lambda: client.get_entity(chat.chat_id),
+                attempts=2,
+            )
         if chat.invite_hash:
-            checked = await client(CheckChatInviteRequest(chat.invite_hash))
-            if getattr(checked, "chat", None) is not None:
+            checked = await call_with_flood_wait(
+                f"crossmention:invite:{chat.channel_key()}",
+                lambda: client(CheckChatInviteRequest(chat.invite_hash)),
+                attempts=2,
+            )
+            if checked is not None and getattr(checked, "chat", None) is not None:
                 return checked.chat
     except Exception as exc:
+        if is_flood_wait(exc):
+            LOG.warning(
+                "cross-mention seed resolve flood wait key=%s seconds=%s skip",
+                chat.channel_key(),
+                getattr(exc, "seconds", 0),
+            )
+            return None
         LOG.warning(
             "cross-mention seed resolve failed key=%s error=%s",
             chat.channel_key(),
@@ -50,24 +71,52 @@ async def collect_seed_content(
         try:
             from .telethon_input import channel_input_peer
 
-            full = await client(GetFullChannelRequest(channel_input_peer(entity)))
-            about = getattr(full.full_chat, "about", None)
-            if about:
-                about_text = str(about)
-                texts.append(about_text)
-        except Exception as exc:
-            LOG.warning(
-                "cross-mention about fetch failed title=%s error=%s", entity.title, exc
+            full = await call_with_flood_wait(
+                "crossmention:about",
+                lambda: client(GetFullChannelRequest(channel_input_peer(entity))),
+                attempts=2,
             )
+            if full is not None:
+                about = getattr(full.full_chat, "about", None)
+                if about:
+                    about_text = str(about)
+                    texts.append(about_text)
+        except Exception as exc:
+            if is_flood_wait(exc):
+                LOG.warning(
+                    "cross-mention about flood wait title=%s seconds=%s skip",
+                    entity.title,
+                    getattr(exc, "seconds", 0),
+                )
+            else:
+                LOG.warning(
+                    "cross-mention about fetch failed title=%s error=%s",
+                    entity.title,
+                    exc,
+                )
 
     try:
-        async for msg in client.iter_messages(entity, limit=messages_per_channel):
-            messages.append(msg)
-            body = msg.text or msg.message
-            if body:
-                texts.append(str(body))
+        async def iter_seed_messages() -> None:
+            async for msg in client.iter_messages(entity, limit=messages_per_channel):
+                messages.append(msg)
+                body = combined_message_text(msg)
+                if body:
+                    texts.append(body)
+
+        await call_with_flood_wait(
+            "crossmention:messages",
+            iter_seed_messages,
+            attempts=2,
+        )
     except Exception as exc:
-        LOG.warning("cross-mention messages fetch failed error=%s", exc)
+        if is_flood_wait(exc):
+            LOG.warning(
+                "cross-mention messages flood wait seconds=%s partial=%d",
+                getattr(exc, "seconds", 0),
+                len(messages),
+            )
+        else:
+            LOG.warning("cross-mention messages fetch failed error=%s", exc)
 
     return texts, messages, about_text
 

@@ -93,6 +93,21 @@ TUTORIAL_HINTS = (
     "инструкция",
 )
 
+PROGRAMMATIC_HINTS = (
+    "programmatic",
+    "openrtb",
+    "header bidding",
+    "prebid",
+    "supply-side",
+    "dooh",
+    "pdooh",
+    "brand awareness",
+    "viewability",
+    "programmatic guaranteed",
+    "programmatic stack",
+    "openrtb bidder",
+)
+
 MIN_MESSAGE_RUNES = 40
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 
@@ -142,12 +157,21 @@ def is_job_or_tutorial_noise(text: str) -> bool:
     return False
 
 
+def is_programmatic_noise(text: str) -> bool:
+    body = _lower(text)
+    if not any(h in body for h in PROGRAMMATIC_HINTS):
+        return False
+    return not has_tracker_pain_signal(text)
+
+
 def should_emit_message(text: str) -> bool:
     if not prefilter_enabled():
         return True
     if is_spam_message(text):
         return False
     if is_job_or_tutorial_noise(text):
+        return False
+    if is_programmatic_noise(text):
         return False
     # Emit on pain keywords even when message is short; otherwise require MIN_MESSAGE_RUNES substance.
     if has_pain_signal(text):

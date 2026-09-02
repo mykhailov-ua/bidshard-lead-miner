@@ -13,6 +13,7 @@ bin/
 data/*.session
 data/crawler.db
 data/telethon.session
+internal/telethon/data/
 data/runtime/*
 !data/runtime/.gitkeep
 !data/runtime/discovered_telegram_domains.json.example

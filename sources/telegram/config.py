@@ -36,6 +36,14 @@ class CrossMentionConfig:
 
 
 @dataclass
+class ChannelSearchConfig:
+    enabled: bool = False
+    terms: list[str] = field(default_factory=list)
+    messages_per_term: int = 20
+    channel_usernames: list[str] = field(default_factory=list)
+
+
+@dataclass
 class DiscoverConfig:
     enabled: bool
     queries: list[str]
@@ -47,6 +55,13 @@ class DiscoverConfig:
 
 
 @dataclass
+class GlobalSearchConfig:
+    enabled: bool = False
+    terms: list[str] = field(default_factory=list)
+    messages_per_query: int = 20
+
+
+@dataclass
 class ScraperConfig:
     chats: list[ChatConfig]
     session: str
@@ -54,6 +69,8 @@ class ScraperConfig:
     poll_delay_sec: float
     message_limit: int
     discover: DiscoverConfig
+    channel_search: ChannelSearchConfig = field(default_factory=ChannelSearchConfig)
+    global_search: GlobalSearchConfig = field(default_factory=GlobalSearchConfig)
 
 
 def load_config(path: str | Path) -> ScraperConfig:
@@ -117,6 +134,47 @@ def load_config(path: str | Path) -> ScraperConfig:
     if discover.enabled and not discover.queries and icp_telegram:
         discover.queries = icp_telegram
 
+    search_raw = data.get("channel_search", {}) or {}
+    search_terms = [
+        str(t).strip() for t in search_raw.get("terms", []) if str(t).strip()
+    ]
+    if not search_terms:
+        search_terms = [
+            "postback",
+            "voluum",
+            "keitaro alternative",
+            "tracker alternative",
+            "migrate from",
+        ]
+    channel_search = ChannelSearchConfig(
+        enabled=bool(search_raw.get("enabled", True)),
+        terms=search_terms,
+        messages_per_term=int(search_raw.get("messages_per_term", 20)),
+        channel_usernames=[
+            str(u).strip().lstrip("@").lower()
+            for u in search_raw.get("channels", [])
+            if str(u).strip()
+        ],
+    )
+
+    global_raw = data.get("global_search", {}) or {}
+    global_terms = [
+        str(t).strip() for t in global_raw.get("terms", []) if str(t).strip()
+    ]
+    if not global_terms:
+        global_terms = [
+            "voluum alternative",
+            "keitaro alternative",
+            "postback failing",
+            "migrate from voluum",
+            "tracker alternative",
+        ]
+    global_search = GlobalSearchConfig(
+        enabled=bool(global_raw.get("enabled", False)),
+        terms=global_terms,
+        messages_per_query=int(global_raw.get("messages_per_query", 20)),
+    )
+
     return ScraperConfig(
         chats=chats,
         session=str(data.get("session", "data/runtime/telethon.session")),
@@ -124,4 +182,6 @@ def load_config(path: str | Path) -> ScraperConfig:
         poll_delay_sec=float(data.get("poll_delay_sec", 2)),
         message_limit=int(data.get("message_limit", 500)),
         discover=discover,
+        channel_search=channel_search,
+        global_search=global_search,
     )

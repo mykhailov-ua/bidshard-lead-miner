@@ -37,6 +37,18 @@ class PrefilterTest(unittest.TestCase):
             should_emit_message("step by step tutorial how to build funnels")
         )
 
+    def test_programmatic_noise_rejected(self) -> None:
+        self.assertFalse(
+            should_emit_message(
+                "Head of programmatic display buying CPM on openRTB SSP stack"
+            )
+        )
+        self.assertTrue(
+            should_emit_message(
+                "openrtb postback failing on voluum migration need alternative"
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

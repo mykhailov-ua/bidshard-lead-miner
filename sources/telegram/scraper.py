@@ -13,8 +13,19 @@ from typing import Any, TextIO
 from .config import ChatConfig, ScraperConfig, load_config
 from .connect import connect_telegram_client
 from .cursor import CursorStore
-from .discover import chats_for_scrape, run_discover
+from .channel_search import iter_search_hits
+from .discussion import (
+    discussion_cursor_key,
+    discussion_scrape_enabled,
+    linked_discussion_id,
+    scrape_discussion_messages,
+)
+from .discover import chats_for_scrape, merge_chat_lists, run_discover
+from .global_search import run_global_search
+from .join_policy import resolve_invite_entity
 from .domains import RegistryEntry, append_domains
+from .pain import message_has_pain
+from .registry_export import export_channels_json
 from .session_lock import session_exclusive_lock
 from .tglinks import web_domains
 
@@ -55,11 +66,23 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="delete existing session before login",
     )
+    parser.add_argument(
+        "--export-registry",
+        action="store_true",
+        help="write discovered_telegram_channels.json from crawler.db and exit",
+    )
+    parser.add_argument(
+        "--realtime",
+        action="store_true",
+        help="long-running NewMessage listener (requires TELEGRAM_REALTIME=1)",
+    )
     return parser.parse_args()
 
 
 from .geo_heuristic import channel_geo_reject
+from .message_text import combined_message_text, message_body_text
 from .prefilter import should_emit_message
+from .telethon_retry import call_with_flood_wait, is_flood_wait
 
 
 def emit_line(
@@ -70,11 +93,13 @@ def emit_line(
     message_id: int,
     channel_about: str = "",
     reply_to_message_id: int = 0,
+    reply_context: str = "",
     chat_type: str = "",
-) -> None:
+    sender_user_id: int = 0,
+) -> bool:
     # Drop spam/empty before NDJSON; Go pipeline never sees filtered messages.
     if not should_emit_message(text):
-        return
+        return False
     if chat.username:
         source = f"telegram:@{chat.username}"
     elif chat.invite_hash:
@@ -87,14 +112,20 @@ def emit_line(
         "username": username,
         "message_id": message_id,
     }
+    if sender_user_id > 0 and not username:
+        payload["sender_user_id"] = sender_user_id
+        payload["contact"] = f"telegram:user_id:{sender_user_id}"
     if reply_to_message_id > 0:
         payload["reply_to_message_id"] = reply_to_message_id
+    if reply_context:
+        payload["reply_context"] = reply_context
     if chat_type:
         payload["chat_type"] = chat_type
     if channel_about:
         payload["channel_about"] = channel_about
     out.write(json.dumps(payload, ensure_ascii=False) + "\n")
     out.flush()
+    return True
 
 
 def dry_run(cfg: ScraperConfig, out: TextIO) -> int:
@@ -131,6 +162,14 @@ def sender_username(sender: Any) -> str:
     return ""
 
 
+def sender_user_id(sender: Any) -> int:
+    from telethon.tl.types import User
+
+    if isinstance(sender, User) and sender.id:
+        return int(sender.id)
+    return 0
+
+
 def entity_chat_type(entity: Any) -> str:
     from telethon.tl.types import Channel, Chat
 
@@ -145,19 +184,36 @@ async def resolve_chat_entity(client: Any, chat: ChatConfig, store: CursorStore)
     if chat.chat_id is not None:
         return chat.chat_id
     if chat.invite_hash:
-        from telethon.tl.functions.messages import ImportChatInviteRequest
-
-        # Persist chat_id after first invite import so later runs use numeric id.
-        updates = await client(ImportChatInviteRequest(chat.invite_hash))
-        chats = getattr(updates, "chats", None) or []
-        if not chats:
-            raise ValueError("invite import returned no chat")
-        entity = chats[0]
-        store.set_chat_id(chat.channel_key(), int(entity.id))
-        return entity
+        return await resolve_invite_entity(client, chat, store)
     if chat.username:
         return chat.username
     raise ValueError("chat has no username, invite_hash, or chat_id")
+
+
+async def fetch_reply_context(
+    client: Any, entity: Any, parent_id: int
+) -> str:
+    """One-hop parent fetch for reply context; skip parent on FloodWait."""
+    if parent_id <= 0:
+        return ""
+    try:
+        result = await client.get_messages(entity, ids=parent_id)
+    except Exception as exc:
+        if is_flood_wait(exc):
+            LOG.warning(
+                "reply parent fetch flood wait parent_id=%s seconds=%s skip",
+                parent_id,
+                getattr(exc, "seconds", 0),
+            )
+            return ""
+        LOG.debug(
+            "reply parent fetch failed parent_id=%s error=%s", parent_id, exc
+        )
+        return ""
+    parent = result[0] if isinstance(result, list) else result
+    if parent is None:
+        return ""
+    return message_body_text(parent)
 
 
 async def fetch_channel_about(client: Any, entity: Any) -> str:
@@ -178,6 +234,133 @@ async def fetch_channel_about(client: Any, entity: Any) -> str:
     return ""
 
 
+async def process_scrape_message(
+    client: Any,
+    entity: Any,
+    message: Any,
+    chat: ChatConfig,
+    about_text: str,
+    chat_kind: str,
+    out: TextIO,
+    store: CursorStore,
+    chat_key: str,
+) -> bool:
+    """Emit one NDJSON row when body passes prefilter. Returns True if emitted."""
+    body = combined_message_text(message)
+    if not body:
+        return False
+    sender = await message.get_sender()
+    username = sender_username(sender)
+    user_id = sender_user_id(sender)
+    reply_to = 0
+    reply_context = ""
+    if message.reply_to and getattr(message.reply_to, "reply_to_msg_id", None):
+        reply_to = int(message.reply_to.reply_to_msg_id)
+        if reply_to > 0:
+            reply_context = await fetch_reply_context(client, entity, reply_to)
+    if not emit_line(
+        out,
+        chat,
+        body,
+        username,
+        message.id,
+        channel_about=about_text,
+        reply_to_message_id=reply_to,
+        reply_context=reply_context,
+        chat_type=chat_kind,
+        sender_user_id=user_id,
+    ):
+        return False
+    store.record_emit(chat_key, message_has_pain(body))
+    return True
+
+
+def channel_search_enabled(cfg: ScraperConfig, chat: ChatConfig) -> bool:
+    if not cfg.channel_search.enabled:
+        return False
+    if not cfg.channel_search.channel_usernames:
+        return bool(chat.username)
+    uname = chat.username.lower().lstrip("@")
+    return uname in cfg.channel_search.channel_usernames
+
+
+def channel_search_daily_limit() -> int:
+    raw = os.environ.get("TELEGRAM_CHANNEL_SEARCH_LIMIT", "3").strip()
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 3
+
+
+async def scrape_discussion_for_channel(
+    client: Any,
+    chat: ChatConfig,
+    full_entity: Any,
+    store: CursorStore,
+    cfg: ScraperConfig,
+    out: TextIO,
+    about_text: str,
+    chat_key: str,
+) -> int:
+    if not discussion_scrape_enabled():
+        return 0
+    linked_id = await linked_discussion_id(client, full_entity)
+    if not linked_id:
+        return 0
+    disc_key = discussion_cursor_key(chat_key)
+    try:
+        disc_entity = await client.get_entity(linked_id)
+    except Exception as exc:
+        LOG.warning(
+            "discussion entity resolve failed chat=%s linked_id=%s error=%s skip",
+            chat_key,
+            linked_id,
+            exc,
+        )
+        return 0
+
+    last_id = store.get_last_message_id(disc_key)
+    max_seen = last_id
+    emitted = 0
+
+    async def on_discussion_message(message: Any) -> bool:
+        nonlocal emitted, max_seen
+        if await process_scrape_message(
+            client,
+            disc_entity,
+            message,
+            chat,
+            about_text,
+            "discussion",
+            out,
+            store,
+            chat_key,
+        ):
+            emitted += 1
+            max_seen = max(max_seen, message.id)
+            return True
+        return False
+
+    emitted = await scrape_discussion_messages(
+        client,
+        disc_entity,
+        cursor_key=disc_key,
+        last_id=last_id,
+        message_limit=cfg.message_limit,
+        on_message=on_discussion_message,
+    )
+    if max_seen > last_id:
+        store.set_last_message_id(disc_key, max_seen)
+    if emitted:
+        LOG.info(
+            "discussion scrape chat=%s cursor=%s emitted=%d",
+            chat_key,
+            disc_key,
+            emitted,
+        )
+    return emitted
+
+
 async def scrape_chat(
     client: Any,
     chat: ChatConfig,
@@ -185,8 +368,6 @@ async def scrape_chat(
     cfg: ScraperConfig,
     out: TextIO,
 ) -> int:
-    from telethon.errors import FloodWaitError
-
     chat_key = chat.channel_key()
     try:
         entity = await resolve_chat_entity(client, chat, store)
@@ -210,55 +391,73 @@ async def scrape_chat(
     max_seen = last_id
     emitted = 0
     texts_for_domains: list[str] = []
+    seen_message_ids: set[int] = set()
 
-    for attempt in range(2):
-        try:
-            async for message in client.iter_messages(entity, limit=cfg.message_limit):
-                if message.id <= last_id:
-                    # Cursor is monotonic; older messages already processed.
-                    break
-                if not message.message:
-                    continue
-                body = str(message.message)
-                texts_for_domains.append(body)
-                username = sender_username(await message.get_sender())
-                reply_to = 0
-                if message.reply_to and getattr(message.reply_to, "reply_to_msg_id", None):
-                    reply_to = int(message.reply_to.reply_to_msg_id)
-                emit_line(
-                    out,
-                    chat,
-                    body,
-                    username,
-                    message.id,
-                    channel_about=about_text,
-                    reply_to_message_id=reply_to,
-                    chat_type=chat_kind,
-                )
-                emitted += 1
+    async def emit_message(message: Any, *, require_new: bool) -> bool:
+        nonlocal emitted, max_seen
+        if message.id in seen_message_ids:
+            return False
+        seen_message_ids.add(message.id)
+        body = combined_message_text(message)
+        if not body:
+            return False
+        texts_for_domains.append(body)
+        if require_new and message.id <= last_id:
+            return False
+        if await process_scrape_message(
+            client, entity, message, chat, about_text, chat_kind, out, store, chat_key
+        ):
+            emitted += 1
+            if message.id > last_id:
                 max_seen = max(max_seen, message.id)
-            break
-        except FloodWaitError as exc:
+            return True
+        return False
+
+    if channel_search_enabled(cfg, chat) and store.can_channel_search(
+        chat_key, channel_search_daily_limit()
+    ):
+        searches, search_emitted = await iter_search_hits(
+            client,
+            entity,
+            cfg.channel_search.terms,
+            cfg.channel_search.messages_per_term,
+            channel_search_daily_limit(),
+            lambda message: emit_message(message, require_new=False),
+        )
+        store.record_channel_search(chat_key, searches)
+        emitted += search_emitted
+
+    async def iter_chat_messages() -> None:
+        async for message in client.iter_messages(entity, limit=cfg.message_limit):
+            if message.id <= last_id:
+                break
+            await emit_message(message, require_new=True)
+
+    try:
+        await call_with_flood_wait(
+            f"scrape:{chat_key}",
+            iter_chat_messages,
+            attempts=2,
+        )
+    except Exception as exc:
+        if is_flood_wait(exc):
             LOG.warning(
-                "FloodWait chat=%s seconds=%s attempt=%s",
+                "FloodWait chat=%s seconds=%s abort chat",
                 chat_key,
-                exc.seconds,
-                attempt + 1,
-            )
-            await asyncio.sleep(exc.seconds + 1)
-            if attempt == 1:
-                return emitted
-        except Exception as exc:
-            LOG.warning(
-                "skip chat=%s entity=%s: %s (check username/chat_id in config/sources.telegram.yaml)",
-                chat_key,
-                entity,
-                exc,
+                getattr(exc, "seconds", 0),
             )
             return emitted
+        LOG.warning(
+            "skip chat=%s entity=%s: %s (check username/chat_id in config/sources.telegram.yaml)",
+            chat_key,
+            entity,
+            exc,
+        )
+        return emitted
 
     if max_seen > last_id:
         store.set_last_message_id(chat_key, max_seen)
+    store.mark_scraped(chat_key)
 
     if cfg.discover.domains_path and texts_for_domains:
         # Register web domains from scrape batch; tgweb Go crawler reads the same JSON file.
@@ -286,6 +485,10 @@ async def scrape_chat(
                     channel_name,
                     added,
                 )
+
+    emitted += await scrape_discussion_for_channel(
+        client, chat, full_entity, store, cfg, out, about_text, chat_key
+    )
 
     return emitted
 
@@ -524,6 +727,23 @@ async def login(cfg: ScraperConfig) -> int:
     return 0
 
 
+def chats_for_scrape_due(manual: list[ChatConfig], store: CursorStore) -> list[ChatConfig]:
+    return merge_chat_lists(manual, store.list_due_chats())
+
+
+async def export_registry(cfg: ScraperConfig) -> int:
+    store = CursorStore(cfg.cursor_db)
+    try:
+        path = cfg.discover.serp_channels_path
+        if not path:
+            LOG.error("discover.serp_channels_path not configured")
+            return 1
+        export_channels_json(store, path)
+        return 0
+    finally:
+        store.close()
+
+
 async def discover_only(cfg: ScraperConfig) -> int:
     api_id = os.environ.get("TELEGRAM_API_ID")
     api_hash = os.environ.get("TELEGRAM_API_HASH")
@@ -544,6 +764,8 @@ async def discover_only(cfg: ScraperConfig) -> int:
 
         try:
             total = await run_discover(client, cfg.chats, cfg.discover, store)
+            if cfg.discover.serp_channels_path:
+                export_channels_json(store, cfg.discover.serp_channels_path)
         finally:
             await client.disconnect()
             store.close()
@@ -571,10 +793,10 @@ async def scrape(cfg: ScraperConfig, out: TextIO) -> int:
             store.close()
             return 1
 
-        chats = chats_for_scrape(cfg.chats, store)
+        chats = chats_for_scrape_due(cfg.chats, store)
         if not chats:
             LOG.error(
-                "no telegram channels in registry; wait for background discover or run parser telegram discover"
+                "no telegram channels due for scrape; wait for discover or check scrape_interval_days"
             )
             await client.disconnect()
             store.close()
@@ -582,9 +804,13 @@ async def scrape(cfg: ScraperConfig, out: TextIO) -> int:
 
         total = 0
         try:
+            total += await run_global_search(client, cfg, store, out)
             for chat in chats:
                 total += await scrape_chat(client, chat, store, cfg, out)
                 await asyncio.sleep(cfg.poll_delay_sec)
+            top = store.top_channels_by_pain(10)
+            if top:
+                LOG.info("telegram channel stats top_pain=%s", json.dumps(top[:5]))
         finally:
             await client.disconnect()
             store.close()
@@ -615,8 +841,17 @@ async def main_async(args: argparse.Namespace) -> int:
     if args.dry_run:
         return dry_run(cfg, out)
 
+    if args.export_registry:
+        return await export_registry(cfg)
+
     if args.discover_only:
         return await discover_only(cfg)
+
+    if args.realtime:
+        from .realtime import realtime_listen
+
+        os.environ["TELEGRAM_REALTIME"] = "1"
+        return await realtime_listen(cfg, out)
 
     try:
         return await scrape(cfg, out)
