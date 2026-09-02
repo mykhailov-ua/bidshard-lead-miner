@@ -61,6 +61,19 @@ func TestApplyKeywordsAutoBlocksDenylist(t *testing.T) {
 	}
 }
 
+func TestFilterKeywordDiffRejectsProgrammatic(t *testing.T) {
+	t.Parallel()
+	diff, blocked := FilterKeywordDiff(gemini.KeywordDiff{
+		AddKeywords: []gemini.KeywordEntry{{Phrase: "programmatic guaranteed", Weight: 10}},
+	})
+	if len(diff.AddKeywords) != 0 {
+		t.Fatalf("keywords=%v", diff.AddKeywords)
+	}
+	if blocked["programmatic guaranteed"] != "anti-icp-programmatic" {
+		t.Fatalf("blocked=%v", blocked)
+	}
+}
+
 func TestFilterKeywordDiffRejectsLinkedIn(t *testing.T) {
 	t.Parallel()
 	diff, blocked := FilterKeywordDiff(gemini.KeywordDiff{

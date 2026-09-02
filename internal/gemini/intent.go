@@ -18,7 +18,9 @@ intent values:
 - job_offer: hiring, recruiting, job posts, course sellers
 - noise: spam, off-topic, memes, generic affiliate promo without buyer voice
 
-Be strict: buyer_search requires first-person buyer voice or direct tool-selection question.`
+Be strict: buyer_search requires first-person buyer voice or direct tool-selection question.
+
+Programmatic display, OpenRTB supply/SSP, publisher monetization, DOOH/pDOOH, and brand CPM campaigns are noise unless the snippet also shows performance-buyer tracker pain (postback, voluum/keitaro migration, media buying spend).`
 
 var intentSchema = map[string]any{
 	"type": "object",

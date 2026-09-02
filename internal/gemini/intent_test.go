@@ -34,6 +34,22 @@ func TestClassifyIntentRejectNoise(t *testing.T) {
 	}
 }
 
+func TestClassifyIntentProgrammaticNoise(t *testing.T) {
+	t.Parallel()
+
+	cl := newTestClient(t, `{"intent":"noise","confidence":0.93,"why":"programmatic display buyer"}`)
+	res, err := cl.ClassifyIntent(context.Background(), "Head of programmatic running CPM brand awareness on openRTB SSP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Intent != "noise" {
+		t.Fatalf("intent=%q want noise", res.Intent)
+	}
+	if res.Accept(0.8) {
+		t.Fatal("expected programmatic vertical to reject")
+	}
+}
+
 func TestAnalyzeIntentBatch(t *testing.T) {
 	t.Parallel()
 

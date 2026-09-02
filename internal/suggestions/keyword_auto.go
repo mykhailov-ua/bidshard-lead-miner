@@ -26,12 +26,27 @@ var keywordPhraseDenylist = []string{
 	"facebook.com",
 }
 
+var programmaticPositiveDenylist = []string{
+	"programmatic",
+	"openrtb",
+	"header bidding",
+	"prebid",
+	"dooh",
+	"pdooh",
+	"supply-side",
+	"brand awareness",
+	"viewability",
+	"programmatic guaranteed",
+	"programmatic stack",
+	"openrtb bidder",
+}
+
 // FilterKeywordDiff applies the same denylist guardrails as discover auto-apply.
 func FilterKeywordDiff(diff gemini.KeywordDiff) (gemini.KeywordDiff, map[string]string) {
 	blocked := map[string]string{}
 	var keepKW, keepHR []gemini.KeywordEntry
 	for _, e := range diff.AddKeywords {
-		if reason := blockedKeywordPhrase(e.Phrase); reason != "" {
+		if reason := blockedPositiveKeywordPhrase(e.Phrase, e.Tag); reason != "" {
 			blocked[e.Phrase] = reason
 			continue
 		}
@@ -57,6 +72,23 @@ func blockedKeywordPhrase(phrase string) string {
 	for _, pat := range keywordPhraseDenylist {
 		if strings.Contains(lower, pat) {
 			return pat
+		}
+	}
+	return ""
+}
+
+func blockedPositiveKeywordPhrase(phrase, tag string) string {
+	if reason := blockedKeywordPhrase(phrase); reason != "" {
+		return reason
+	}
+	lower := strings.ToLower(strings.TrimSpace(phrase))
+	tagLower := strings.ToLower(strings.TrimSpace(tag))
+	if tagLower == "anti-icp-programmatic" {
+		return "anti-icp-programmatic"
+	}
+	for _, pat := range programmaticPositiveDenylist {
+		if strings.Contains(lower, pat) {
+			return "anti-icp-programmatic"
 		}
 	}
 	return ""

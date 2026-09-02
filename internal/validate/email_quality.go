@@ -46,7 +46,6 @@ var affiliateB2BLocalParts = map[string]struct{}{
 	"publishers":   {},
 	"advertisers":  {},
 	"advertising":  {},
-	"programmatic": {},
 }
 
 var roleLocalParts = map[string]struct{}{
@@ -79,6 +78,7 @@ var roleLocalParts = map[string]struct{}{
 	"inquiry":          {},
 	"recruitment":      {},
 	"recruiting":       {},
+	"programmatic":     {},
 	"legal":            {},
 	"compliance":       {},
 	"newsletter":       {},

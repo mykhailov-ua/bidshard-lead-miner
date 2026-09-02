@@ -13,7 +13,7 @@ var (
 	painRe       = regexp.MustCompile(`(?i)(overburn|click loss|postback fail|missing ftd|billing|expensive|overpriced|broken|bug)`)
 	infraRe      = regexp.MustCompile(`(?i)(vps|server|hetzner|digitalocean|docker|clickhouse|self-hosted|aws|ovh)`)
 	usdtRe       = regexp.MustCompile(`(?i)(usdt|crypto|binance|trc20|tether|webmoney)`)
-	buyerRoleRe  = regexp.MustCompile(`(?i)(founder|co-founder|ceo|cto|cio|cfo|owner|president|managing director|general manager|head of (?:media|acquisition|affiliate|programmatic|ad ops)|vp (?:of )?(?:engineering|media|acquisition|affiliate)|affiliate director|director of acquisition)`)
+	buyerRoleRe  = regexp.MustCompile(`(?i)(founder|co-founder|ceo|cto|cio|cfo|owner|president|managing director|general manager|head of (?:media|acquisition|affiliate|ad ops)|vp (?:of )?(?:engineering|media|acquisition|affiliate)|affiliate director|director of acquisition)`)
 	volumeRe     = regexp.MustCompile(`(?i)(100\+ ftd|high volume|scaling|10k clicks|50k clicks|volume|traffic)`)
 	migrRe       = regexp.MustCompile(`(?i)(switching from|migrate|migrating|looking for alternative|alternative to|replacing|replace)`)
 	competitorRe = regexp.MustCompile(`(?i)(voluum|keitaro|binom|redtrack|clickflare|bemob|thrivetracker)`)

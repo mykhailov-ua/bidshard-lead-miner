@@ -15,6 +15,7 @@ func TestAcceptEmailRejectsJunk(t *testing.T) {
 		"marketing@acme.com",
 		"accounting@cpa-firm.com",
 		"info@acme.com",
+		"programmatic@agency.com",
 	}
 	for _, email := range rejects {
 		if AcceptEmail(email) {
@@ -65,5 +66,8 @@ func TestIsRoleEmail(t *testing.T) {
 	}
 	if IsRoleEmail("ceo@acme.com") {
 		t.Fatal("ceo@ should not be role")
+	}
+	if !IsRoleEmail("programmatic@agency.com") {
+		t.Fatal("programmatic@ should be role local")
 	}
 }

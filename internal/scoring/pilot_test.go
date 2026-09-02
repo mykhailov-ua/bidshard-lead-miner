@@ -74,9 +74,8 @@ func TestPilotQualifiedTable(t *testing.T) {
 			wantTag:       "pilot-qualified",
 		},
 		{
-			name:          "11. Spend tier unknown ignored",
-			spendTier:     "unknown",
-			text:          "Hello world plain message",
+			name:          "12. Programmatic title not buyer role",
+			text:          "Head of programmatic display buying CPM on openRTB exchange",
 			wantQualified: false,
 			wantTag:       "pilot-nurture",
 		},

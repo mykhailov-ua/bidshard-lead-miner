@@ -32,6 +32,7 @@ type cliOpts struct {
 	landerHeadless  bool
 	scanOnce        bool
 	telegramSidecar bool
+	telegramRealtime bool
 	telegramDryRun  bool
 	ingestStdin     bool
 	fixture         string
@@ -94,6 +95,9 @@ func (o *cliOpts) apply(cfg *config.Config) error {
 	if o.telegramSidecar {
 		cfg.TelegramSidecar = true
 		cfg.ScanOnce = true
+	}
+	if o.telegramRealtime {
+		cfg.TelegramRealtime = true
 	}
 	if o.telegramDryRun {
 		cfg.TelegramDryRun = true
@@ -259,5 +263,6 @@ func init() {
 		newAutoCmd(),
 		newFeedbackCmd(),
 		newSalesCmd(),
+		newAuditCmd(),
 	)
 }
