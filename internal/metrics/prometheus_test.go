@@ -19,6 +19,8 @@ func TestMetricsExposition(t *testing.T) {
 	SetLeadsAnalysisPending(7)
 	RecordSourcesDiscovered("telegram", 3)
 	RecordSourcesTriagedDropped(2)
+	RecordProcessorReject("geo")
+	RecordProcessorReject("lang")
 	RecordProxyEgressBytes("forum", 4096)
 	RecordProxyCFBlock("forum", "http_403")
 	RecordProxyCooldownWait("forum")
@@ -72,6 +74,9 @@ func TestMetricsExposition(t *testing.T) {
 	}
 	if !strings.Contains(content, "parser_sources_triaged_dropped_total 2") {
 		t.Errorf("expected parser_sources_triaged_dropped_total metric in output:\n%s", content)
+	}
+	if !strings.Contains(content, "parser_processor_reject_total{reason=\"geo\"}") {
+		t.Errorf("expected parser_processor_reject_total metric in output:\n%s", content)
 	}
 	if !strings.Contains(content, "parser_proxy_egress_bytes_total{source=\"forum\"} 4096") {
 		t.Errorf("expected parser_proxy_egress_bytes_total metric in output:\n%s", content)

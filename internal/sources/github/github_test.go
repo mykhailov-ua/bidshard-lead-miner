@@ -35,6 +35,7 @@ func TestGitHubSearchResponse(t *testing.T) {
 
 	crawler := NewCrawler(cfg)
 	crawler.SetBaseURL(ts.URL)
+	crawler.SetHTTPClient(ts.Client())
 
 	var emitted []model.RawItem
 	err := crawler.Collect(context.Background(), func(ctx context.Context, item model.RawItem) error {

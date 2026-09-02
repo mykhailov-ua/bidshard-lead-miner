@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/scoring"
 )
 
@@ -78,23 +79,27 @@ func (p *Pool) process(ctx context.Context, id int, task Task) {
 	}
 
 	if outcome.RejectedGeo {
-		task.Stats.RejectedGeo.Add(1)
+		recordRoundReject(task.Stats, "geo")
 		return
 	}
 	if outcome.HardRejected {
-		task.Stats.HardRejected.Add(1)
+		recordRoundReject(task.Stats, "hard_reject")
 		return
 	}
 	if outcome.Dedup {
-		task.Stats.Dedup.Add(1)
+		recordRoundReject(task.Stats, "dedup")
 		return
 	}
 	if outcome.DroppedMX {
-		task.Stats.Dropped.Add(1)
+		recordRoundReject(task.Stats, "mx")
 		return
 	}
 	if !outcome.Accepted {
-		task.Stats.Dropped.Add(1)
+		reason := outcome.RejectReason
+		if reason == "" {
+			reason = "dropped"
+		}
+		recordRoundReject(task.Stats, reason)
 		return
 	}
 
@@ -115,4 +120,54 @@ func (p *Pool) process(ctx context.Context, id int, task Task) {
 		"priority", outcome.Lead.Priority,
 		"score", outcome.Lead.Score,
 	)
+}
+
+func recordRoundReject(stats *RoundState, reason string) {
+	if stats == nil {
+		return
+	}
+	switch reason {
+	case "geo":
+		stats.RejectedGeo.Add(1)
+	case "hard_reject":
+		stats.HardRejected.Add(1)
+	case "dedup":
+		stats.Dedup.Add(1)
+	case "mx":
+		stats.RejectedMX.Add(1)
+	case "blacklist":
+		stats.RejectedBlacklist.Add(1)
+	case "intel_only":
+		stats.RejectedIntelOnly.Add(1)
+	case "lander_no_buyer_signal":
+		stats.RejectedLanderNoBuyer.Add(1)
+	case "github_vendor":
+		stats.RejectedGitHubVendor.Add(1)
+	case "telegram_spam":
+		stats.RejectedTelegramSpam.Add(1)
+	case "low_priority":
+		stats.RejectedLowPriority.Add(1)
+	case "icp":
+		stats.RejectedICP.Add(1)
+	case "intent":
+		stats.RejectedIntent.Add(1)
+	case "lang":
+		stats.RejectedLang.Add(1)
+	case "context":
+		stats.RejectedContext.Add(1)
+	case "contact":
+		stats.RejectedContact.Add(1)
+	case "no_contacts":
+		stats.RejectedNoContacts.Add(1)
+	case "email_no_context":
+		stats.RejectedEmailNoContext.Add(1)
+	case "role_email":
+		stats.RejectedRoleEmail.Add(1)
+	case "empty_hash":
+		stats.RejectedEmptyHash.Add(1)
+	default:
+		stats.Dropped.Add(1)
+		reason = "dropped"
+	}
+	metrics.RecordProcessorReject(reason)
 }

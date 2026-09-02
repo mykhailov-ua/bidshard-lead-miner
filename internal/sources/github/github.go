@@ -53,7 +53,7 @@ func NewCrawler(cfg config.Config) *Crawler {
 	if len(queries) == 0 {
 		queries = []string{
 			"tracker alternative",
-			"openrtb",
+			"postback failing",
 			"clickhouse tracker",
 			"voluum api",
 			"keitaro api",
@@ -71,6 +71,13 @@ func NewCrawler(cfg config.Config) *Crawler {
 
 func (c *Crawler) SetBaseURL(u string) {
 	c.baseURL = u
+}
+
+// SetHTTPClient overrides the crawl client (tests).
+func (c *Crawler) SetHTTPClient(cli *http.Client) {
+	if cli != nil {
+		c.client = cli
+	}
 }
 
 func (c *Crawler) Name() string {
@@ -129,6 +136,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		for _, item := range searchRes.Items {
 			combined := item.Title + " " + item.Body
 			contacts := extract.Extract(combined)
+			contacts.Contacts = extract.FilterJunkContacts(contacts.Contacts)
 			contactStr := ""
 			if !contacts.Rejected && len(contacts.Contacts) > 0 {
 				contactStr = extract.FormatAll(contacts.Contacts)[0]

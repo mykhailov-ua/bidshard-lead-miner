@@ -123,6 +123,7 @@ func pageHasExtractableContacts(html string) bool {
 		return false
 	}
 	contacts := extract.Extract(text)
+	contacts.Contacts = extract.FilterJunkContacts(contacts.Contacts)
 	return !contacts.Rejected && len(contacts.Contacts) > 0
 }
 

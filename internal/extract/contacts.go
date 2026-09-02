@@ -132,6 +132,13 @@ func Extract(text string, hints ...string) Result {
 			}
 			continue
 		}
+		if strings.HasPrefix(strings.ToLower(hint), "telegram:user_id:") {
+			val := strings.TrimSpace(hint[len("telegram:user_id:"):])
+			if val != "" {
+				add("telegram_user_id", val)
+			}
+			continue
+		}
 		if strings.HasPrefix(strings.ToLower(hint), "telegram:") {
 			val := strings.TrimPrefix(hint, "telegram:")
 			if !IsJunkTelegramHandle(val) && !IsFalseTelegramHandle(val) {

@@ -112,6 +112,7 @@ type ProcessOutcome struct {
 	HardRejected bool
 	Dedup        bool
 	DroppedMX    bool
+	RejectReason string
 	Lead         model.Lead
 }
 
@@ -132,6 +133,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 
 	if res := geo.Filter(text, task.Item.Contact, task.Item.ContactTelegram()); !res.OK {
 		out.RejectedGeo = true
+		out.RejectReason = "geo"
 		slog.Debug("geo reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", res.Reason)
 		p.captureJunk(ctx, task, coldpath.ReasonGeoReject, res.Reason, 0, nil)
 		return out
@@ -140,11 +142,13 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	if filter.IsTgWebSource(task.Item.Source) {
 		if domain := tgweb.SiteDomainFromSource(task.Item.Source); geo.IsBlockedTLD(domain) {
 			out.RejectedGeo = true
+			out.RejectReason = "geo"
 			slog.Debug("geo reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", "ru/by tld")
 			p.captureJunk(ctx, task, coldpath.ReasonGeoReject, "ru/by tld", 0, nil)
 			return out
 		}
 		if reject, reason := filter.RejectHTMLBoilerplate(text); reject {
+			out.RejectReason = "lang"
 			logTgWebReject(task, reason, nil)
 			p.captureJunk(ctx, task, coldpath.ReasonLangReject, reason, 0, nil)
 			return out
@@ -152,18 +156,21 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	}
 
 	if reject, reason := filter.RejectLongCyrillicWithoutLatin(text); reject {
+		out.RejectReason = "lang"
 		slog.Debug("lang reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
 		p.captureJunk(ctx, task, coldpath.ReasonLangReject, reason, 0, nil)
 		return out
 	}
 
 	if filter.IsLanderSource(task.Item.Source) && filter.LanderBlacklistedSource(task.Item.Source) {
+		out.RejectReason = "blacklist"
 		slog.Debug("lander blacklist reject", "round_id", task.RoundID, "source", task.Item.Source)
 		p.captureJunk(ctx, task, coldpath.ReasonBlacklist, "competitor lander domain", 0, nil)
 		return out
 	}
 
 	if filter.IsIntelOnlySource(task.Item.Source, p.LanderOutreachEnabled) {
+		out.RejectReason = "intel_only"
 		slog.Debug("lander intel only", "round_id", task.RoundID, "source", task.Item.Source)
 		p.captureJunk(ctx, task, coldpath.ReasonIntentReject, "lander intel only", 0, nil)
 		return out
@@ -171,6 +178,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 
 	if filter.IsLanderSource(task.Item.Source) || filter.IsWebPainSource(task.Item.Source) {
 		if reject, reason := filter.RejectHTMLBoilerplate(text); reject {
+			out.RejectReason = "lang"
 			slog.Debug("web crawl boilerplate reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
 			p.captureJunk(ctx, task, coldpath.ReasonLangReject, reason, 0, nil)
 			return out
@@ -178,6 +186,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	}
 
 	if drop, reason := filter.RejectNonBuyerContext(task.Item.Source, text, task.Item.Title); drop {
+		out.RejectReason = "context"
 		slog.Debug("context drop", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
 		p.captureJunk(ctx, task, coldpath.ReasonContextDrop, reason, 0, nil)
 		return out
@@ -185,6 +194,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 
 	if filter.IsTelegramSource(task.Item.Source) {
 		if filter.TelegramChannelBroadcastReject(task.Item.Source, task.Item.ChatType, task.Item.ReplyToMessageID, text) {
+			out.RejectReason = "telegram_spam"
 			slog.Debug("telegram channel broadcast", "round_id", task.RoundID, "source", task.Item.Source)
 			p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, "channel broadcast", 0, nil)
 			return out
@@ -211,18 +221,21 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 					)
 				}
 				out.HardRejected = true
+				out.RejectReason = "hard_reject"
 				return out
 			}
 		}
 	}
 
 	if spam, reason := filter.TelegramSpam(task.Item.Source, text); spam {
+		out.RejectReason = "telegram_spam"
 		slog.Debug("telegram spam", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
 		p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, reason, 0, nil)
 		return out
 	}
 
 	if filter.IsTelegramSource(task.Item.Source) && filter.OnlyContactNoContext(text) {
+		out.RejectReason = "telegram_spam"
 		slog.Debug("contact-only skip", "round_id", task.RoundID, "source", task.Item.Source)
 		p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, "contact only", 0, nil)
 		return out
@@ -246,6 +259,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			if verdict, err := p.Prescan.EvaluateSpam(ctx, text); err != nil {
 				slog.Debug("embed prescan spam failed", "round_id", task.RoundID, "source", task.Item.Source, "error", err)
 			} else if verdict.SpamMatch {
+				out.RejectReason = "telegram_spam"
 				slog.Debug("embed spam reject", "round_id", task.RoundID, "source", task.Item.Source, "spam_score", verdict.SpamScore)
 				p.captureJunk(ctx, task, coldpath.ReasonEmbedSpam, "", 0, nil)
 				return out
@@ -253,6 +267,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		}
 	}
 	if p.Registry != nil && !prescanOK {
+		out.RejectReason = "low_priority"
 		logTgWebReject(task, "keyword prescan miss", nil)
 		p.captureJunk(ctx, task, coldpath.ReasonKeywordPrescan, "", 0, nil)
 		return out
@@ -266,27 +281,36 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 
 	if filter.IsTelegramSource(task.Item.Source) {
 		if filter.TelegramInviteWithoutBuyerIntent(task.Item.Source, text) {
+			out.RejectReason = "telegram_spam"
 			slog.Debug("telegram invite broadcast", "round_id", task.RoundID, "source", task.Item.Source)
 			p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, "invite broadcast", 0, nil)
 			return out
 		}
 		if filter.TelegramChannelSelfBroadcast(task.Item.Source, contacts.Contacts) {
+			out.RejectReason = "telegram_spam"
 			slog.Debug("telegram channel self broadcast", "round_id", task.RoundID, "source", task.Item.Source)
 			p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, "channel self broadcast", 0, nil)
 			return out
 		}
 	}
 	if filter.IsLanderSource(task.Item.Source) && !filter.LanderRequiresEmailOrSkype(contacts.Contacts) {
+		out.RejectReason = "contact"
 		slog.Debug("lander contact reject", "round_id", task.RoundID, "source", task.Item.Source)
 		p.captureJunk(ctx, task, coldpath.ReasonContactReject, "lander: email or skype required", 0, nil)
 		return out
 	}
 	if filter.IsLanderSource(task.Item.Source) && !filter.LanderRequiresBuyerSignal(text) {
+		out.RejectReason = "lander_no_buyer_signal"
 		slog.Debug("lander buyer signal reject", "round_id", task.RoundID, "source", task.Item.Source)
 		p.captureJunk(ctx, task, coldpath.ReasonKeywordPrescan, "lander: no buyer signal", 0, nil)
 		return out
 	}
 	if !filter.GitHubRequiresPainContext(task.Item.Source, text) {
+		if filter.GitHubVendorOrg(task.Item.Source) {
+			out.RejectReason = "github_vendor"
+		} else {
+			out.RejectReason = "low_priority"
+		}
 		slog.Debug("github pain prescan miss", "round_id", task.RoundID, "source", task.Item.Source)
 		p.captureJunk(ctx, task, coldpath.ReasonKeywordPrescan, "github: no pain context", 0, nil)
 		return out
@@ -299,11 +323,13 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		contacts.Contacts = webpain.FilterPipelineContacts(task.Item.Source, task.Item.Contact, contacts.Contacts)
 	}
 	if contacts.Rejected {
+		out.RejectReason = "contact"
 		slog.Debug("contact reject", "round_id", task.RoundID, "reason", contacts.Reason)
 		p.captureJunk(ctx, task, coldpath.ReasonContactReject, contacts.Reason, 0, nil)
 		return out
 	}
 	if len(contacts.Contacts) == 0 {
+		out.RejectReason = "no_contacts"
 		if filter.IsTgWebSource(task.Item.Source) {
 			logTgWebReject(task, "no contacts after tgweb filter", nil)
 		} else if filter.IsWebPainSource(task.Item.Source) {
@@ -319,17 +345,20 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		if filter.IsTgWebSource(task.Item.Source) && tgwebEmailAllowed(task.Item, contacts.Contacts, p.TgWebPrescanMode, text) {
 			logTgWebInfo(task, "tgweb email allowed with site lpr")
 		} else {
+			out.RejectReason = "email_no_context"
 			logTgWebReject(task, "email without pain context", nil)
 			p.captureJunk(ctx, task, coldpath.ReasonEmailNoContext, "", 0, nil)
 			return out
 		}
 	}
 	if blacklisted, detail := blacklistContact(contacts.Contacts); blacklisted {
+		out.RejectReason = "blacklist"
 		slog.Debug("blacklist reject", "round_id", task.RoundID, "source", task.Item.Source, "detail", detail)
 		p.captureJunk(ctx, task, coldpath.ReasonBlacklist, detail, 0, nil)
 		return out
 	}
 	if extract.OnlyRoleEmails(contacts.Contacts) {
+		out.RejectReason = "role_email"
 		if filter.IsTgWebSource(task.Item.Source) {
 			logTgWebReject(task, "role email only", nil)
 		} else {
@@ -348,6 +377,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		})
 		if enrichResult.GeoBlocked {
 			out.RejectedGeo = true
+			out.RejectReason = "geo"
 			slog.Debug("rdap geo reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", enrichResult.GeoReason)
 			p.captureJunk(ctx, task, coldpath.ReasonGeoReject, enrichResult.GeoReason, 0, nil)
 			return out
@@ -372,12 +402,14 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		}
 	}
 	if priority == scoring.PriorityLow {
+		out.RejectReason = "low_priority"
 		slog.Debug("low score skip", "round_id", task.RoundID, "score", leadText.Score)
 		p.captureJunk(ctx, task, coldpath.ReasonLowScore, "", leadText.Score, leadText.Matched)
 		return out
 	}
 	hashID := leadHashID(task, contacts.Contacts)
 	if hashID == "" {
+		out.RejectReason = "empty_hash"
 		slog.Debug("empty hash_id", "round_id", task.RoundID, "source", task.Item.Source)
 		p.captureJunk(ctx, task, coldpath.ReasonEmptyHash, "", leadText.Score, leadText.Matched)
 		return out
@@ -386,6 +418,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		result := p.recordEntitySighting(ctx, p.entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
 		p.maybePatchCanonicalLead(ctx, hashID, result)
 		out.Dedup = true
+		out.RejectReason = "dedup"
 		slog.Debug("seen cache hit", "round_id", task.RoundID, "hash_id", hashID)
 		return out
 	}
@@ -395,6 +428,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		result := p.recordEntitySighting(ctx, p.entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
 		p.maybePatchCanonicalLead(ctx, hashID, result)
 		out.Dedup = true
+		out.RejectReason = "dedup"
 		slog.Debug("hash inflight dedup", "round_id", task.RoundID, "hash_id", hashID)
 		return out
 	}
@@ -410,6 +444,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			result := p.recordEntitySighting(ctx, p.entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
 			p.maybePatchCanonicalLead(ctx, hashID, result)
 			out.Dedup = true
+			out.RejectReason = "dedup"
 			if p.Seen != nil {
 				p.Seen.Mark(hashID)
 			}
@@ -430,6 +465,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			result := p.recordEntitySighting(ctx, p.entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{}))
 			p.maybePatchCanonicalLead(ctx, hashID, result)
 			out.Dedup = true
+			out.RejectReason = "dedup"
 			slog.Debug("semantic lead dedup", "round_id", task.RoundID, "hash_id", hashID, "cluster_of", clusterOf)
 			return out
 		}
@@ -448,6 +484,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			geoResult = res
 			if res.ShouldReject(blocked) {
 				out.RejectedGeo = true
+				out.RejectReason = "geo"
 				slog.Debug("gemini geo reject", "round_id", task.RoundID, "source", task.Item.Source, "detail", res.Detail())
 				p.captureJunk(ctx, task, coldpath.ReasonGeoGeminiReject, res.Detail(), leadText.Score, leadText.Matched)
 				return out
@@ -466,11 +503,13 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			if filter.IsTgWebSource(task.Item.Source) && p.ICPTgWebEnabled {
 				// Tgweb sync ICP runs even under PARSER_GEMINI_DEFER; reject non-ICP site leads inline.
 				if icpResult.ICP == "none" && !icpResult.Hot {
+					out.RejectReason = "icp"
 					logTgWebReject(task, "icp reject", []any{"why", icpResult.Why})
 					p.captureJunk(ctx, task, coldpath.ReasonICPReject, icpResult.Why, leadText.Score, leadText.Matched)
 					return out
 				}
 			} else if icpResult.ICP == "none" && !icpResult.Hot && priority == scoring.PriorityLow {
+				out.RejectReason = "icp"
 				p.captureJunk(ctx, task, coldpath.ReasonICPReject, icpResult.Why, leadText.Score, leadText.Matched)
 				return out
 			}
@@ -484,6 +523,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		if res, err := p.Intent.ClassifyIntent(ctx, text); err != nil {
 			slog.Warn("intent classify failed", "round_id", task.RoundID, "error", err)
 		} else if !res.Accept(p.IntentMinConfidence) {
+			out.RejectReason = "intent"
 			slog.Debug("intent reject",
 				"round_id", task.RoundID,
 				"source", task.Item.Source,
@@ -500,6 +540,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			ok, err := p.MX.HasMX(ctx, email)
 			if err != nil || !ok {
 				out.DroppedMX = true
+				out.RejectReason = "mx"
 				slog.Debug("mx reject", "round_id", task.RoundID, "email", maskEmail(email))
 				p.captureJunk(ctx, task, coldpath.ReasonMXReject, "mx lookup failed or no records", leadText.Score, leadText.Matched)
 				return out
@@ -1002,6 +1043,9 @@ func (p *Processor) entitySightingInput(task Task, contacts []extract.Contact, h
 }
 
 func (p *Processor) telegramThreadText(task Task, text string) string {
+	if reply := strings.TrimSpace(task.Item.ReplyContext); reply != "" {
+		text = "reply_to: " + reply + "\n" + text
+	}
 	if p == nil || p.TelegramThread == nil || !filter.IsTelegramSource(task.Item.Source) {
 		return text
 	}

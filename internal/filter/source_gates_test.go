@@ -48,6 +48,25 @@ func TestGitHubRequiresPainContext(t *testing.T) {
 	}
 }
 
+func TestGitHubVendorOrgBlocksNamespace(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		source  string
+		blocked bool
+	}{
+		{"github:keitaroinc/docker-ckan", true},
+		{"github:keitaroinc/ckan", true},
+		{"github:voluum/voluum-api", true},
+		{"github:ckan/ckan", false},
+		{"github:someuser/keitaro-alternative", false},
+	}
+	for _, tc := range cases {
+		if got := GitHubVendorOrg(tc.source); got != tc.blocked {
+			t.Errorf("GitHubVendorOrg(%q)=%v want %v", tc.source, got, tc.blocked)
+		}
+	}
+}
+
 func TestLanderRequiresBuyerSignal(t *testing.T) {
 	t.Parallel()
 	marketing := "voluum media buyer igaming affiliate s2s postback cost sync pricing"
@@ -73,6 +92,37 @@ func TestLanderBlacklistedSource(t *testing.T) {
 	}
 }
 
+func TestTelegramChannelSelfBroadcastUserIDReply(t *testing.T) {
+	t.Parallel()
+	contacts := []extract.Contact{
+		{Type: "telegram", Value: "user_id:123456789"},
+	}
+	if TelegramChannelSelfBroadcast("telegram:@voluum", contacts) {
+		t.Fatal("user_id reply must not count as self-broadcast")
+	}
+}
+
+func TestTelegramIntelOnlyChannel(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		source string
+		want   bool
+	}{
+		{"telegram:@igaming_news", true},
+		{"telegram:@partnerkin_job", true},
+		{"telegram:@affiliatechannel_igaming", true},
+		{"telegram:@partneroff_pro", true},
+		{"telegram:@voluum", false},
+		{"telegram:invite:abc", false},
+		{"reddit:r/test", false},
+	}
+	for _, tc := range cases {
+		if got := TelegramIntelOnlyChannel(tc.source); got != tc.want {
+			t.Errorf("TelegramIntelOnlyChannel(%q)=%v want %v", tc.source, got, tc.want)
+		}
+	}
+}
+
 func TestTelegramInviteWithoutBuyerIntent(t *testing.T) {
 	t.Parallel()
 	src := "telegram:invite:abc123"
@@ -81,5 +131,11 @@ func TestTelegramInviteWithoutBuyerIntent(t *testing.T) {
 	}
 	if TelegramInviteWithoutBuyerIntent(src, "looking for voluum alternative for postback") {
 		t.Fatal("expected buyer intent to pass")
+	}
+	if !TelegramInviteWithoutBuyerIntent(src, "Шукаємо Media Buyer у Gambling Sources: FB Ads budget $50k+/міс") {
+		t.Fatal("expected vacancy spam without tracker pain to block")
+	}
+	if TelegramInviteWithoutBuyerIntent(src, "Шукаємо Tech спеціаліста для Keitaro та postback інтеграцій") {
+		t.Fatal("expected vacancy with tracker pain to pass")
 	}
 }

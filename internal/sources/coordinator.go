@@ -175,6 +175,23 @@ func (c *Coordinator) runRound(
 		"dropped", stats.Dropped,
 		"high", stats.High,
 		"medium", stats.Medium,
+		"rejected_blacklist", stats.RejectedBlacklist,
+		"rejected_intel_only", stats.RejectedIntelOnly,
+		"rejected_lander_no_buyer_signal", stats.RejectedLanderNoBuyer,
+		"rejected_github_vendor", stats.RejectedGitHubVendor,
+		"rejected_telegram_spam", stats.RejectedTelegramSpam,
+		"rejected_low_priority", stats.RejectedLowPriority,
+		"rejected_icp", stats.RejectedICP,
+		"rejected_intent", stats.RejectedIntent,
+		"rejected_lang", stats.RejectedLang,
+		"rejected_context", stats.RejectedContext,
+		"rejected_contact", stats.RejectedContact,
+		"rejected_no_contacts", stats.RejectedNoContacts,
+		"rejected_email_no_context", stats.RejectedEmailNoContext,
+		"rejected_role_email", stats.RejectedRoleEmail,
+		"rejected_empty_hash", stats.RejectedEmptyHash,
+		"rejected_mx", stats.RejectedMX,
+		"top_reject_reasons", pipeline.TopRejectReasons(stats, 3),
 	)
 }
 

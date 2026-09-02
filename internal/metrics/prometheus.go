@@ -23,6 +23,7 @@ var (
 	leadsAnalysisPending    int64
 	sourcesDiscoveredTotal  = make(map[string]int64)
 	sourcesTriagedDropped   int64
+	processorRejectTotal = make(map[string]int64)
 	proxyEgressBytesTotal   = make(map[string]int64)
 	proxyBudgetSkippedTotal = make(map[string]int64)
 	proxyBudgetExceeded     int64
@@ -144,6 +145,16 @@ func RecordSourcesDiscovered(family string, n int) {
 	metricsMu.Lock()
 	defer metricsMu.Unlock()
 	sourcesDiscoveredTotal[family] += int64(n)
+}
+
+// RecordProcessorReject increments scan-round processor reject counters by reason class.
+func RecordProcessorReject(reason string) {
+	if reason == "" {
+		reason = "dropped"
+	}
+	metricsMu.Lock()
+	defer metricsMu.Unlock()
+	processorRejectTotal[reason]++
 }
 
 // RecordSourcesTriagedDropped increments sources removed by AI/heuristic triage.
@@ -381,6 +392,12 @@ func Handler() http.Handler {
 		_, _ = fmt.Fprintln(w, "# TYPE parser_sources_discovered_total counter")
 		for family, val := range sourcesDiscoveredTotal {
 			_, _ = fmt.Fprintf(w, "parser_sources_discovered_total{family=\"%s\"} %d\n", family, val)
+		}
+
+		_, _ = fmt.Fprintln(w, "# HELP parser_processor_reject_total Processor rejects by reason class per scan round")
+		_, _ = fmt.Fprintln(w, "# TYPE parser_processor_reject_total counter")
+		for reason, val := range processorRejectTotal {
+			_, _ = fmt.Fprintf(w, "parser_processor_reject_total{reason=\"%s\"} %d\n", reason, val)
 		}
 
 		_, _ = fmt.Fprintln(w, "# HELP parser_sources_triaged_dropped_total Sources dropped by triage jobs")

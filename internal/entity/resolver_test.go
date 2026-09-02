@@ -176,6 +176,27 @@ func TestAliasTokens(t *testing.T) {
 	}
 }
 
+func TestResolveKeysTelegramUserID(t *testing.T) {
+	keys := ResolveKeys(ResolveInput{
+		Source: "telegram:@affnet",
+		Contacts: []extract.Contact{
+			{Type: "telegram_user_id", Value: "99887766"},
+		},
+	})
+	if len(keys) != 2 {
+		t.Fatalf("keys=%v want channel + user_id", keys)
+	}
+	found := false
+	for _, k := range keys {
+		if k.Kind == KindTelegramUserID && k.Value == "99887766" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing telegram_user_id key in %v", keys)
+	}
+}
+
 func TestResolveKeysEmpty(t *testing.T) {
 	if keys := ResolveKeys(ResolveInput{}); len(keys) != 0 {
 		t.Fatalf("expected no keys, got %v", keys)

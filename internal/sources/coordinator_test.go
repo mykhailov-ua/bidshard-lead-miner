@@ -7,8 +7,12 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/config"
+	"github.com/bidshard/parser/internal/dedup"
 	"github.com/bidshard/parser/internal/model"
 	"github.com/bidshard/parser/internal/pipeline"
+	"github.com/bidshard/parser/internal/scoring"
+	"github.com/bidshard/parser/internal/sink"
+	"github.com/bidshard/parser/internal/validate"
 )
 
 func TestCoordinatorCancelsPreviousRound(t *testing.T) {
@@ -137,5 +141,89 @@ func TestCoordinatorDropsOnFullTaskChannel(t *testing.T) {
 	}
 	if state.Dropped.Load() != 1 {
 		t.Fatalf("dropped=%d, want 1", state.Dropped.Load())
+	}
+}
+
+func TestCoordinatorRoundStatsRejects(t *testing.T) {
+	t.Parallel()
+
+	if err := validate.LoadBlacklistDomains("../../data/blacklist_domains.txt"); err != nil {
+		t.Fatalf("load blacklist: %v", err)
+	}
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatalf("registry load: %v", err)
+	}
+	proc := &pipeline.Processor{
+		Registry:              reg,
+		Seen:                  dedup.NewSeenCache(1000, 0),
+		Store:                 sink.NewStubStore(),
+		MX:                    validate.StubMX{OK: true},
+		LanderOutreachEnabled: false,
+	}
+
+	cfg := config.Config{
+		WorkerCount:       2,
+		TaskBuffer:        8,
+		SourceConcurrency: 2,
+		ScanTimeout:       5 * time.Second,
+		HTTPTimeout:       time.Second,
+		ProcessorTaskTimeout: 5 * time.Second,
+	}
+	coordinator := NewCoordinator(cfg, []Source{
+		NewStubSource("lander:voluum.com", []model.RawItem{
+			{Raw: "voluum alternative postback failing", Contact: "email:support@voluum.com"},
+		}),
+		NewStubSource("github:keitaroinc/docker-ckan", []model.RawItem{
+			{Raw: "voluum postback failing s2s migration", Contact: "github:keitaroinc"},
+		}),
+		NewStubSource("telegram:@igaming_news", []model.RawItem{
+			{Raw: "daily igaming news digest", Contact: "@igaming_news", ChatType: "channel"},
+		}),
+		NewStubSource("lander:example-tracker.com", []model.RawItem{
+			{Raw: "voluum alternative postback failing", Contact: "email:ops@example-tracker.com"},
+		}),
+		NewStubSource("stub:test", []model.RawItem{
+			{Raw: "generic unrelated text no tracker keywords", Contact: "email:ops@example.com"},
+		}),
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	taskCh := make(chan pipeline.Task, 8)
+	statsCh := make(chan pipeline.RoundStats, 1)
+
+	var wg sync.WaitGroup
+	pool := pipeline.NewPool(cfg.WorkerCount, proc, cfg.ProcessorTaskTimeout)
+	pool.Run(ctx, &wg, taskCh)
+
+	go func() {
+		coordinator.runRound(ctx, taskCh, statsCh)
+		close(taskCh)
+	}()
+
+	stats := <-statsCh
+	wg.Wait()
+
+	if stats.RawTotal != 5 {
+		t.Fatalf("raw_total=%d want 5", stats.RawTotal)
+	}
+	if stats.RejectedBlacklist != 1 {
+		t.Fatalf("rejected_blacklist=%d want 1", stats.RejectedBlacklist)
+	}
+	if stats.RejectedGitHubVendor != 1 {
+		t.Fatalf("rejected_github_vendor=%d want 1", stats.RejectedGitHubVendor)
+	}
+	if stats.RejectedTelegramSpam != 0 {
+		t.Fatalf("rejected_telegram_spam=%d want 0", stats.RejectedTelegramSpam)
+	}
+	if stats.RejectedIntelOnly != 2 {
+		t.Fatalf("rejected_intel_only=%d want 2", stats.RejectedIntelOnly)
+	}
+	if stats.RejectedLowPriority != 1 {
+		t.Fatalf("rejected_low_priority=%d want 1", stats.RejectedLowPriority)
+	}
+	if stats.Accepted != 0 {
+		t.Fatalf("accepted=%d want 0", stats.Accepted)
 	}
 }

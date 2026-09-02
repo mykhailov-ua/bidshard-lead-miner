@@ -100,6 +100,9 @@ func buildOne(cfg config.Config, name string) (Source, bool) {
 	case "reviews":
 		return wrapReviews(reviews.NewCrawler(cfg, nil)), true
 	case "github":
+		if !cfg.ParserGitHubEnabled {
+			return nil, false
+		}
 		return wrapGitHub(github.NewCrawler(cfg)), true
 	case "serp":
 		return wrapSERP(serp.NewCrawler(cfg, nil)), true

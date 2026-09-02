@@ -81,6 +81,10 @@ func ResolveKeys(in ResolveInput) []EntityKey {
 			if handle := NormalizeTelegram(c.Value); handle != "" {
 				keys = append(keys, EntityKey{Kind: KindTelegram, Value: handle})
 			}
+		case "telegram_user_id":
+			if id := strings.TrimSpace(c.Value); id != "" {
+				keys = append(keys, EntityKey{Kind: KindTelegramUserID, Value: id})
+			}
 		}
 	}
 

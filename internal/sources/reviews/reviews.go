@@ -77,6 +77,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 				continue
 			}
 			contacts := extract.Extract(rev.Body)
+			contacts.Contacts = extract.FilterJunkContacts(contacts.Contacts)
 			contactStr := ""
 			if !contacts.Rejected && len(contacts.Contacts) > 0 {
 				contactStr = extract.FormatAll(contacts.Contacts)[0]

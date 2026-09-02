@@ -235,6 +235,7 @@ func (c *Crawler) crawlDomain(ctx context.Context, entry DomainEntry, emit EmitF
 		}
 
 		pageContacts := extract.Extract(text)
+		pageContacts.Contacts = extract.FilterJunkContacts(pageContacts.Contacts)
 		if pageContacts.Rejected {
 			continue
 		}

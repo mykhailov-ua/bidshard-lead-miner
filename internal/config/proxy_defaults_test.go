@@ -30,3 +30,16 @@ func TestApplyProxyDefaultsPreservesExplicitSources(t *testing.T) {
 		t.Fatalf("sources=%v", cfg.ProxySources)
 	}
 }
+
+func TestApplyProxyDefaultsRedditDirect(t *testing.T) {
+	cfg := Config{
+		ProxyURLs: []string{"http://user:pass@proxy:8080"},
+	}
+	applyProxyDefaults(&cfg)
+	if cfg.ProxyEnabledForSource("reddit") {
+		t.Fatal("reddit should stay on direct egress with default proxy scope")
+	}
+	if !cfg.ProxyEnabledForSource("forum") {
+		t.Fatal("forum should use proxy with default scope")
+	}
+}

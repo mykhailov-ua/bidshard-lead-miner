@@ -3,6 +3,10 @@ package filter
 import (
 	"strings"
 	"unicode"
+
+	"github.com/bidshard/parser/internal/extract"
+	"github.com/bidshard/parser/internal/scoring"
+	"github.com/bidshard/parser/internal/validate"
 )
 
 var htmlBoilerplateSignals = []string{
@@ -27,6 +31,12 @@ func RejectHTMLBoilerplate(text string) (bool, string) {
 	if text == "" {
 		return false, ""
 	}
+	// Pages with real outreach contacts and buyer/affiliate context are not boilerplate.
+	contacts := extract.Extract(text)
+	contacts.Contacts = extract.FilterJunkContacts(contacts.Contacts)
+	if extract.HasReachableContact(contacts.Contacts) && hasOutreachContext(text) {
+		return false, ""
+	}
 	lower := strings.ToLower(text)
 	hits := 0
 	for _, sig := range htmlBoilerplateSignals {
@@ -41,6 +51,10 @@ func RejectHTMLBoilerplate(text string) (bool, string) {
 		return true, "html markup noise"
 	}
 	return false, ""
+}
+
+func hasOutreachContext(text string) bool {
+	return scoring.HasBuyerIntentSignal(text) || validate.HasCommercialPainIntent(text) || validate.HasBuyerQuestionPattern(text) || validate.HasAffiliateNetworkContext(text)
 }
 
 func naturalWordCount(text string) int {

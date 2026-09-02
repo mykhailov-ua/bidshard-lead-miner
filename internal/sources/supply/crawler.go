@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -64,6 +66,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 	start := time.Now()
 	emitted := 0
 	skippedTriage := 0
+	skipReasons := make(map[string]int)
 
 	for _, domain := range domains {
 		select {
@@ -75,6 +78,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		meta := sourceregistry.DomainMeta{Domain: domain}
 		if skip, reason := sourceregistry.ShouldSkipCrawl(c.registryPath, c.domainTriage, meta); skip {
 			skippedTriage++
+			skipReasons[reason]++
 			if strings.HasPrefix(reason, "heuristic:") {
 				metrics.RecordSourcesTriagedDropped(1)
 				_ = sourceregistry.SetTriageStatus(c.registryPath, domain, "drop")
@@ -95,9 +99,35 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		"domains", len(domains),
 		"emitted", emitted,
 		"skipped_triage", skippedTriage,
+		"top_skip_reasons", topSkipReasons(skipReasons, 5),
 		"duration_ms", time.Since(start).Milliseconds(),
 	)
 	return nil
+}
+
+func topSkipReasons(reasons map[string]int, n int) []string {
+	type pair struct {
+		reason string
+		count  int
+	}
+	var pairs []pair
+	for reason, count := range reasons {
+		pairs = append(pairs, pair{reason, count})
+	}
+	sort.Slice(pairs, func(i, j int) bool {
+		if pairs[i].count == pairs[j].count {
+			return pairs[i].reason < pairs[j].reason
+		}
+		return pairs[i].count > pairs[j].count
+	})
+	if len(pairs) > n {
+		pairs = pairs[:n]
+	}
+	out := make([]string, 0, len(pairs))
+	for _, p := range pairs {
+		out = append(out, p.reason+":"+strconv.Itoa(p.count))
+	}
+	return out
 }
 
 func (c *Crawler) crawlDomain(ctx context.Context, domain string, emit EmitFunc) (int, error) {

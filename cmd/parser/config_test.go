@@ -3,9 +3,44 @@ package main
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/bidshard/parser/internal/discover"
 )
+
+func TestConfigCheckDiscoverICPNoProgrammaticDorks(t *testing.T) {
+	chdirRepoRoot(t)
+	path := filepath.Join("config", "discover.icp.json")
+	cfg, err := discover.LoadICP(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bad := discover.ViolatingProgrammaticDorks(cfg.TelegramSearch, cfg.SerpDorks); len(bad) > 0 {
+		t.Fatalf("programmatic dorks in %s: %v", path, bad)
+	}
+}
+
+func TestConfigCheckRejectsDeprecatedGeminiModel(t *testing.T) {
+	chdirRepoRoot(t)
+	t.Setenv("PARSER_SOURCE", "forum")
+	t.Setenv("GEMINI_API_KEY", "test-key")
+	t.Setenv("GEMINI_MODEL", "gemini-2.5-flash")
+	t.Setenv("PARSER_BG_TELEGRAM", "false")
+	t.Setenv("TELEGRAM_API_ID", "")
+	t.Setenv("TELEGRAM_API_HASH", "")
+	t.Setenv("MONGO_URI", "")
+
+	var out bytes.Buffer
+	err := runConfigCheck(t.Context(), &out)
+	if err == nil {
+		t.Fatal("expected config check error for deprecated GEMINI_MODEL")
+	}
+	if !strings.Contains(out.String(), "gemini-2.5-flash") {
+		t.Fatalf("output=%q", out.String())
+	}
+}
 
 func TestConfigCheckRejectsInvalidProxyList(t *testing.T) {
 	chdirRepoRoot(t)

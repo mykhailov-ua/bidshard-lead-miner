@@ -9,6 +9,13 @@ func TestHeuristicTriageDropsSocialHosts(t *testing.T) {
 		"www.twitter.com",
 		"t.me",
 		"bit.ly",
+		"netflix.com",
+		"www.solscan.io",
+		"gmgn.ai",
+		"solanacoinpump.top",
+		"t.co",
+		"etherscan.io",
+		"pump.fun",
 	}
 	for _, domain := range cases {
 		action, why, ok := HeuristicTriage(DomainMeta{Domain: domain})

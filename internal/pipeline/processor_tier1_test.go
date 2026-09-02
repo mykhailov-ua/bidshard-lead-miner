@@ -198,6 +198,31 @@ func TestProcessorRejectsGitHubWithoutPain(t *testing.T) {
 	}
 }
 
+func TestProcessorRejectsGitHubVendorOrgEvenWithPain(t *testing.T) {
+	t.Parallel()
+
+	reg := loadTestRegistry(t)
+	store := sink.NewStubStore()
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    store,
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "github:keitaroinc/docker-ckan",
+			Raw:     "voluum postback failing s2s migration from keitaro docker-ckan envvars",
+			Contact: "github:keitaroinc",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected github vendor org to reject even with tracker pain words")
+	}
+}
+
 func TestProcessorAcceptsRedditBuyerIntent(t *testing.T) {
 	t.Parallel()
 
@@ -256,6 +281,31 @@ func TestProcessorRejectsTelegramChannelSelfBroadcast(t *testing.T) {
 	})
 	if out.Accepted {
 		t.Fatal("expected channel self broadcast reject")
+	}
+}
+
+func TestProcessorRejectsJunkTelegramContactsOnly(t *testing.T) {
+	t.Parallel()
+
+	reg := loadTestRegistry(t)
+	store := sink.NewStubStore()
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    store,
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "stub:test",
+			Raw:     "voluum alternative postback failing @media @keyframes",
+			Contact: "telegram:@media",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected junk telegram contact only to reject")
 	}
 }
 

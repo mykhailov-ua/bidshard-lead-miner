@@ -201,8 +201,8 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 
 	if cfg.GeminiAPIKey == "" {
 		errors = append(errors, config.GeminiMisconfigErrors(cfg, containsSource(active, "tgweb"))...)
-	} else if msg := gemini.DeprecatedModelWarning(cfg.GeminiModel); msg != "" {
-		warnings = append(warnings, msg)
+	} else if err := gemini.DeprecatedModelConfigError(cfg.GeminiModel); err != nil {
+		errors = append(errors, err.Error())
 	}
 	if cfg.CRMWebhookEnabled && strings.TrimSpace(cfg.CRMWebhookURL) == "" {
 		errors = append(errors, "PARSER_CRM_WEBHOOK enabled but PARSER_CRM_WEBHOOK_URL empty")
@@ -218,6 +218,8 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 	warnings = append(warnings, config.AcceptQualitySourceWarnings(cfg, seedcheck.Profile() == seedcheck.ProfileProd)...)
 	errors = append(errors, config.GeoComplianceErrors(cfg, seedcheck.Profile() == seedcheck.ProfileProd)...)
 	errors = append(errors, config.AutoCRMBundleErrors(cfg, seedcheck.Profile() == seedcheck.ProfileProd)...)
+	errors = append(errors, config.AcceptQualityBundleErrors(cfg, seedcheck.Profile() == seedcheck.ProfileProd)...)
+	errors = append(errors, config.AcceptQualityGitHubErrors(cfg, seedcheck.Profile() == seedcheck.ProfileProd)...)
 	if config.AutoCRMBundleOK(cfg) {
 		pretty.StatusOK(out, color, "auto-crm bundle (defer + after-analysis webhook + geo)")
 	} else if cfg.ParserGeminiDefer && cfg.CRMWebhookEnabled {

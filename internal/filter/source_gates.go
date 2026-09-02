@@ -124,6 +124,9 @@ func TelegramChannelSelfBroadcast(source string, contacts []extract.Contact) boo
 			return false
 		case "telegram":
 			handle := normalizeTelegramHandle(c.Value)
+			if strings.HasPrefix(strings.ToLower(strings.TrimSpace(c.Value)), "user_id:") {
+				return false
+			}
 			if handle == "" || extract.IsJunkTelegramHandle(c.Value) {
 				continue
 			}
@@ -135,16 +138,83 @@ func TelegramChannelSelfBroadcast(source string, contacts []extract.Contact) boo
 	return true
 }
 
+var telegramIntelOnlyHandles = map[string]struct{}{
+	"igaming_news":             {},
+	"partnerkin_job":           {},
+	"affiliatechannel_igaming": {},
+	"partneroff_pro":           {},
+}
+
+var telegramIntelOnlySubstrings = []string{
+	"_news", "_jobs", "_job_", "jobboard", "job_board", "vacancy",
+}
+
+// TelegramIntelOnlyChannel reports news digests and job-board channels (not buyer dialog).
+func TelegramIntelOnlyChannel(source string) bool {
+	if !isTelegramSource(source) {
+		return false
+	}
+	channel := telegramChannelFromSource(source)
+	if channel == "" {
+		return false
+	}
+	if _, ok := telegramIntelOnlyHandles[channel]; ok {
+		return true
+	}
+	for _, sub := range telegramIntelOnlySubstrings {
+		if strings.Contains(channel, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+var vacancyPhrases = []string{
+	"шукаємо", "ваканс", "ищем", "hiring", "job opening", "join our team",
+	"remote |", "full-time", "full time", "recruiter", "head of media buying",
+	"media buyer fb", "tiktok media buyer", "salary", "зарплат", "k+/month",
+	"$k+/", "profit share", "бонус", "офіс", "office)",
+}
+
 // TelegramInviteWithoutBuyerIntent blocks invite-channel promos without buyer pain/intent.
 func TelegramInviteWithoutBuyerIntent(source, text string) bool {
 	if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(source)), "telegram:invite:") {
 		return false
 	}
 	lower := strings.ToLower(strings.TrimSpace(text))
+	if telegramInviteVacancyNoise(lower) {
+		return true
+	}
 	if hasPainKeyword(lower) || hasBuyerIntentPhrase(lower) {
 		return false
 	}
 	return true
+}
+
+func telegramInviteVacancyNoise(lower string) bool {
+	for _, phrase := range vacancyPhrases {
+		if !strings.Contains(lower, phrase) {
+			continue
+		}
+		if hasPainKeyword(lower) || hasTrackerPainHint(lower) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func hasTrackerPainHint(lower string) bool {
+	for _, hint := range githubTrackerPainHints {
+		switch hint {
+		case "media buyer", "affiliate marketing", "igaming affiliate":
+			continue
+		}
+		if strings.Contains(lower, hint) {
+			return true
+		}
+	}
+	return false
 }
 
 func telegramChannelFromSource(source string) string {

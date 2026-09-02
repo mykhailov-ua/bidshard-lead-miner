@@ -24,6 +24,11 @@ func TestRejectHTMLBoilerplate(t *testing.T) {
 			text:   "><script nonce= type= data-cookieconsent= ignore Cookie async></script><style>",
 			reject: true,
 		},
+		{
+			name:   "buyer boilerplate with skype",
+			text:   "meta charset=UTF-8 viewport width=device-width keitaro tracker affiliate program contact skype:aff.manager",
+			reject: false,
+		},
 	}
 	for _, tc := range cases {
 		tc := tc

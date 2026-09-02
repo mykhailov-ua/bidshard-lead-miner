@@ -23,6 +23,9 @@ func TestIsIntelOnlySource(t *testing.T) {
 	if IsIntelOnlySource("reddit:r/test", false) {
 		t.Fatal("reddit is outreach")
 	}
+	if !IsIntelOnlySource("telegram:@igaming_news", false) {
+		t.Fatal("telegram news channel intel only")
+	}
 }
 
 func TestSourceRequiresIntentGate(t *testing.T) {

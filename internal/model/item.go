@@ -16,6 +16,7 @@ type RawItem struct {
 	ForumUserID      string
 	MessageID        int64
 	ReplyToMessageID int64
+	ReplyContext     string
 	ChatType         string
 	ChannelAbout     string
 	CrawlHTML        string
@@ -40,8 +41,12 @@ func (r RawItem) Text() string {
 func (r RawItem) ContactTelegram() string {
 	if r.Contact != "" {
 		contact := strings.TrimSpace(r.Contact)
+		lower := strings.ToLower(contact)
+		if strings.HasPrefix(lower, "telegram:user_id:") {
+			return contact
+		}
 		if strings.Contains(contact, "@") && !strings.HasPrefix(contact, "@") &&
-			!strings.HasPrefix(strings.ToLower(contact), "telegram:") {
+			!strings.HasPrefix(lower, "telegram:") {
 			return ""
 		}
 		return normalizeTelegramContact(contact)

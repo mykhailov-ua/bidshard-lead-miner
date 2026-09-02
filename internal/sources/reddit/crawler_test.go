@@ -52,3 +52,57 @@ func TestCrawlerCollect(t *testing.T) {
 		t.Fatalf("contact=%q", got[0].Contact)
 	}
 }
+
+func TestCrawlerCollectDeduplicatesAndDropsDeleted(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]string{
+				{
+					"id":       "dup1",
+					"title":    "voluum alternative",
+					"selftext": "body a",
+					"author":   "user_a",
+				},
+				{
+					"id":       "dup1",
+					"title":    "voluum alternative again",
+					"selftext": "body b",
+					"author":   "user_b",
+				},
+				{
+					"id":    "del1",
+					"title": "tracker migration",
+					"body":  "moved away",
+					"author": "[deleted]",
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	cfg := config.Config{
+		RedditSubreddits: []string{"affiliatemarketing"},
+		RedditQueries:    []string{"voluum alternative"},
+		RedditMaxResults: 5,
+	}
+	c := NewCrawler(cfg)
+	c.baseURL = srv.URL + "/?"
+	c.client = srv.Client()
+
+	var got []model.RawItem
+	err := c.Collect(context.Background(), func(ctx context.Context, item model.RawItem) error {
+		got = append(got, item)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("items=%d want 1", len(got))
+	}
+	if got[0].Source != "reddit:r/affiliatemarketing" {
+		t.Fatalf("source=%q", got[0].Source)
+	}
+}

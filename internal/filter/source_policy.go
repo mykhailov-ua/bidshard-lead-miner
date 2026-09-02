@@ -46,7 +46,10 @@ func IsIntelOnlySource(source string, landerOutreach bool) bool {
 	if landerOutreach {
 		return false
 	}
-	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(source)), "lander:")
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(source)), "lander:") {
+		return true
+	}
+	return TelegramIntelOnlyChannel(source)
 }
 
 // SourceRequiresIntentGate is true for low-trust surfaces that need Gemini buyer-intent classify.

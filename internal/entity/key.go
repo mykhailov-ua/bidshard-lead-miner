@@ -9,6 +9,7 @@ const (
 	KindForumUID        = "forum_uid"
 	KindForumUser       = "forum_user"
 	KindTelegram        = "telegram"
+	KindTelegramUserID  = "telegram_user_id"
 	KindTelegramChannel = "channel"
 )
 
@@ -29,6 +30,7 @@ var keyPriority = map[string]int{
 	KindForumUID:        2,
 	KindForumUser:       3,
 	KindTelegram:        4,
+	KindTelegramUserID:  4,
 	KindTelegramChannel: 5,
 }
 
