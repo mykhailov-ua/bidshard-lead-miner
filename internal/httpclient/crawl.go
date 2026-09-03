@@ -7,6 +7,9 @@ import (
 
 // CrawlClient returns a proxy-aware client when proxyURLs is non-empty, else Shared().
 func CrawlClient(timeout time.Duration, proxyURLs []string, sourceID string) *http.Client {
+	if len(proxyURLs) == 0 {
+		return Shared(timeout)
+	}
 	client, err := NewClientWithProxies(timeout, proxyURLs, sourceID)
 	if err != nil {
 		return Shared(timeout)

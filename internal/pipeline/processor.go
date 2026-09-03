@@ -286,6 +286,12 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, "invite broadcast", 0, nil)
 			return out
 		}
+		if filter.TelegramAgencyOutreachReject(task.Item.Source, text) {
+			out.RejectReason = "telegram_spam"
+			slog.Debug("telegram agency outreach", "round_id", task.RoundID, "source", task.Item.Source)
+			p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, "agency outreach", 0, nil)
+			return out
+		}
 		if filter.TelegramChannelSelfBroadcast(task.Item.Source, contacts.Contacts) {
 			out.RejectReason = "telegram_spam"
 			slog.Debug("telegram channel self broadcast", "round_id", task.RoundID, "source", task.Item.Source)

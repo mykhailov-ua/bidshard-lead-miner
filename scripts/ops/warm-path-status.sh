@@ -23,7 +23,7 @@ printf 'warm-path-status: MONGO_URI=%s db=%s leads=%s dlq=%s\n' \
 	"$MONGO_URI" "$MONGO_DB" "$LEADS_COLL" "$DLQ_COLL"
 printf 'warm-path-status: WARM_ANALYSIS_RETRY_MAX=%s PENDING_SCAN=%s PENDING_STALE=%s\n' \
 	"${WARM_ANALYSIS_RETRY_MAX:-3}" \
-	"${WARM_ANALYSIS_PENDING_SCAN_INTERVAL:-15m}" \
+	"${WARM_ANALYSIS_PENDING_SCAN_INTERVAL:-5m}" \
 	"${WARM_ANALYSIS_PENDING_STALE:-1h}"
 
 if ! command -v mongosh >/dev/null 2>&1; then

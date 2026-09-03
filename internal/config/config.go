@@ -354,7 +354,7 @@ func Load() (Config, error) {
 		WarmLeadQueueSize:                 envInt("WARM_LEAD_QUEUE_SIZE", 256),
 		WarmAnalysisRetryMax:              envInt("WARM_ANALYSIS_RETRY_MAX", 3),
 		WarmAnalysisRetryBase:             envDuration("WARM_ANALYSIS_RETRY_BASE", 5*time.Second),
-		WarmAnalysisPendingScanInterval:   envDuration("WARM_ANALYSIS_PENDING_SCAN_INTERVAL", 15*time.Minute),
+		WarmAnalysisPendingScanInterval:   envDuration("WARM_ANALYSIS_PENDING_SCAN_INTERVAL", 5*time.Minute),
 		WarmAnalysisPendingStale:          envDuration("WARM_ANALYSIS_PENDING_STALE", time.Hour),
 		WarmAnalysisDLQCollection:         env("WARM_ANALYSIS_DLQ_COLLECTION", "warm_analysis_dlq"),
 		WarmAnalysisShutdownDrain:         envDuration("WARM_ANALYSIS_SHUTDOWN_DRAIN", 2*time.Minute),

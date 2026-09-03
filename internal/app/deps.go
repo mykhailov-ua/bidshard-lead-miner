@@ -354,6 +354,11 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 				PendingStaleAge:         cfg.WarmAnalysisPendingStale,
 				ShutdownDrainTimeout:    cfg.WarmAnalysisShutdownDrain,
 				TimeDecayEnabled:        cfg.ParserTimeDecay,
+				ChannelTriageEnabled:    cfg.ParserChannelTriage,
+				ChannelTriage: telethon.ChannelTriageConfig{
+					ChannelsPath: cfg.TelegramChannelsPath,
+					CursorDBPath: cfg.TelegramCursorDBPath,
+				},
 			}, warmCapturer, leadPatcher, geminiClient, reg, warmExtras)
 			slog.Info("warm path gemini enabled",
 				"analyze_interval", cfg.GeminiLeadAnalyzeInterval,

@@ -2,6 +2,35 @@ package config
 
 import "testing"
 
+func TestApplyDeferPrecisionDefaultsWithoutCRM(t *testing.T) {
+	for _, key := range []string{
+		"PARSER_WARM_EMBED_PRESCAN",
+		"PARSER_WARM_EMBED_CLUSTER",
+		"PARSER_ICP_CLASSIFY",
+		"PARSER_EMBED_PRESCAN",
+	} {
+		t.Setenv(key, "")
+	}
+
+	cfg := Config{
+		GeminiAPIKey:      "key",
+		ParserGeminiDefer: true,
+	}
+	applyComplianceDefaults(&cfg)
+	if !cfg.ParserWarmEmbedPrescan {
+		t.Fatal("expected ParserWarmEmbedPrescan default true with defer+Gemini")
+	}
+	if !cfg.ParserWarmEmbedCluster {
+		t.Fatal("expected ParserWarmEmbedCluster default true with defer+Gemini")
+	}
+	if !cfg.ParserICPClassify {
+		t.Fatal("expected ParserICPClassify default true with defer+Gemini soak")
+	}
+	if !cfg.ParserEmbedPrescan {
+		t.Fatal("expected ParserEmbedPrescan default true with defer+Gemini soak")
+	}
+}
+
 func TestApplyComplianceDefaultsCRMWebhook(t *testing.T) {
 	// Force "unset" for applyComplianceDefaults (empty string counts as unset in envUnset).
 	for _, key := range []string{

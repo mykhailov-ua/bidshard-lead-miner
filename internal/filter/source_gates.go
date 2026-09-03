@@ -176,6 +176,62 @@ var vacancyPhrases = []string{
 	"$k+/", "profit share", "бонус", "офіс", "office)",
 }
 
+var inviteTutorialPhrases = []string{
+	"мануал", "tutorial", "step by step", "how to build", "гайд", "инструкция",
+	"vibe cod", "вайбкод", "claude keitaro", "trafftok",
+	"подготовили для вас", "must-have skill", "мастхев", "скіли в claude",
+}
+
+// TelegramAgencyOutreachReject blocks agency service promos on telegram sources without buyer voice.
+func TelegramAgencyOutreachReject(source, text string) bool {
+	if !isTelegramSource(source) {
+		return false
+	}
+	lower := strings.ToLower(strings.TrimSpace(text))
+	if hasBuyerIntentPhrase(lower) {
+		return false
+	}
+	if strings.Contains(lower, "?") {
+		return false
+	}
+	if agencyCloakingVendorPromo(lower) {
+		return true
+	}
+	return agencyOutreachPhraseHits(lower) >= 2
+}
+
+var agencyOutreachPhrases = []string{
+	"i help ",
+	"grow through",
+	"effective ads campaign",
+}
+
+var agencyVendorNames = []string{
+	"redtrack", "voluum", "binom", "keitaro", "clickflare",
+}
+
+func agencyOutreachPhraseHits(lower string) int {
+	hits := 0
+	for _, phrase := range agencyOutreachPhrases {
+		if strings.Contains(lower, phrase) {
+			hits++
+		}
+	}
+	return hits
+}
+
+func agencyCloakingVendorPromo(lower string) bool {
+	if !strings.Contains(lower, "cloaking") {
+		return false
+	}
+	for _, vendor := range agencyVendorNames {
+		if strings.Contains(lower, vendor) {
+			return true
+		}
+	}
+	return false
+}
+
 // TelegramInviteWithoutBuyerIntent blocks invite-channel promos without buyer pain/intent.
 func TelegramInviteWithoutBuyerIntent(source, text string) bool {
 	if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(source)), "telegram:invite:") {
@@ -185,10 +241,22 @@ func TelegramInviteWithoutBuyerIntent(source, text string) bool {
 	if telegramInviteVacancyNoise(lower) {
 		return true
 	}
+	if telegramInviteTutorialNoise(lower) {
+		return !hasBuyerIntentPhrase(lower)
+	}
 	if hasPainKeyword(lower) || hasBuyerIntentPhrase(lower) {
 		return false
 	}
 	return true
+}
+
+func telegramInviteTutorialNoise(lower string) bool {
+	for _, phrase := range inviteTutorialPhrases {
+		if strings.Contains(lower, phrase) {
+			return true
+		}
+	}
+	return false
 }
 
 func telegramInviteVacancyNoise(lower string) bool {

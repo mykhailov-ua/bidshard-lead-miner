@@ -28,7 +28,9 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 			Interval:      cfg.BGSerpTelegramInterval,
 			SkipIfRunning: true,
 			Run: func(ctx context.Context) error {
-				return serp.NewCrawler(cfg, nil).HarvestTelegramCatalog(ctx)
+				return serp.RunBGHarvest(ctx, cfg, "serp_telegram_catalog", func(ctx context.Context) error {
+					return serp.NewCrawler(cfg, nil).HarvestTelegramCatalog(ctx)
+				})
 			},
 		},
 		{
@@ -36,7 +38,9 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 			Interval:      cfg.BGForumDiscoverInterval,
 			SkipIfRunning: true,
 			Run: func(ctx context.Context) error {
-				return serp.NewCrawler(cfg, nil).HarvestForumThreads(ctx, cfg.ForumRegistryPath)
+				return serp.RunBGHarvest(ctx, cfg, "serp_forum_threads", func(ctx context.Context) error {
+					return serp.NewCrawler(cfg, nil).HarvestForumThreads(ctx, cfg.ForumRegistryPath)
+				})
 			},
 		},
 		{
@@ -44,9 +48,11 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 			Interval:      cfg.BGForumDiscoverInterval,
 			SkipIfRunning: true,
 			Run: func(ctx context.Context) error {
-				return serp.NewCrawler(cfg, nil).HarvestWebPainCatalog(ctx, cfg.WebPainRegistryPath, domaincascade.Config{
-					RegistryPath:        cfg.SourceRegistryPath,
-					TelegramDomainsPath: cfg.TelegramDomainsPath,
+				return serp.RunBGHarvest(ctx, cfg, "serp_web_pain_catalog", func(ctx context.Context) error {
+					return serp.NewCrawler(cfg, nil).HarvestWebPainCatalog(ctx, cfg.WebPainRegistryPath, domaincascade.Config{
+						RegistryPath:        cfg.SourceRegistryPath,
+						TelegramDomainsPath: cfg.TelegramDomainsPath,
+					})
 				})
 			},
 		},
@@ -167,7 +173,9 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 			Interval:      cfg.BGDiscordDiscoverInterval,
 			SkipIfRunning: true,
 			Run: func(ctx context.Context) error {
-				return serp.NewCrawler(cfg, nil).HarvestDiscordInvites(ctx, cfg.DiscordRegistryPath)
+				return serp.RunBGHarvest(ctx, cfg, "discord_invite_discover", func(ctx context.Context) error {
+					return serp.NewCrawler(cfg, nil).HarvestDiscordInvites(ctx, cfg.DiscordRegistryPath)
+				})
 			},
 		})
 	}

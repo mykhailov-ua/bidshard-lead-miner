@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bidshard/parser/internal/model"
 )
 
 type stubAnalysisPatcher struct {
@@ -27,13 +29,23 @@ func (s *stubLeadReader) GetLeadByHashID(_ context.Context, _ string) (LeadDoc, 
 	return s.doc, s.ok, nil
 }
 
-func TestExportSyncPatcherAppendsAfterPatch(t *testing.T) {
+func TestExportSyncPatcherUpsertsAfterPatch(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "leads.ndjson")
 	export, err := NewJSONFileSink(path, ExportFormatNDJSON)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	initial := model.Lead{
+		HashID:         "h1",
+		TS:             time.Now().UTC(),
+		AnalysisStatus: "pending",
+		Score:          20,
+	}
+	if err := export.Upsert(context.Background(), initial); err != nil {
 		t.Fatal(err)
 	}
 
@@ -66,7 +78,11 @@ func TestExportSyncPatcherAppendsAfterPatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := string(raw)
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 export row, got %d: %s", len(lines), raw)
+	}
+	body := lines[0]
 	if !strings.Contains(body, `"hash_id":"h1"`) {
 		t.Fatalf("export missing lead: %s", body)
 	}

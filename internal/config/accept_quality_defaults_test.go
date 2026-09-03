@@ -105,6 +105,8 @@ func TestAcceptQualityBundleMissing(t *testing.T) {
 		GeminiAPIKey:                "key",
 		ParserGeminiDefer:           true,
 		BGTelegramEnabled:           true,
+		ParserWarmEmbedPrescan:      true,
+		ParserWarmEmbedCluster:      true,
 		ParserICPClassify:           true,
 		ParserEmbedPrescan:          true,
 		ParserSourceDisableGovernor: true,

@@ -9,6 +9,7 @@
 # Env overrides:
 #   ACCEPTANCE_MAX_PENDING_PCT=20
 #   ACCEPTANCE_MIN_TG_PAIN_PCT=30
+# Warm pending drain: default WARM_ANALYSIS_PENDING_SCAN_INTERVAL=5m (see warm-path-status.sh)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

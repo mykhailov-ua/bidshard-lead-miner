@@ -123,6 +123,24 @@ func TestTelegramIntelOnlyChannel(t *testing.T) {
 	}
 }
 
+func TestTelegramAgencyOutreachReject(t *testing.T) {
+	t.Parallel()
+	src := "telegram:@voluum"
+	soak := "Hey I help eCommerce, Brand, enterprise & affiliate businesses grow through effective Ads campaign Google, Meta, Tiktok, Bing, LinkedIn Ads. Cloaking RedTrack, Voluum, Binom"
+	if !TelegramAgencyOutreachReject(src, soak) {
+		t.Fatal("expected agency promo soak snippet to block")
+	}
+	if TelegramAgencyOutreachReject(src, "Is there an option to resend a postback") {
+		t.Fatal("expected buyer question to pass")
+	}
+	if TelegramAgencyOutreachReject(src, "looking for voluum alternative for postback") {
+		t.Fatal("expected buyer intent to pass")
+	}
+	if TelegramAgencyOutreachReject("reddit:r/test", soak) {
+		t.Fatal("expected non-telegram source to pass")
+	}
+}
+
 func TestTelegramInviteWithoutBuyerIntent(t *testing.T) {
 	t.Parallel()
 	src := "telegram:invite:abc123"
@@ -137,5 +155,11 @@ func TestTelegramInviteWithoutBuyerIntent(t *testing.T) {
 	}
 	if TelegramInviteWithoutBuyerIntent(src, "Шукаємо Tech спеціаліста для Keitaro та postback інтеграцій") {
 		t.Fatal("expected vacancy with tracker pain to pass")
+	}
+	if !TelegramInviteWithoutBuyerIntent(src, "Мануал: как работать с трекером Keitaro. Подготовили для вас мануал по работе с трекером.") {
+		t.Fatal("expected trafftok-style keitaro manual to block")
+	}
+	if !TelegramInviteWithoutBuyerIntent(src, "Мастхев скіли в Claude для кожного арбітражника-вайбкодера. claude keitaro skills.") {
+		t.Fatal("expected vibe-coding tutorial invite to block")
 	}
 }

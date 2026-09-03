@@ -15,6 +15,70 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+func TestRecordInviteICPRejectedDisablesCursorDB(t *testing.T) {
+	dir := t.TempDir()
+	channelsPath := filepath.Join(dir, "channels.json")
+	cachePath := filepath.Join(dir, "cache.json")
+	dbPath := filepath.Join(dir, "crawler.db")
+
+	channels := channelFile{
+		Channels: []channelEntry{
+			{InviteHash: "eseczmjo9d04", Title: "Vibe coding"},
+		},
+	}
+	raw, err := json.MarshalIndent(channels, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(channelsPath, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := seedCursorChannels(dbPath, []seedChannel{
+		{key: "i:eseczmjo9d04", inviteHash: "eseczmjo9d04", enabled: 1},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	source := "telegram:invite:eSecZmjo9D04"
+	if err := RecordInviteICPRejected(ChannelTriageConfig{
+		ChannelsPath: channelsPath,
+		CachePath:    cachePath,
+		CursorDBPath: dbPath,
+	}, source); err != nil {
+		t.Fatal(err)
+	}
+	if err := RecordInviteICPRejected(ChannelTriageConfig{
+		ChannelsPath: channelsPath,
+		CachePath:    cachePath,
+		CursorDBPath: dbPath,
+	}, source); err != nil {
+		t.Fatal(err)
+	}
+
+	if enabled, err := cursorChannelEnabled(dbPath, "i:eseczmjo9d04"); err != nil {
+		t.Fatal(err)
+	} else if enabled {
+		t.Fatal("expected invite channel disabled")
+	}
+
+	cache := readTriageCache(cachePath)
+	if cache.Decisions["invite:eseczmjo9d04"] != "drop" {
+		t.Fatalf("cache decision=%q", cache.Decisions["invite:eseczmjo9d04"])
+	}
+
+	updated, err := os.ReadFile(channelsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out channelFile
+	if err := json.Unmarshal(updated, &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Channels) != 0 {
+		t.Fatalf("expected empty channels file, got %d", len(out.Channels))
+	}
+}
+
 func TestChannelIDToCursorKey(t *testing.T) {
 	tests := map[string]string{
 		"user:foo":      "u:foo",

@@ -71,6 +71,55 @@ func TestJSONFileSinkAppendsLead(t *testing.T) {
 	}
 }
 
+func TestJSONFileSinkUpsertsDuplicateHashID(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "leads.ndjson")
+	sink, err := NewJSONFileSink(path, ExportFormatNDJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lead := model.Lead{
+		HashID: "dup",
+		Source: "stub:test",
+		Score:  10,
+		Status: "new",
+	}
+	if err := sink.Upsert(context.Background(), lead); err != nil {
+		t.Fatal(err)
+	}
+	lead.Score = 42
+	lead.Status = "icp_rejected"
+	lead.AnalysisStatus = "icp_rejected"
+	if err := sink.Upsert(context.Background(), lead); err != nil {
+		t.Fatal(err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := bytes.Split(bytes.TrimSpace(raw), []byte("\n"))
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 export row, got %d: %s", len(lines), raw)
+	}
+	var row map[string]any
+	if err := json.Unmarshal(lines[0], &row); err != nil {
+		t.Fatal(err)
+	}
+	if row["hash_id"] != "dup" {
+		t.Fatalf("hash_id=%v", row["hash_id"])
+	}
+	if row["score"] != float64(42) {
+		t.Fatalf("score=%v want 42", row["score"])
+	}
+	if row["status"] != "icp_rejected" {
+		t.Fatalf("status=%v", row["status"])
+	}
+}
+
 func TestJSONFileSinkPrettyJSON(t *testing.T) {
 	t.Parallel()
 

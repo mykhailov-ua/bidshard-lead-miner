@@ -13,6 +13,7 @@ import (
 	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/scoring"
 	"github.com/bidshard/parser/internal/sink"
+	"github.com/bidshard/parser/internal/telethon"
 	"github.com/bidshard/parser/internal/worker"
 )
 
@@ -33,6 +34,8 @@ type Config struct {
 	ShutdownDrainTimeout    time.Duration // WARM_ANALYSIS_SHUTDOWN_DRAIN; flush budget after ctx cancel
 	EngageMediumEnabled     bool          // PARSER_GEMINI_ENGAGE_MEDIUM: lite outreach_angle for Medium+warm entity
 	TimeDecayEnabled        bool          // PARSER_TIME_DECAY on warm score refresh
+	ChannelTriageEnabled    bool
+	ChannelTriage           telethon.ChannelTriageConfig
 }
 
 // ServiceExtras wires optional Mongo pending scan, DLQ, embed prescan, cluster, junk insert.
@@ -67,7 +70,7 @@ func NewService(cfg Config, capturer *Capturer, patcher sink.LeadAnalysisPatcher
 	cfg.BatchSize = worker.IntOr(cfg.BatchSize, 15)
 	cfg.RetryMaxAttempts = worker.IntOr(cfg.RetryMaxAttempts, 3)
 	cfg.RetryBaseDelay = worker.DurationOr(cfg.RetryBaseDelay, 5*time.Second)
-	cfg.PendingRescanInterval = worker.DurationOr(cfg.PendingRescanInterval, 15*time.Minute)
+	cfg.PendingRescanInterval = worker.DurationOr(cfg.PendingRescanInterval, 5*time.Minute)
 	cfg.PendingStaleAge = worker.DurationOr(cfg.PendingStaleAge, time.Hour)
 	cfg.ShutdownDrainTimeout = worker.DurationOr(cfg.ShutdownDrainTimeout, 2*time.Minute)
 	if len(cfg.GeoBlockCountries) == 0 {
@@ -367,6 +370,10 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 				Priority:       string(priority),
 			}); err != nil {
 				slog.Warn("warm path icp reject patch failed", "hash_id", ev.HashID, "error", err)
+			} else if s.cfg.ChannelTriageEnabled {
+				if err := telethon.RecordInviteICPRejected(s.cfg.ChannelTriage, ev.Source); err != nil {
+					slog.Warn("invite channel triage disable failed", "hash_id", ev.HashID, "source", ev.Source, "error", err)
+				}
 			}
 			return
 		}

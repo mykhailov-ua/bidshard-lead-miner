@@ -5,9 +5,9 @@ import (
 	"strings"
 )
 
-// applyAcceptQualityDefaults turns on precision gates for defer+CRM when env keys are unset.
+// applyAcceptQualityDefaults turns on precision gates for defer+Gemini when env keys are unset.
 func applyAcceptQualityDefaults(cfg *Config) {
-	if cfg == nil || !crmWebhookActive(*cfg) || strings.TrimSpace(cfg.GeminiAPIKey) == "" {
+	if cfg == nil || !precisionBundleEligible(*cfg) {
 		return
 	}
 	if envUnset("PARSER_ICP_CLASSIFY") {
@@ -30,12 +30,18 @@ func applyAcceptQualityDefaults(cfg *Config) {
 	}
 }
 
-// AcceptQualityBundleMissing lists precision env toggles for defer+CRM prod handoff.
+// AcceptQualityBundleMissing lists precision env toggles for defer+Gemini soak/prod handoff.
 func AcceptQualityBundleMissing(cfg Config) []string {
-	if !crmWebhookActive(cfg) || !cfg.ParserGeminiDefer || strings.TrimSpace(cfg.GeminiAPIKey) == "" {
+	if !precisionBundleEligible(cfg) {
 		return nil
 	}
 	var missing []string
+	if !cfg.ParserWarmEmbedPrescan {
+		missing = append(missing, "PARSER_WARM_EMBED_PRESCAN=true")
+	}
+	if !cfg.ParserWarmEmbedCluster {
+		missing = append(missing, "PARSER_WARM_EMBED_CLUSTER=true")
+	}
 	if !cfg.ParserICPClassify {
 		missing = append(missing, "PARSER_ICP_CLASSIFY=true")
 	}
@@ -62,9 +68,9 @@ func AcceptQualityBundleOK(cfg Config) bool {
 	return len(AcceptQualityBundleMissing(cfg)) == 0
 }
 
-// AcceptQualityBundleErrors are hard config check failures for defer+CRM without precision gates.
+// AcceptQualityBundleErrors are hard config check failures for defer+Gemini without precision gates.
 func AcceptQualityBundleErrors(cfg Config, prodProfile bool) []string {
-	if !crmWebhookActive(cfg) || !cfg.ParserGeminiDefer || strings.TrimSpace(cfg.GeminiAPIKey) == "" {
+	if !precisionBundleEligible(cfg) {
 		return nil
 	}
 	if AcceptQualityBundleOK(cfg) {
@@ -155,4 +161,8 @@ func containsSourceName(names []string, want string) bool {
 
 func envDefaultEmpty(key string) bool {
 	return os.Getenv(key) == ""
+}
+
+func precisionBundleEligible(cfg Config) bool {
+	return cfg.ParserGeminiDefer && strings.TrimSpace(cfg.GeminiAPIKey) != ""
 }

@@ -8,6 +8,16 @@ import (
 	"time"
 )
 
+func TestCrawlClientEmptyProxyUsesShared(t *testing.T) {
+	httpclientReset(t)
+
+	client := CrawlClient(5*time.Second, nil, "test")
+	shared := Shared(5 * time.Second)
+	if client != shared {
+		t.Fatal("expected shared client when proxy list empty")
+	}
+}
+
 func TestCrawlClientFallsBackToShared(t *testing.T) {
 	httpclientReset(t)
 

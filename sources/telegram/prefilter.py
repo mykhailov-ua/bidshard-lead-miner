@@ -20,6 +20,49 @@ SPAM_PHRASES = (
     "limited slots",
 )
 
+AGENCY_OUTREACH_PHRASES = (
+    "i help ecommerce",
+    "i help e-commerce",
+    "grow through effective ads",
+    "grow through effective ad",
+    "verified ad accounts",
+    "cloaking systems built",
+    "open to connect",
+    "dm me privately",
+    "drop your main pain",
+    "i help solve both",
+    "smart tracking + automation",
+    "gohighlevel",
+)
+
+AGENCY_SERVICE_OFFER_HINTS = (
+    "i help",
+    "i provide",
+    "we offer",
+    "open to connect",
+    "dm me",
+)
+
+AGENCY_TOOL_PROMO_HINTS = (
+    "cloaking",
+    "redtrack",
+    "gohighlevel",
+)
+
+BUYER_QUESTION_HINTS = (
+    "resend postback",
+    "updated payout",
+    "duplicate postback",
+    "postback failing",
+    "does voluum",
+    "support for tracking",
+    "need alternative",
+    "is there an option",
+    "what needs to be done",
+    "cannot edit the conversion",
+    "anyone know how",
+)
+
 PAIN_HINTS = (
     "voluum",
     "keitaro",
@@ -91,6 +134,13 @@ TUTORIAL_HINTS = (
     "гайд",
     "мануал",
     "инструкция",
+    "vibe cod",
+    "вайбкод",
+    "claude keitaro",
+    "trafftok",
+    "подготовили для вас",
+    "мастхев",
+    "скіли в claude",
 )
 
 PROGRAMMATIC_HINTS = (
@@ -153,7 +203,7 @@ def is_job_or_tutorial_noise(text: str) -> bool:
     if any(h in body for h in JOB_HINTS):
         return not has_tracker_pain_signal(text)
     if any(h in body for h in TUTORIAL_HINTS):
-        return not has_tracker_pain_signal(text)
+        return True
     return False
 
 
@@ -164,6 +214,27 @@ def is_programmatic_noise(text: str) -> bool:
     return not has_tracker_pain_signal(text)
 
 
+def has_buyer_question_signal(text: str) -> bool:
+    body = _lower(text)
+    if any(hint in body for hint in BUYER_QUESTION_HINTS):
+        return True
+    if "?" not in body:
+        return False
+    # Question mark bait in agency broadcasts still counts as outreach noise.
+    return not any(phrase in body for phrase in AGENCY_OUTREACH_PHRASES)
+
+
+def is_agency_outreach_noise(text: str) -> bool:
+    body = _lower(text)
+    has_agency_phrase = any(phrase in body for phrase in AGENCY_OUTREACH_PHRASES)
+    has_tool_promo = any(t in body for t in AGENCY_TOOL_PROMO_HINTS) and any(
+        s in body for s in AGENCY_SERVICE_OFFER_HINTS
+    )
+    if not has_agency_phrase and not has_tool_promo:
+        return False
+    return not has_buyer_question_signal(text)
+
+
 def should_emit_message(text: str) -> bool:
     if not prefilter_enabled():
         return True
@@ -172,6 +243,8 @@ def should_emit_message(text: str) -> bool:
     if is_job_or_tutorial_noise(text):
         return False
     if is_programmatic_noise(text):
+        return False
+    if is_agency_outreach_noise(text):
         return False
     # Emit on pain keywords even when message is short; otherwise require MIN_MESSAGE_RUNES substance.
     if has_pain_signal(text):

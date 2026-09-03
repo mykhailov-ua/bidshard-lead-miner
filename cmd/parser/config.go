@@ -229,7 +229,7 @@ func runConfigCheck(ctx context.Context, out io.Writer) error {
 	}
 	if config.AcceptQualityBundleOK(cfg) {
 		pretty.StatusOK(out, color, "accept-quality bundle (ICP + embed prescan + junk governor)")
-	} else if cfg.ParserGeminiDefer && cfg.CRMWebhookEnabled && cfg.GeminiAPIKey != "" {
+	} else if cfg.ParserGeminiDefer && cfg.GeminiAPIKey != "" {
 		for _, miss := range config.AcceptQualityBundleMissing(cfg) {
 			warnings = append(warnings, "accept-quality bundle missing: "+miss)
 		}
