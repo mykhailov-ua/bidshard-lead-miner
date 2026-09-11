@@ -2,6 +2,7 @@ import unittest
 
 from sources.telegram.prefilter import (
     channel_icp_relevant,
+    is_instant_drop_message,
     is_spam_message,
     should_emit_message,
 )
@@ -10,6 +11,28 @@ from sources.telegram.prefilter import (
 class PrefilterTest(unittest.TestCase):
     def test_spam_rejected(self) -> None:
         self.assertTrue(is_spam_message("join our channel for vip signals"))
+
+    def test_instant_drop_rejected(self) -> None:
+        self.assertTrue(is_instant_drop_message("Selling warmed BMs and agency accounts"))
+        self.assertFalse(should_emit_message("Selling warmed BMs and agency accounts"))
+        self.assertTrue(
+            should_emit_message("Keitaro postback timeout after traffic spike")
+        )
+        self.assertTrue(
+            is_instant_drop_message("Креативы на заказ, монтаж reels, озвучка видео")
+        )
+
+    def test_ru_infrastructure_hard_stop(self) -> None:
+        self.assertFalse(
+            should_emit_message("Оплата через Сбер, пишите в личку за аккаунты")
+        )
+
+    def test_ua_russian_pain_passes(self) -> None:
+        self.assertTrue(
+            should_emit_message(
+                "Ищем media buyer в Киев, USDT TRC20, voluum postback не сходится с сеткой"
+            )
+        )
 
     def test_pain_emitted(self) -> None:
         self.assertTrue(

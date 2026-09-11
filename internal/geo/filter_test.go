@@ -19,13 +19,13 @@ func TestFilterRejectCases(t *testing.T) {
 		{"bel punycode domain", "info@shop.бел", "", "by domain"},
 		{"ru phone", "call +7 916 555 1212", "", "ru phone"},
 		{"by phone", "whatsapp +375 29 123 4567", "", "by phone"},
-		{"moscow bio", "based in Moscow, media buyer", "", "ru/by bio signal"},
-		{"minsk bio", "team from Minsk", "", "ru/by bio signal"},
-		{"russia bio", "traffic from Russia only", "", "ru/by bio signal"},
-		{"belarus bio", "office in Belarus", "", "ru/by bio signal"},
-		{"europe moscow tz", "timezone Europe/Moscow", "", "ru/by bio signal"},
-		{"cyrillic only", "ищем альтернативу трекеру для арбитража без английского", "", "cyrillic-only context"},
-		{"cyrillic heavy", stringsRepeatCyrillic(25) + " tracker voluum", "", "cyrillic-heavy context"},
+		{"ru tld in url", "read more at https://cpalenta.ru/jobs", "", "ru/by tld"},
+		{"moscow bio", "based in Moscow, media buyer", "", "ru/by location"},
+		{"minsk bio", "team from Minsk", "", "ru/by location"},
+		{"russia bio", "traffic from Russia only", "", "ru/by location"},
+		{"belarus bio", "office in Belarus", "", "ru/by location"},
+		{"europe moscow tz", "timezone Europe/Moscow", "", "ru/by location"},
+		{"sber payment", "оплата через Сбербанк", "", "ru/by infrastructure"},
 	}
 
 	for _, tc := range cases {
@@ -56,6 +56,9 @@ func TestFilterPassCases(t *testing.T) {
 		{"mixed en cyrillic", "voluum alternative для команды in LATAM", "buyer@mx-casino.com"},
 		{"uk domain", "tracker migration", "ops@agency.co.uk"},
 		{"hostname seed", "traffic-moscow.example.com", ""},
+		{"cyrillic arbitrage ua", "Ищем media buyer в Киев, USDT TRC20, voluum postback", ""},
+		{"cyrillic neutral cis", "ищем альтернативу трекеру для арбитража без английского", ""},
+		{"cyrillic heavy tracker", stringsRepeatCyrillic(25) + " tracker voluum", ""},
 	}
 
 	for _, tc := range cases {

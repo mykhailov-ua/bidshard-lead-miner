@@ -3,7 +3,6 @@ package geo
 import (
 	"regexp"
 	"strings"
-	"unicode"
 )
 
 type Result struct {
@@ -12,14 +11,15 @@ type Result struct {
 }
 
 var (
-	ruDomainRe     = regexp.MustCompile(`(?i)@[^@\s]+\.(ru|рф)([\s.,;]|$)`)
-	byDomainRe     = regexp.MustCompile(`(?i)@[^@\s]+\.(by|бел)([\s.,;]|$)`)
-	ruMailDomainRe = regexp.MustCompile(`(?i)@(?:[^@\s]+\.)*(?:mail\.ru|yandex\.ru|ya\.ru|bk\.ru|list\.ru|inbox\.ru|rambler\.ru|internet\.ru)([\s.,;]|$)`)
-	ruPhoneRe      = regexp.MustCompile(`\+7[\d\s\-()]{8,}`)
-	byPhoneRe      = regexp.MustCompile(`\+375[\d\s\-()]{6,}`)
-	bioRejectRe    = regexp.MustCompile(`(?i)(europe/moscow|\bmoscow\b|\bminsk\b|\brussia\b|\bbelarus\b|\bроссия\b|\bбеларусь\b)`)
-	cyrillicRe     = regexp.MustCompile(`[а-яё]{8,}`)
-	latinSignalRe  = regexp.MustCompile(`(?i)[a-z]{3,}`)
+	ruDomainRe      = regexp.MustCompile(`(?i)@[^@\s]+\.(ru|рф)([\s.,;]|$)`)
+	byDomainRe      = regexp.MustCompile(`(?i)@[^@\s]+\.(by|бел)([\s.,;]|$)`)
+	ruMailDomainRe  = regexp.MustCompile(`(?i)@(?:[^@\s]+\.)*(?:mail\.ru|yandex\.ru|ya\.ru|bk\.ru|list\.ru|inbox\.ru|rambler\.ru|internet\.ru)([\s.,;]|$)`)
+	ruPhoneRe       = regexp.MustCompile(`\+7[\d\s\-()]{8,}`)
+	byPhoneRe       = regexp.MustCompile(`\+375[\d\s\-()]{6,}`)
+	blockedTLDRe    = regexp.MustCompile(`(?i)\.(ru|by|su|рф|бел)\b`)
+	ruInfraAlwaysRe = regexp.MustCompile(`(?i)(reg\.ru|beget\.|timeweb\.|сбер(?:банк)?|тинькофф|т-банк|сбп|юmoney|qiwi|юмани|карта мир|оплата руб|рубл)`)
+	ruLocationRe    = regexp.MustCompile(`(?i)(europe/moscow|\bmoscow\b|\bмосква\b|\bпитер\b|\bспб\b|санкт-петербург|\bminsk\b|\bминск\b|\brussia\b|\bроссия\b|\bbelarus\b|\bбеларусь\b)`)
+	uaAffinityRe    = regexp.MustCompile(`(?i)(киев|київ|днепр|дніпро|одесса|одеса|львов|львів|подол|\+380|монобанк|monobank|privat24|приват|remote ua|mac kyiv|sempro)`)
 )
 
 func Filter(text string, contacts ...string) Result {
@@ -27,7 +27,6 @@ func Filter(text string, contacts ...string) Result {
 	lower := strings.ToLower(body)
 
 	if ruMailDomainRe.MatchString(lower) {
-		// Check before .ru TLD: user@mail.ru would otherwise match ruDomainRe as *@mail.ru.
 		return Result{Reason: "ru mail domain"}
 	}
 	if ruDomainRe.MatchString(lower) {
@@ -42,21 +41,24 @@ func Filter(text string, contacts ...string) Result {
 	if byPhoneRe.MatchString(body) {
 		return Result{Reason: "by phone"}
 	}
-	if shouldCheckBio(text, body) && bioRejectRe.MatchString(body) {
-		return Result{Reason: "ru/by bio signal"}
+	if blockedTLDRe.MatchString(body) {
+		return Result{Reason: "ru/by tld"}
 	}
-	if longCyrillicWithoutLatin(body) {
-		return Result{Reason: "cyrillic-only context"}
+	if ruInfraAlwaysRe.MatchString(body) {
+		return Result{Reason: "ru/by infrastructure"}
 	}
-	if cyrillicHeavyWithoutLatin(body) {
-		return Result{Reason: "cyrillic-heavy context"}
+	if shouldCheckLocationMarkers(text, body) && ruLocationRe.MatchString(body) {
+		return Result{Reason: "ru/by location"}
+	}
+	if uaAffinityRe.MatchString(body) {
+		return Result{OK: true}
 	}
 
 	return Result{OK: true}
 }
 
-// Hostname-only strings (seed domains) skip bio keyword heuristics.
-func shouldCheckBio(text string, body string) bool {
+// Hostname-only strings skip location heuristics (e.g. traffic-moscow.example.com seed).
+func shouldCheckLocationMarkers(text string, body string) bool {
 	if strings.Contains(body, "@") {
 		return true
 	}
@@ -68,41 +70,6 @@ func shouldCheckBio(text string, body string) bool {
 		return len(strings.Fields(body)) > 1
 	}
 	return strings.Contains(trimmed, " ")
-}
-
-func longCyrillicWithoutLatin(text string) bool {
-	if !cyrillicRe.MatchString(text) {
-		return false
-	}
-	return !latinSignalRe.MatchString(text)
-}
-
-func cyrillicHeavyWithoutLatin(text string) bool {
-	cyr, lat := scriptCounts(text)
-	if cyr < 20 {
-		return false
-	}
-	if lat >= 20 {
-		return false
-	}
-	total := cyr + lat
-	if total == 0 {
-		return false
-	}
-	return cyr*100/total >= 35
-}
-
-func scriptCounts(text string) (cyrillic, latin int) {
-	for _, r := range text {
-		if unicode.Is(unicode.Cyrillic, r) {
-			cyrillic++
-			continue
-		}
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
-			latin++
-		}
-	}
-	return cyrillic, latin
 }
 
 func IsBlockedCountry(code string, blocked []string) bool {
@@ -138,7 +105,7 @@ func IsBlockedTLD(host string) bool {
 func HasCyrillicRun(text string, min int) bool {
 	run := 0
 	for _, r := range text {
-		if unicode.In(r, unicode.Cyrillic) {
+		if r >= 'а' && r <= 'я' || r >= 'А' && r <= 'Я' || r == 'ё' || r == 'Ё' {
 			run++
 			if run >= min {
 				return true

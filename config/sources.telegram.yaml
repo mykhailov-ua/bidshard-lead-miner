@@ -2,12 +2,12 @@
 #
 # Usage:
 #   docker compose run --rm -it parser telegram login --qr
-#   make tgweb-discover
+#   make buyer-discover
 #   parser telegram scrape  (sidecar reads this yaml)
 #
 # Paths under data/runtime/ are gitignored; Docker uses parser_runtime named volume.
 #
-# Manual chats[]: curate EU/LATAM/global channels (geo: ru is dropped at load - never add RU).
+# Manual chats[]: curate EU/LATAM/global buyer communities (geo: ru is dropped at load).
 # Replace example usernames with real public channels before enabling.
 #
 discover:
@@ -28,6 +28,9 @@ discover:
 #
 # Intel-only (do not add to chats[]): news digests and job boards - processor rejects as intel_only:
 #   igaming_news, partnerkin_job, affiliatechannel_igaming, *_news, *_job*
+#
+# Buyer chat patterns (add real usernames from SERP discover / cross-mention):
+#   *arbitrage*, *media*buy*, *acquisition*, igaming + geo (latam, mx, br, ph)
 chats:
   - name: voluum_community
     username: voluum
@@ -45,20 +48,40 @@ chats:
 session: data/runtime/telethon.session
 cursor_db: data/runtime/crawler.db
 poll_delay_sec: 2
-message_limit: 500
+message_limit: 500  # max history per scrape pass; fetched in chunks (see TELEGRAM_HISTORY_CHUNK_*)
 
 # In-channel pain search (K-TG-05): iter_messages(search=...) on seed channels.
 channel_search:
   enabled: true
   messages_per_term: 20
   # channels: []  # empty = all manual chats[] with username; or list usernames
-  # terms: []  # default pain terms from scraper config loader
+  terms:
+    - postback failing
+    - voluum alternative
+    - keitaro alternative
+    - tracker migration
+    - media buying team
+    - search arbitrage
+    - arbitrage team
+    - pay in usdt
+    - usdt payment tracker
+    - click id not found
+    - self-hosted tracker
 
-# Optional global pain search (off by default; enable via TELEGRAM_GLOBAL_SEARCH=1)
+# Optional global pain search (off by default; enable via TELEGRAM_GLOBAL_SEARCH=1 for one-shot runs)
 global_search:
   enabled: false
   messages_per_query: 20
-  # terms: []  # default ICP pain phrases from config loader
+  terms:
+    - voluum alternative
+    - keitaro alternative
+    - postback failing
+    - media buying team tracker
+    - pay in usdt tracker
+    - migrate from voluum
 
 # Sidecar env (not yaml): TELEGRAM_DISCUSSION_SCRAPE, TELEGRAM_INVITE_JOIN,
 # TELEGRAM_REALTIME - see .env.example and docs/OPS.md#telegram-mtproto
+# TELEGRAM_HISTORY_CHUNK_SIZE=100 TELEGRAM_HISTORY_CHUNK_DELAY_MIN=1.5 TELEGRAM_HISTORY_CHUNK_DELAY_MAX=3.5
+# TELEGRAM_REALTIME_BACKFILL=300  # initial backfill then NewMessage-only listener
+# TELEGRAM_ALERT_ENABLED=1 TELEGRAM_ALERT_BOT_TOKEN=... TELEGRAM_ALERT_CHANNEL=-5167737291  # @LeadProceesorBot group

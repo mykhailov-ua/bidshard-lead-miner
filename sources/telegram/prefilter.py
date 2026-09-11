@@ -3,6 +3,104 @@ from __future__ import annotations
 import os
 import re
 
+from .geo_heuristic import is_ru_infrastructure_hard_stop
+
+# Keep in sync with internal/filter/instant_drop.go instantDropPhrases.
+INSTANT_DROP_PHRASES = (
+    "agency account",
+    "agency accounts",
+    "ad account for sale",
+    "accounts for sale",
+    "buy fp",
+    "buy fb account",
+    "buy facebook account",
+    "facebook account rent",
+    "farm account",
+    "farm accounts",
+    "account farm",
+    "farming accounts",
+    "virtual card",
+    "virtual cards",
+    "vcc for ads",
+    "virtual cc",
+    "drop service",
+    "drops available",
+    "aged accounts",
+    "warmed bm",
+    "warmed bms",
+    "warm bm",
+    "warm bms",
+    "business manager rent",
+    "bm for rent",
+    "first bill account",
+    "accounts with first bill",
+    "billing ready account",
+    "агентские аккаунты",
+    "агентский аккаунт",
+    "купить фп",
+    "купить фб",
+    "фарм аккаунт",
+    "фарм аккаунты",
+    "фарм акков",
+    "фарм акк",
+    "виртуальные карты",
+    "виртуалки",
+    "виртуальная карта",
+    "дропы",
+    "дроп сервис",
+    "гретые бмы",
+    "гретые bm",
+    "гретый бм",
+    "акки под первобил",
+    "аккаунты под первобил",
+    "под первобил",
+    "аренда аккаунтов",
+    "продажа аккаунтов",
+    "аккаунты в наличии",
+    "creatives on order",
+    "custom creatives",
+    "creative design service",
+    "landing page design",
+    "landing design service",
+    "lander design order",
+    "reels editing",
+    "reel editing",
+    "video editing service",
+    "voiceover service",
+    "video voiceover",
+    "креативы на заказ",
+    "дизайн лендингов",
+    "дизайн лендинга на заказ",
+    "монтаж reels",
+    "монтаж рилс",
+    "озвучка видео",
+    "озвучка на заказ",
+    "лендинг на заказ",
+    "креативы под ключ",
+    "join our team earn",
+    "looking for workers",
+    "we need workers",
+    "training from scratch",
+    "earn from scratch",
+    "earning scheme",
+    "profit share scheme",
+    "percent of profit",
+    "% of profit",
+    "passive income scheme",
+    "work from phone",
+    "набор в тиму",
+    "набор в команду",
+    "ищем воркеров",
+    "нужны воркеры",
+    "обучение с нуля",
+    "схема заработка",
+    "процент с профита",
+    "% с профита",
+    "заработок с нуля",
+    "пассивный заработок",
+    "работа с телефона",
+)
+
 SPAM_PHRASES = (
     "join our channel",
     "subscribe to",
@@ -174,6 +272,13 @@ def _lower(text: str) -> str:
     return text.strip().lower()
 
 
+def is_instant_drop_message(text: str) -> bool:
+    body = _lower(text)
+    if not body:
+        return False
+    return any(phrase in body for phrase in INSTANT_DROP_PHRASES)
+
+
 def is_spam_message(text: str) -> bool:
     body = _lower(text)
     if not body:
@@ -238,6 +343,10 @@ def is_agency_outreach_noise(text: str) -> bool:
 def should_emit_message(text: str) -> bool:
     if not prefilter_enabled():
         return True
+    if is_ru_infrastructure_hard_stop(text):
+        return False
+    if is_instant_drop_message(text):
+        return False
     if is_spam_message(text):
         return False
     if is_job_or_tutorial_noise(text):

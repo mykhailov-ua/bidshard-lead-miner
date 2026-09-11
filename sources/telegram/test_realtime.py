@@ -63,6 +63,52 @@ class RealtimeListenerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(targets[0][1].username, "aff_ok")
         self.assertEqual(targets[0][3], "supergroup")
 
+    async def test_resolve_listen_targets_skips_geo_reject(self) -> None:
+        from telethon.tl.types import Channel
+
+        ok_chat = ChatConfig(name="ok", username="aff_ok", geo="eu")
+        ru_chat = ChatConfig(name="cpa_lenta", username="cpa_lenta", geo="global")
+        ok_channel = Channel(
+            id=100,
+            title="Aff OK",
+            username="aff_ok",
+            megagroup=True,
+            access_hash=1,
+        )
+        ru_channel = Channel(
+            id=200,
+            title="CPALENTA | Арбитраж трафика",
+            username="cpa_lenta",
+            megagroup=False,
+            access_hash=2,
+        )
+
+        async def get_entity(entity: object) -> object:
+            if entity == "cpa_lenta":
+                return ru_channel
+            return ok_channel
+
+        client = SimpleNamespace(get_entity=AsyncMock(side_effect=get_entity))
+        with tempfile.TemporaryDirectory() as tmp:
+            store = CursorStore(os.path.join(tmp, "c.db"))
+            with patch(
+                "sources.telegram.realtime.fetch_channel_about",
+                new=AsyncMock(
+                    side_effect=lambda _c, ent: (
+                        "http://cpalenta.ru affiliate"
+                        if getattr(ent, "username", "") == "cpa_lenta"
+                        else "about"
+                    )
+                ),
+            ):
+                targets = await resolve_listen_targets(
+                    client, [ok_chat, ru_chat], store
+                )
+            store.close()
+
+        self.assertEqual(len(targets), 1)
+        self.assertEqual(targets[0][1].username, "aff_ok")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -79,7 +79,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-from .geo_heuristic import channel_geo_reject
+from .alert_dispatcher import dispatch_pain_alert, should_alert_on_emit
+from .geo_heuristic import channel_geo_reject, channel_geo_texts
+from .history_chunk import iter_messages_chunked
 from .message_text import combined_message_text, message_body_text
 from .prefilter import should_emit_message
 from .telethon_retry import call_with_flood_wait, is_flood_wait
@@ -272,6 +274,18 @@ async def process_scrape_message(
     ):
         return False
     store.record_emit(chat_key, message_has_pain(body))
+    if should_alert_on_emit(body, username):
+        posted_at = getattr(message, "date", None)
+        source_label = chat.username or chat.name or chat_key
+        await dispatch_pain_alert(
+            username=username,
+            user_id=user_id,
+            text=body,
+            posted_at=posted_at,
+            chat_username=chat.username,
+            message_id=int(message.id),
+            source_label=source_label,
+        )
     return True
 
 
@@ -376,15 +390,15 @@ async def scrape_chat(
         return 0
 
     about_text = await fetch_channel_about(client, entity)
-    if channel_geo_reject([about_text, chat.name]):
-        LOG.info("skip chat geo heuristic chat=%s", chat_key)
-        return 0
 
     full_entity = entity
     try:
         full_entity = await client.get_entity(entity)
     except Exception:
         pass
+    if channel_geo_reject(channel_geo_texts(chat.name, about_text, full_entity)):
+        LOG.info("skip chat geo heuristic chat=%s", chat_key)
+        return 0
     chat_kind = entity_chat_type(full_entity)
 
     last_id = store.get_last_message_id(chat_key)
@@ -428,9 +442,12 @@ async def scrape_chat(
         emitted += search_emitted
 
     async def iter_chat_messages() -> None:
-        async for message in client.iter_messages(entity, limit=cfg.message_limit):
-            if message.id <= last_id:
-                break
+        async for message in iter_messages_chunked(
+            client,
+            entity,
+            total_limit=cfg.message_limit,
+            stop_before_id=last_id,
+        ):
             await emit_message(message, require_new=True)
 
     try:

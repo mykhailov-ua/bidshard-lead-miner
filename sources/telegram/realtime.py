@@ -10,6 +10,8 @@ from .config import ChatConfig, ScraperConfig
 from .connect import connect_telegram_client
 from .cursor import CursorStore
 from .discover import merge_chat_lists
+from .history_chunk import iter_messages_chunked, realtime_backfill_limit
+from .geo_heuristic import channel_geo_reject, channel_geo_texts
 from .scraper import (
     build_telegram_client,
     entity_chat_type,
@@ -43,6 +45,9 @@ async def resolve_listen_targets(
             entity = await resolve_chat_entity(client, chat, store)
             full = await client.get_entity(entity)
             about = await fetch_channel_about(client, full)
+            if channel_geo_reject(channel_geo_texts(chat.name, about, full)):
+                LOG.info("realtime skip chat geo heuristic chat=%s", chat_key)
+                continue
             kind = entity_chat_type(full)
             out.append((full, chat, about, kind))
             LOG.debug(
@@ -53,6 +58,55 @@ async def resolve_listen_targets(
         except Exception as exc:
             LOG.warning("realtime skip chat=%s: %s", chat_key, exc)
     return out
+
+
+async def backfill_listen_targets(
+    client: Any,
+    targets: list[tuple[Any, ChatConfig, str, str]],
+    store: CursorStore,
+    out: TextIO,
+    limit: int,
+) -> int:
+    """Chunked history read before listener mode (no GetHistory after startup)."""
+    total = 0
+    for entity, chat, about, kind in targets:
+        chat_key = chat.channel_key()
+        last_id = store.get_last_message_id(chat_key)
+        max_seen = last_id
+        emitted = 0
+        try:
+            async for message in iter_messages_chunked(
+                client,
+                entity,
+                total_limit=limit,
+                stop_before_id=last_id,
+            ):
+                if await process_scrape_message(
+                    client,
+                    entity,
+                    message,
+                    chat,
+                    about,
+                    kind,
+                    out,
+                    store,
+                    chat_key,
+                ):
+                    emitted += 1
+                    max_seen = max(max_seen, message.id)
+        except Exception as exc:
+            LOG.warning("realtime backfill error chat=%s: %s", chat_key, exc)
+            continue
+        if max_seen > last_id:
+            store.set_last_message_id(chat_key, max_seen)
+        total += emitted
+        LOG.info(
+            "realtime backfill done chat=%s limit=%d emitted=%d",
+            chat_key,
+            limit,
+            emitted,
+        )
+    return total
 
 
 async def run_realtime_listener(
@@ -73,6 +127,14 @@ async def run_realtime_listener(
     if not targets:
         LOG.error("no resolvable channels for realtime listener")
         return 1
+
+    backfill_limit = realtime_backfill_limit()
+    LOG.info(
+        "realtime backfill starting channels=%d limit=%d (then NewMessage only)",
+        len(targets),
+        backfill_limit,
+    )
+    await backfill_listen_targets(client, targets, store, out, backfill_limit)
 
     entities = [row[0] for row in targets]
     meta_by_peer: dict[int, tuple[ChatConfig, str, str]] = {}

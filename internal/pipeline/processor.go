@@ -155,13 +155,6 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		}
 	}
 
-	if reject, reason := filter.RejectLongCyrillicWithoutLatin(text); reject {
-		out.RejectReason = "lang"
-		slog.Debug("lang reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
-		p.captureJunk(ctx, task, coldpath.ReasonLangReject, reason, 0, nil)
-		return out
-	}
-
 	if filter.IsLanderSource(task.Item.Source) && filter.LanderBlacklistedSource(task.Item.Source) {
 		out.RejectReason = "blacklist"
 		slog.Debug("lander blacklist reject", "round_id", task.RoundID, "source", task.Item.Source)
@@ -189,6 +182,21 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		out.RejectReason = "context"
 		slog.Debug("context drop", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
 		p.captureJunk(ctx, task, coldpath.ReasonContextDrop, reason, 0, nil)
+		return out
+	}
+
+	if drop, reason := filter.SellerAuthorProfile(task.Item.Username, task.Item.ChannelAbout, task.Item.Title); drop {
+		out.RejectReason = "author_seller"
+		slog.Debug("seller author skip", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
+		p.captureJunk(ctx, task, coldpath.ReasonContextDrop, reason, 0, nil)
+		return out
+	}
+
+	if drop, reason := filter.InstantDropSellerSpam(text); drop {
+		out.HardRejected = true
+		out.RejectReason = "instant_drop"
+		slog.Debug("instant drop seller spam", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
+		p.captureJunk(ctx, task, coldpath.ReasonHardReject, reason, 0, nil)
 		return out
 	}
 
@@ -265,6 +273,10 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 				return out
 			}
 		}
+	}
+	if p.Registry != nil && !prescanOK && filter.InfraPainBypassPrescan(text) {
+		prescanOK = true
+		slog.Debug("infra pain prescan bypass", "round_id", task.RoundID, "source", task.Item.Source)
 	}
 	if p.Registry != nil && !prescanOK {
 		out.RejectReason = "low_priority"
@@ -373,6 +385,16 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		p.captureJunk(ctx, task, coldpath.ReasonRoleEmail, "", 0, nil)
 		return out
 	}
+	if !extract.HasReachableContact(contacts.Contacts) && !extract.HasEnrichableIdentity(contacts.Contacts) {
+		out.RejectReason = "no_reachable_contact"
+		if extract.IntelOnlyContacts(contacts.Contacts) {
+			slog.Debug("company seed only", "round_id", task.RoundID, "source", task.Item.Source)
+		} else {
+			slog.Debug("no reachable contact", "round_id", task.RoundID, "source", task.Item.Source)
+		}
+		p.captureJunk(ctx, task, coldpath.ReasonNoReachableContact, "", 0, nil)
+		return out
+	}
 
 	var enrichResult enrich.Result
 	if p.Enricher != nil {
@@ -404,6 +426,15 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 				leadText.Score = min
 				priority = scoring.PriorityFromScore(p.Registry, leadText.Score)
 				slog.Debug("tgweb aggressive score floor", "round_id", task.RoundID, "source", task.Item.Source, "score", leadText.Score)
+			}
+		}
+	}
+	if priority == scoring.PriorityLow {
+		if filter.HasBanContextSignal(text) || filter.TechnicalAuthorSignal(text, task.Item.Title) || filter.TeamBuyingSignal(text, task.Item.Title) {
+			if min := mediumMinFromReg(p.Registry); leadText.Score < min {
+				leadText.Score = min
+				priority = scoring.PriorityMedium
+				slog.Debug("ban/tech/team context score floor for llm", "round_id", task.RoundID, "source", task.Item.Source, "score", leadText.Score)
 			}
 		}
 	}
@@ -444,6 +475,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		exists, err := p.Store.Exists(ctx, hashID)
 		if err != nil {
 			slog.Warn("store exists failed", "hash_id", hashID, "error", err)
+			out.RejectReason = "store_error"
 			return out
 		}
 		if exists {
@@ -554,6 +586,10 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		}
 	}
 
+	companyName := geoResult.CompanyName
+	if companyName == "" && strings.HasPrefix(strings.ToLower(task.Item.Source), "jobboard:") {
+		companyName = strings.TrimSpace(task.Item.Username)
+	}
 	lead := model.Lead{
 		TS:               time.Now().UTC(),
 		RoundID:          task.RoundID,
@@ -571,7 +607,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		ICPWhy:           icpResult.Why,
 		GeoCountry:       geoResult.PersonCountry,
 		CompanyCountry:   geoResult.CompanyCountry,
-		CompanyName:      geoResult.CompanyName,
+		CompanyName:      companyName,
 		GeoSignals:       append(append([]string(nil), geoResult.RegistrationSignals...), geoResult.RUBYSignals...),
 		GeoWhy:           geoResult.Why,
 		WhoisCountry:     enrichResult.RDAPCountry,
@@ -1035,6 +1071,9 @@ func (p *Processor) entitySightingInput(task Task, contacts []extract.Contact, h
 		resolve.Source = task.Item.Source
 	}
 	resolve = entity.EnrichForumIdentity(resolve, task.Item.Username, task.Item.Title, task.Item.ForumUserID)
+	if resolve.CompanyName == "" && strings.HasPrefix(strings.ToLower(task.Item.Source), "jobboard:") {
+		resolve.CompanyName = strings.TrimSpace(task.Item.Username)
+	}
 	resolve.Contacts = contacts
 	return entity.SightingInput{
 		ResolveInput: resolve,
