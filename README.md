@@ -1,180 +1,231 @@
 # BidShard Lead Intent Processor
 
-Lead collection and scoring from public gray-market sources (forums, Reddit, GitHub, supply/ads.txt, landers, Discord, Telegram). Pipeline: crawl -> normalize -> keyword scoring -> geo/ICP gates -> dedup -> MongoDB (+ optional JSONL export).
+Go parser + Python Telethon sidecar for **BidShard** outbound: find media buyers with tracker/pain voice in Telegram supergroups, score and gate leads, write MongoDB / JSONL, notify CRM via webhook and Telegram bot.
+
+**Product focus (2026-09):** MTProto realtime listener + pain alerts are the primary funnel. SERP, forum, Reddit, and tgweb are **discovery or batch** paths, not hot-poll CRM accept. See [docs/ICP.md](docs/ICP.md) and [docs/MILESTONE.md](docs/MILESTONE.md).
+
+**Honest status:** code for M0-M11 is largely in tree; **production yield is still low** (FloodWait on Telethon `ResolveUsername`, forum 403 without residential proxy, PullPush 429 on Reddit archive). Gemini ICP is **off** on VPS (`GEMINI_API_KEY` empty). Soak gates in M2/M9 are not green yet.
+
+| Area | Status |
+|------|--------|
+| P0 prescan, synthetic contact reject, CRM webhook | Deployed VPS |
+| Hot poll `webpain,reviews` only (no SERP/reddit/forum) | Deployed |
+| Telegram realtime + M3 pain AND-gate + alert cards | Deployed; 12/40 chats listening (FloodWait) |
+| 40 `buyer_supergroup` in yaml | Done; session sharding not implemented |
+| History export M5, Reddit offline M7, buyer-discover | CLI + VPS scripts; batch runs fragile |
+| Forum fetch M6 | bgworker wired; 403 on datacenter IP |
+| Multi-session sharding | Design only: Д[SHARDING_SESSION.md](SHARDING_SESSION.md) |
 
 **Geo policy:** hard-reject RU/BY (`GEO_BLOCK_COUNTRIES`). LinkedIn is not supported.
 
-**Credentials:** [docs/CREDENTIALS.md](docs/CREDENTIALS.md) | **VPS deploy:** [docs/DEPLOY.md](docs/DEPLOY.md) | **Operations (tgweb, proxy, eBPF):** [docs/OPS.md](docs/OPS.md)
+**Docs:** [docs/CREDENTIALS.md](docs/CREDENTIALS.md) | [docs/DEPLOY.md](docs/DEPLOY.md) | [docs/OPS.md](docs/OPS.md) | [docs/OUTREACH.md](docs/OUTREACH.md)
 
 ---
 
-## Deployment (Docker)
+## Architecture (production target)
 
-Stack: `mongo` (bridge, port 27017) + `parser` (`network_mode: host`, `parser run`).
+```
+DISCOVERY (no CRM accept from hot poll)
+  SERP / jobboard / buyer-discover --> discovered_* JSON registries
+  forum bgworker, tgweb cron (proxy), reddit offline archive
+
+PRIMARY FUNNEL
+  Telethon realtime (buyer_supergroup) --> pain alert (M3 AND-gate)
+       |                                      |
+       +--> IPC msgpack --> Go processor --> Mongo + JSONL
+       +--> CRM webhook --> crm-bot --> Telegram lead card
+
+GATES (Gemini off on VPS)
+  keyword prescan, telegram buyer voice (M8), MIN_SCORE 70 / telegram 50,
+  contact must be telegram:@user | forum:user | email (no @serp:)
+```
+
+Accept rule: no lead without a **reachable** contact. Pain alerts require tracker + operational pain (or crypto-gray) and `@username`.
+
+---
+
+## Quick start (local)
+
+Fresh clone is **not** fully runnable without setup.
 
 ```bash
 cp .env.example .env
+docker compose up -d mongo
+make build
+make venv                    # Telethon sidecar
+go run ./cmd/parser config check
+```
+
+Optional profiles: `cat config/env/.env.bidshard-icp.example >> .env` (VPS-like ICP), `cat config/env/.env.crm-telegram.example >> .env`.
+
+Telegram MTProto (optional):
+
+```bash
+docker compose run --rm -it parser telegram login --qr
+docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime up -d
+```
+
+Tests: `go test ./...` and `make test-py` (Telethon unit tests; no live MTProto in CI).
+
+---
+
+## Docker stack
+
+Default `docker-compose.yaml`:
+
+| Service | Role |
+|---------|------|
+| `mongo` | leads, entities, junk |
+| `parser` | `parser run` poll loop + bgworker |
+| `crm-bot` | webhook inbox, Telegram lead notify |
+
+Optional `docker-compose.telegram-realtime.yaml`:
+
+| Service | Role |
+|---------|------|
+| `parser-telegram-realtime` | long-running NewMessage listener (`TELEGRAM_REALTIME=1`) |
+
+Parser uses `network_mode: host` on VPS so `127.0.0.1` reaches Mongo and crm-bot. Telethon session: named volume `parser_runtime` (`data/runtime/telethon.session` inside container).
+
+```bash
 docker compose build
 docker compose up -d
-```
-
-Validate config:
-
-```bash
-docker compose run --rm parser config check
-```
-
-Day-to-day:
-
-```bash
+docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime up -d
 docker compose logs -f parser
-docker compose ps
-docker compose down
-docker compose run --rm parser scan --source=forum,reddit
 ```
 
-### Minimal `.env`
-
-```env
-MONGO_URI=mongodb://127.0.0.1:27017
-MONGO_DB=parser
-PARSER_MONGO_COLLECTION=leads
-PARSER_EXPORT_JSON=/app/data/export/leads.jsonl
-PARSER_EXPORT_JSON_FORMAT=auto
-PARSER_SOURCE=all
-PARSER_POLL_SEC=120
-PARSER_OUTPUT=auto
-PARSER_LOG_FORMAT=auto
-```
+VPS deploy: `make vps-deploy-p0`, env merge `bash scripts/ops/vps-apply-p0-env.sh`.
 
 ---
 
-## Local build (no Docker)
-
-Requirements: Go 1.25+, Python 3.12 (Telegram sidecar), MongoDB.
-
-```bash
-go build -o bin/parser ./cmd/parser
-cp .env.example .env
-./bin/parser config check
-./bin/parser scan --source=forum,supply,lander --output=pretty
-./bin/parser run --source=forum,reddit
-```
-
-CLI:
+## CLI
 
 | Command | Description |
 |---------|-------------|
 | `parser config check` | validate env, seeds, Mongo ping |
 | `parser sources list` | registered sources and prerequisites |
-| `parser scan` | single scan round |
-| `parser run` | polling loop (`PARSER_POLL_SEC`) |
-| `parser telegram` | Telethon sidecar + ingest |
-| `parser telegram realtime` | long-running NewMessage listener (`TELEGRAM_REALTIME=1`) |
-| `parser audit programmatic <file>` | offline export audit (would_drop programmatic) |
-| `parser ingest` | NDJSON/stdin ingest |
-
----
-
-## HTTP client and anti-bot
-
-- **uTLS:** ClientHello mimics Chrome (TLS fingerprint).
-- **Headers:** browser-like defaults on outbound HTTP.
-- **Proxy rotation + rate limits:** per-proxy RPS/burst (`PARSER_PROXY_RPS`, `PARSER_PROXY_BURST`), block cooldown (`PARSER_PROXY_COOLDOWN`, default 10m), round-robin across `PARSER_PROXY_LIST`. Pool waits when all endpoints cool down (no reuse of blocked IPs). See [docs/OPS.md](docs/OPS.md#proxy).
-- **eBPF dev probe (Linux):** syscall/sched/net probe for tgweb crawl analysis - [docs/OPS.md](docs/OPS.md#ebpf-dev-probe-linux), `make bpf-dev`, `sudo make bpf-session-start`.
+| `parser scan` / `parser run` | single round / poll loop (`PARSER_POLL_SEC`) |
+| `parser telegram login` | MTProto session (QR or phone) |
+| `parser telegram realtime` | NewMessage listener (sidecar) |
+| `parser telegram history-export` | M5 historical pain NDJSON (`--since`, `--relax`) |
+| `parser reddit offline-archive` | M7 PullPush/Arctic Shift batch (not hot poll) |
+| `parser discover` | SERP / jobboard catalog harvest |
+| `parser ingest` | NDJSON or msgpack stdin ingest |
+| `crm-bot run` | CRM webhook + optional Telegram notify |
 
 ---
 
 ## Sources
 
-| ID | Transport | Auth | Notes |
-|----|-----------|------|-------|
-| `reddit` | PullPush API | - | subreddits + queries |
-| `github` | GitHub Search API | `GITHUB_TOKEN` | issue search |
-| `telegram` | MTProto (Telethon) | `TELEGRAM_API_*` | sidecar; yaml `config/sources.telegram.yaml`; SQLite registry (`crawler.db`); optional in-channel search, discussion scrape, global search, realtime listener - see [docs/OPS.md](docs/OPS.md#telegram-mtproto) |
-| `forum` | HTTP | - | seed CSV, host rate limit |
-| `supply` | HTTP | - | ads.txt / sellers.json |
-| `lander` | HTTP (+ optional headless) | - | Next.js `__NEXT_DATA__` / RSC flight |
-| `discord` | Bot API | `DISCORD_BOT_TOKEN` | channel IDs |
-| `reviews`, `ct`, `serp` | HTTP | - | opt-in / seeds |
+### Hot poll (`PARSER_SOURCE`)
 
-Default `PARSER_SOURCE=all`: forum, supply, reddit, discord, serp (lander opt-in; warriorforum.com via forum + `WARRIOR_SEED_PATH`). Accept-quality preset: `config/env/.env.precision.example`.
+**Production VPS:** `webpain,reviews` only. SERP, reddit, forum, github are **out** of the 24/7 poll (SEO noise, 429, CF 403).
 
----
+| ID | Hot poll | Discovery / batch |
+|----|----------|-------------------|
+| `telegram` | via realtime container (not `PARSER_SOURCE`) | discover, history-export, channel_search |
+| `serp` | no | bgworker `serp_telegram_catalog`, `serp_forum_threads` |
+| `forum` | no | bgworker `forum_crawl` (needs residential proxy) |
+| `reddit` | no (PullPush 429) | `parser reddit offline-archive` |
+| `webpain`, `reviews` | yes (low volume) | - |
+| `tgweb`, `lander`, `supply`, `jobboard` | opt-in / cron | `make buyer-discover`, CF crawl scripts |
 
-## Scoring
-
-Keyword registry: `data/keywords.json` (+ overlays `keywords-gray.json`, locale files).
-
-Priority tiers (examples):
-
-| Tier | Score boost | Tags |
-|------|-------------|------|
-| Hot intent | +50 | `hot-lead` - voluum/keitaro alternative, migration |
-| Pain | +30 | `pain-point` - postback failing, tracker down |
-| Scale signals | +20 | `high-roller` - dedicated infra, high event volume |
-
-`pilot-qualified`: score >= threshold or spend tier + stack + pain combo (`PARSER_PILOT_TAG`).
-
-Pipeline gates (before accept): geo filter, hard-reject phrases, keyword prescan, contact extraction, MX (optional), Gemini ICP/geo (optional), dedup (seen cache + Mongo `hash_id`).
+Registry: `config/sources.telegram.yaml` (40 `buyer_supergroup`), `data/runtime/discovered_*.json`.
 
 ---
 
-## Output schema (JSONL / Mongo)
+## Scoring and gates
+
+Keyword registry: `data/keywords.json` (+ crypto-gray phrases for M11).
+
+Without Gemini (current VPS):
+
+- **M3 (Python):** pain alerts = tracker AND operational pain (+ crypto-gray path); needs `@username`.
+- **M8 (Go):** `telegram_no_buyer_voice` reject; `PARSER_ACCEPT_MIN_SCORE=70`, `PARSER_TELEGRAM_ACCEPT_MIN_SCORE=50`.
+- Prescan, synthetic `@serp:` reject, spend/newbie gates, contact extraction.
+
+With Gemini (optional, `GEMINI_API_KEY`): ICP/geo classify on warm path or inline; `PARSER_GEMINI_DEFER` queues async analysis. **Not verified on prod** while quota/key empty.
+
+---
+
+## Ops commands (Makefile)
+
+| Target | Purpose |
+|--------|---------|
+| `make vps-deploy-p0` | rsync + docker build on VPS |
+| `make vps-apply-p0-env` | merge ICP env keys (via script) |
+| `make vps-telegram-realtime-soak` | M2 listener / pain / export gate report |
+| `make vps-history-export ARGS="--since 2025-03-01 --detach"` | M5 batch on VPS |
+| `make vps-reddit-offline-archive ARGS="--detach"` | M7 Reddit batch on VPS |
+| `make vps-buyer-discover` | SERP + CF crawl discovery (detached) |
+| `make buyer-discover` | local discovery cron job |
+| `make acceptance-soak` | JSONL export quality gates |
+| `make warm-path-status` | deferred Gemini queue snapshot |
+
+Soak / metrics: `bash scripts/ops/icp-soak-report.sh --vps`, `bash scripts/ops/vps-status.sh`.
+
+---
+
+## Output (JSONL / Mongo)
+
+Leads keyed by `hash_id` (contact-derived; see [SHARDING_SESSION.md](SHARDING_SESSION.md) for telegram message-level dedup plan).
 
 ```json
 {
-  "hash_id": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "source": "reddit:affiliatemarketing",
-  "author": "media_buyer_mx",
-  "contact": { "type": "telegram", "value": "@buyer_mx" },
-  "intent_score": 80,
-  "tags": ["pilot-qualified", "hot-lead"],
-  "matched_keywords": ["voluum alternative"],
-  "context_snippet": "...",
-  "posted_at": "2026-08-17T10:00:00Z",
+  "hash_id": "...",
+  "source": "telegram:@mediabuyingandselling",
+  "score": 32,
+  "priority": "Medium",
+  "contacts": [{"type": "telegram", "value": "@buyer1"}],
+  "matched": ["keitaro(+12)"],
+  "snippet": "keitaro postback failing again",
   "status": "new"
 }
 ```
 
-| Field | Description |
-|-------|-------------|
-| `hash_id` | dedup key (contact-derived) |
-| `source` | crawler source identifier |
-| `intent_score` | weighted keyword score |
-| `matched_keywords` | matched phrases |
-| `status` | CRM handoff state (`new`, ...) when `PARSER_LEAD_STATUS_ENABLED` |
+CRM webhook posts to `crm-bot` when `PARSER_CRM_WEBHOOK=true` and secrets synced (`PARSER_CRM_WEBHOOK_SECRET` = `CRM_WEBHOOK_SECRET`).
 
 ---
 
-## Operations
+## HTTP client and anti-bot
 
-**Mongo backup/restore:** `make backup`, `make restore DUMP=...` (see `scripts/ops/`).
-
-**Acceptance soak (Epic J):** `make acceptance-soak` after prod-like run (jq gates on JSONL export). **Warm path status:** `make warm-path-status`. See [docs/OPS.md](docs/OPS.md#acceptance-soak).
-
-**Integration tests:** `make test-integration` (requires `MONGO_URI`, tag `integration`).
-
-**Debug scan logs:**
-
-```bash
-docker compose run --rm \
-  -e PARSER_LOG_LEVEL=debug \
-  parser scan 2>&1 | tee data/export/scan-debug.log
-```
+- uTLS Chrome fingerprint, browser-like headers.
+- Proxy rotation + cooldown (`PARSER_PROXY_LIST` / `PARSER_PROXY_LIST_FILE`).
+- Optional eBPF dev probe for tgweb: `make bpf-dev`, [docs/OPS.md](docs/OPS.md).
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Check |
-|---------|-------|
-| Mongo connection error | `parser config check`, `docker compose ps`, `MONGO_URI` (host network -> `127.0.0.1`) |
-| Zero raw items | seed URLs (`data/seeds/*.csv`), source errors in logs, HTTP/CF blocks |
-| `json export open failed` | permissions on `data/export/` for parser UID (10001) |
-| Gemini skipped / all leads `pending` | `GEMINI_API_KEY`, `GEMINI_MODEL` (use `gemini-3.6-flash` or unset default); `make vps-preflight` |
-| Forum `malformed HTTP response` | HTTP/2 vs HTTP/1 - CF/ALPN; proxy or uTLS path |
-| Forum blocked and reddit omitted | Add `reddit` to `PARSER_SOURCE` for direct-egress public coverage when proxies cool |
-| `parser config check` errors before run | Resolve before `parser run` or `parser scan` (P0-01 defer/DLQ and P0-02 config qualification) |
+| Symptom | Likely cause |
+|---------|----------------|
+| `realtime skip chat ... ResolveUsername` / FloodWait | Too many username resolves; wait hours or implement P0 `chat_id` cache ([SHARDING_SESSION.md](SHARDING_SESSION.md)) |
+| `listening channels=12` not 40 | FloodWait skipped chats on startup |
+| `pain alert sent` = 0 | Strict M3 gate; quiet chats; or not in listened set |
+| Hot poll `raw=0` | webpain DDG/proxy failures; expected low volume |
+| Forum bgworker 0 raw | CF 403 without residential proxy |
+| Reddit archive fails | PullPush 429 from VPS IP |
+| `database is locked` | Two processes on same `telethon.session` |
+| Gemini / all `pending` | Key empty or defer on; warm path backlog |
+| CRM webhook 401 | `PARSER_CRM_WEBHOOK_SECRET` mismatch |
 
-**Tests:** `go test ./...`
+Telethon session lock: one MTProto job at a time per session file. Stop realtime before `make vps-history-export`.
+
+---
+
+## Development
+
+```bash
+go test ./...
+make test-py
+bash scripts/ci/check_parser_slop.sh   # if present
+make backup / make restore             # Mongo
+```
+
+Commit policy and crawl budgets: `.cursor/rules/core.mdc` (agent); human planning may use local `BACKLOG.md` (gitignored).
+
+---
+
+## Related repositories
+
+Product: [BidShard](https://bidshard.com/) (self-hosted tracker + antifraud stack). This repo is **sources-only** lead discovery for that ICP, not the tracker product itself.

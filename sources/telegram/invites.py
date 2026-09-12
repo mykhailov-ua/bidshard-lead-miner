@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 from .config import ChatConfig
+from .prefilter import channel_discover_reject
 
 LOG = logging.getLogger("telegram.invites")
 
@@ -49,6 +50,10 @@ async def discover_invite_hashes(
                 )
                 continue
             LOG.warning("invite check failed hash=%s error=%s", invite_hash, exc)
+            continue
+        reject, reason = channel_discover_reject("", [str(title)])
+        if reject:
+            LOG.debug("invite discover skip hash=%s title=%s reason=%s", invite_hash, title, reason)
             continue
         out.append(
             ChatConfig(

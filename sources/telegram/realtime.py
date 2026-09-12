@@ -9,7 +9,7 @@ from typing import Any, TextIO
 from .config import ChatConfig, ScraperConfig
 from .connect import connect_telegram_client
 from .cursor import CursorStore
-from .discover import merge_chat_lists
+from .discover import merge_chat_lists, sync_manual_curation
 from .history_chunk import iter_messages_chunked, realtime_backfill_limit
 from .geo_heuristic import channel_geo_reject, channel_geo_texts
 from .scraper import (
@@ -19,6 +19,7 @@ from .scraper import (
     process_scrape_message,
     resolve_chat_entity,
 )
+from .user_enrich import UserBioEnricher, user_enrich_limit
 from .session_lock import session_exclusive_lock
 
 LOG = logging.getLogger("telegram.realtime")
@@ -32,6 +33,17 @@ def realtime_env_enabled() -> bool:
     )
 
 
+def realtime_chat_allowed(chat: ChatConfig) -> bool:
+    """M4: optional role filter for realtime listener (not bg scrape)."""
+    want = os.environ.get("TELEGRAM_REALTIME_ROLE_FILTER", "").strip().lower()
+    if not want:
+        return True
+    role = (chat.role or "buyer_supergroup").strip().lower()
+    if want == "buyer_supergroup":
+        return role in ("buyer_supergroup", "buyer", "")
+    return role == want
+
+
 async def resolve_listen_targets(
     client: Any, chats: list[ChatConfig], store: CursorStore
 ) -> list[tuple[Any, ChatConfig, str, str]]:
@@ -40,6 +52,9 @@ async def resolve_listen_targets(
 
     out: list[tuple[Any, ChatConfig, str, str]] = []
     for chat in chats:
+        if not realtime_chat_allowed(chat):
+            LOG.debug("realtime skip chat role filter chat=%s role=%s", chat.name, chat.role)
+            continue
         chat_key = chat.channel_key()
         try:
             entity = await resolve_chat_entity(client, chat, store)
@@ -66,6 +81,7 @@ async def backfill_listen_targets(
     store: CursorStore,
     out: TextIO,
     limit: int,
+    bio_enricher: UserBioEnricher | None = None,
 ) -> int:
     """Chunked history read before listener mode (no GetHistory after startup)."""
     total = 0
@@ -91,6 +107,7 @@ async def backfill_listen_targets(
                     out,
                     store,
                     chat_key,
+                    bio_enricher,
                 ):
                     emitted += 1
                     max_seen = max(max_seen, message.id)
@@ -128,13 +145,14 @@ async def run_realtime_listener(
         LOG.error("no resolvable channels for realtime listener")
         return 1
 
+    bio_enricher = UserBioEnricher(store, user_enrich_limit())
     backfill_limit = realtime_backfill_limit()
     LOG.info(
         "realtime backfill starting channels=%d limit=%d (then NewMessage only)",
         len(targets),
         backfill_limit,
     )
-    await backfill_listen_targets(client, targets, store, out, backfill_limit)
+    await backfill_listen_targets(client, targets, store, out, backfill_limit, bio_enricher)
 
     entities = [row[0] for row in targets]
     meta_by_peer: dict[int, tuple[ChatConfig, str, str]] = {}
@@ -160,6 +178,7 @@ async def run_realtime_listener(
                 out,
                 store,
                 chat_key,
+                bio_enricher,
             )
         except Exception as exc:
             LOG.warning("realtime message error chat=%s: %s", chat_key, exc)
@@ -185,6 +204,7 @@ async def realtime_listen(cfg: ScraperConfig, out: TextIO) -> int:
     session_path = Path(cfg.session)
     with session_exclusive_lock(session_path):
         store = CursorStore(cfg.cursor_db)
+        sync_manual_curation(cfg.chats, store)
         client = build_telegram_client(cfg, api_id, api_hash)
         await connect_telegram_client(client)
         if not await client.is_user_authorized():

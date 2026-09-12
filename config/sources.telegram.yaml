@@ -8,13 +8,14 @@
 # Paths under data/runtime/ are gitignored; Docker uses parser_runtime named volume.
 #
 # Manual chats[]: curate EU/LATAM/global buyer communities (geo: ru is dropped at load).
-# Replace example usernames with real public channels before enabling.
+# Usernames below are from VPS discovered_telegram_channels.json (Sep 2026 soak).
 #
 discover:
   enabled: true
-  icp_path: config/discover.icp.json  # telegram_search + serp dorks (discovery only)
+  icp_path: config/discover.icp.json  # telegram_search + serp_dorks (discovery only)
   limit_per_query: 10  # lower than default 15; pair with PARSER_CHANNEL_TRIAGE=true
   serp_channels_path: data/runtime/discovered_telegram_channels.json
+  employer_tg_queries_path: data/runtime/discovered_employer_tg_queries.json
   domains_path: data/runtime/discovered_telegram_domains.json  # tgweb crawl registry
   # queries: []  # override; default loads telegram_search from discover.icp.json
   cross_mention:
@@ -28,22 +29,325 @@ discover:
 #
 # Intel-only (do not add to chats[]): news digests and job boards - processor rejects as intel_only:
 #   igaming_news, partnerkin_job, affiliatechannel_igaming, *_news, *_job*
-#
-# Buyer chat patterns (add real usernames from SERP discover / cross-mention):
-#   *arbitrage*, *media*buy*, *acquisition*, igaming + geo (latam, mx, br, ph)
+# M4 curation: enabled:false drops channel from realtime/scrape even if discover registry has it.
+# role: buyer_supergroup | vendor_support | supply | intel_only
 chats:
+  # --- Buyer supergroups (primary realtime funnel) ---
+  - name: postback_s2s_pro_n1k
+    username: postback_s2s_pro_n1k
+    geo: global
+    role: buyer_supergroup
+  - name: unlim_arbitrage
+    username: unlim_arbitrage
+    geo: global
+    role: buyer_supergroup
+  - name: unlimmikatrade
+    username: unlimmikatrade
+    geo: global
+    role: buyer_supergroup
+  - name: buyermedia
+    username: buyermedia
+    geo: global
+    role: buyer_supergroup
+  - name: luckybuying
+    username: luckybuying
+    geo: global
+    role: buyer_supergroup
+  - name: mediabuyingandselling
+    username: mediabuyingandselling
+    geo: global
+    role: buyer_supergroup
+  - name: frbs_team
+    username: frbs_team
+    geo: global
+    role: buyer_supergroup
+  - name: m2ensenchannel
+    username: m2ensenchannel
+    geo: global
+    role: buyer_supergroup
+  - name: affiliatemarketers
+    username: affiliatemarketers
+    geo: global
+    role: buyer_supergroup
+  - name: affavenue
+    username: affavenue
+    geo: global
+    role: buyer_supergroup
+  - name: maximaffiliate
+    username: maximaffiliate
+    geo: global
+    role: buyer_supergroup
+  - name: traffic_trickster
+    username: traffic_trickster
+    geo: global
+    role: buyer_supergroup
+  - name: affiliate_lsn
+    username: affiliate_lsn
+    geo: global
+    role: buyer_supergroup
+  - name: zuevaff
+    username: zuevaff
+    geo: global
+    role: buyer_supergroup
+  - name: zuevchatcpa
+    username: zuevchatcpa
+    geo: global
+    role: buyer_supergroup
+  - name: po_ushi_v_gambling
+    username: po_ushi_v_gambling
+    geo: global
+    role: buyer_supergroup
+  - name: g_gate_media
+    username: g_gate_media
+    geo: global
+    role: buyer_supergroup
+  - name: affwriter
+    username: affwriter
+    geo: global
+    role: buyer_supergroup
+  - name: bakalov_info
+    username: bakalov_info
+    geo: global
+    role: buyer_supergroup
+  - name: seodroplab
+    username: seodroplab
+    geo: global
+    role: buyer_supergroup
+  - name: usdt_community_tracker
+    username: usdt_community_tracker
+    geo: global
+    role: buyer_supergroup
+  # Discover seeds / cross-mention (config/discovered_telegram_channels.example.json)
+  - name: aff_lead
+    username: aff_lead
+    geo: global
+    role: buyer_supergroup
+  - name: aff_net
+    username: aff_net
+    geo: global
+    role: buyer_supergroup
+  - name: affnet
+    username: affnet
+    geo: global
+    role: buyer_supergroup
+  - name: affiliate_igaming
+    username: affiliate_igaming
+    geo: global
+    role: buyer_supergroup
+  - name: stm_affiliate
+    username: stmaffiliate
+    geo: global
+    role: buyer_supergroup
+  - name: igaming_latam
+    username: affiliate_latam_en
+    geo: latam
+    role: buyer_supergroup
+  - name: affiliate_latam
+    username: affiliate_latam
+    geo: latam
+    role: buyer_supergroup
+  - name: eu_acquisition
+    username: igaming_acquisition
+    geo: eu
+    role: buyer_supergroup
+  # VPS discover pull 2026-09-12 (jobboard employer + SERP triage)
+  - name: thebuyers_hr
+    username: thebuyers_hr
+    geo: global
+    role: buyer_supergroup
+  - name: hr_nutrinity
+    username: hr_nutrinity
+    geo: global
+    role: buyer_supergroup
+  - name: mia12666
+    username: mia12666
+    geo: global
+    role: buyer_supergroup
+  - name: clickid_network
+    username: clickid_network
+    geo: global
+    role: buyer_supergroup
+  - name: postbackmedia
+    username: postbackmedia
+    geo: global
+    role: buyer_supergroup
+  - name: igamingnetworking
+    username: igamingnetworking
+    geo: global
+    role: buyer_supergroup
+  - name: igaming_chat
+    username: igaming_chat
+    geo: global
+    role: buyer_supergroup
+  - name: igaming_inside
+    username: igaming_inside
+    geo: global
+    role: buyer_supergroup
+  - name: mediabuyeronline
+    username: mediabuyeronline
+    geo: global
+    role: buyer_supergroup
+  - name: media_buyer
+    username: media_buyer
+    geo: global
+    role: buyer_supergroup
+  - name: casino_affiliates
+    username: casino_affiliates
+    geo: global
+    role: buyer_supergroup
+
+  # --- Vendor / official (intel only, no realtime) ---
   - name: voluum_community
     username: voluum
     geo: global
-  # - name: igaming_latam
-  #   username: affiliate_latam_en
-  #   geo: latam
-  # - name: eu_acquisition
-  #   username: igaming_acquisition
-  #   geo: eu
-  # - name: global_stm
-  #   username: stmaffiliate
-  #   geo: global
+    role: vendor_support
+    enabled: false
+  - name: keitaro_tracker
+    username: keitaro_tracker
+    geo: global
+    role: vendor_support
+    enabled: false
+  - name: keitaro_tracker_eng
+    username: keitaro_tracker_eng
+    geo: global
+    role: vendor_support
+    enabled: false
+  - name: marcinvoluum
+    username: marcinvoluum
+    geo: global
+    role: vendor_support
+    enabled: false
+
+  # --- Intel / news / job boards (drop from discover registry) ---
+  - name: inside_affiliate
+    username: inside_affiliate
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: militaristmail
+    username: militaristmail
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: ggm_news
+    username: ggm_news
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: igamingtextlab
+    username: igamingtextlab
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: afffriends
+    username: afffriends
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: gambling_seo_affiliate
+    username: gambling_seo_affiliate
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: affseogame
+    username: affseogame
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: soltrending
+    username: soltrending
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: affiliatechannel_igaming
+    username: affiliatechannel_igaming
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: seo_for_igaming
+    username: seo_for_igaming
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: hr_affiliate
+    username: hr_affiliate
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: works_cpa
+    username: works_cpa
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: aff_job
+    username: aff_job
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: works_affiliate
+    username: works_affiliate
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: igaming_hunter
+    username: igaming_hunter
+    geo: global
+    role: intel_only
+    enabled: false
+
+  # --- Pump/signal noise (not tracker buyers) ---
+  - name: pumpspy
+    username: pumpspy
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: trackpumpfun
+    username: trackpumpfun
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: letsbonkfun_fresh
+    username: letsbonkfun_fresh
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: letsbonkmigration
+    username: letsbonkmigration
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: migration_tracker
+    username: migration_tracker
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: axiom_migration
+    username: axiom_migration
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: bagsmigration
+    username: bagsmigration
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: bitok_aml
+    username: bitok_aml
+    geo: global
+    role: intel_only
+    enabled: false
+  - name: wjclub
+    username: wjclub
+    geo: global
+    role: intel_only
+    enabled: false
+
+  # --- Supply / seller ---
+  - name: ads_channel2025
+    username: ads_channel2025
+    geo: global
+    role: supply
+    enabled: false
 
 session: data/runtime/telethon.session
 cursor_db: data/runtime/crawler.db
@@ -57,31 +361,36 @@ channel_search:
   # channels: []  # empty = all manual chats[] with username; or list usernames
   terms:
     - postback failing
+    - postback timeout
     - voluum alternative
     - keitaro alternative
+    - keitaro license
     - tracker migration
-    - media buying team
-    - search arbitrage
-    - arbitrage team
-    - pay in usdt
-    - usdt payment tracker
     - click id not found
     - self-hosted tracker
+    - binom stuck
+    - 502 bad gateway
+    - nginx upstream
 
-# Optional global pain search (off by default; enable via TELEGRAM_GLOBAL_SEARCH=1 for one-shot runs)
+# Optional global pain search (off by default; high FloodWait risk).
+# Enable: TELEGRAM_GLOBAL_SEARCH=1, TELEGRAM_GLOBAL_SEARCH_UTC_HOURS=2-6,
+# TELEGRAM_GLOBAL_SEARCH_LIMIT=3, TELEGRAM_GLOBAL_SEARCH_DAILY_LIMIT=3
 global_search:
   enabled: false
   messages_per_query: 20
+  # Narrow technical pain only (no broad "alternative" / "migration" terms).
   terms:
-    - voluum alternative
-    - keitaro alternative
     - postback failing
-    - media buying team tracker
-    - pay in usdt tracker
-    - migrate from voluum
+    - postback timeout
+    - click id not found
+    - binom stuck
+    - 502 bad gateway
+    - nginx upstream
+    - nginx 502
+    - keitaro postback
 
 # Sidecar env (not yaml): TELEGRAM_DISCUSSION_SCRAPE, TELEGRAM_INVITE_JOIN,
 # TELEGRAM_REALTIME - see .env.example and docs/OPS.md#telegram-mtproto
 # TELEGRAM_HISTORY_CHUNK_SIZE=100 TELEGRAM_HISTORY_CHUNK_DELAY_MIN=1.5 TELEGRAM_HISTORY_CHUNK_DELAY_MAX=3.5
 # TELEGRAM_REALTIME_BACKFILL=300  # initial backfill then NewMessage-only listener
-# TELEGRAM_ALERT_ENABLED=1 TELEGRAM_ALERT_BOT_TOKEN=... TELEGRAM_ALERT_CHANNEL=-5167737291  # @LeadProceesorBot group
+# TELEGRAM_ALERT_ENABLED=1 TELEGRAM_ALERT_BOT_TOKEN=... TELEGRAM_ALERT_CHANNEL=-1004489522664

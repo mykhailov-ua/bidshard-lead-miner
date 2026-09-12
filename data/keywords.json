@@ -2217,6 +2217,114 @@
       "phrase": "migrate tracker from mysql",
       "weight": 18,
       "tag": "intent"
+    },
+    {
+      "id": "kw-crypto-payout",
+      "phrase": "crypto payout",
+      "weight": 28,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-crypto-settlement",
+      "phrase": "crypto settlement",
+      "weight": 28,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-usdt-settlement",
+      "phrase": "usdt settlement",
+      "weight": 28,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-trc20-payout",
+      "phrase": "trc20 payout",
+      "weight": 26,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-weekly-usdt",
+      "phrase": "weekly usdt",
+      "weight": 24,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-network-scrubbing",
+      "phrase": "network scrubbing",
+      "weight": 30,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-shaving-network",
+      "phrase": "shaving network",
+      "weight": 30,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-traffic-scrubbing",
+      "phrase": "traffic scrubbing",
+      "weight": 28,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-bot-click-fraud",
+      "phrase": "bot click fraud",
+      "weight": 28,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-fake-leads-traffic",
+      "phrase": "fake leads traffic",
+      "weight": 26,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-balance-frozen",
+      "phrase": "balance frozen",
+      "weight": 26,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-network-froze",
+      "phrase": "network froze",
+      "weight": 26,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-hideclick-cloak",
+      "phrase": "hideclick",
+      "weight": 22,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-cloaking-house",
+      "phrase": "cloaking.house",
+      "weight": 22,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-fraudfilter-stack",
+      "phrase": "fraudfilter",
+      "weight": 22,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-ipqs-antifraud",
+      "phrase": "ipqualityscore",
+      "weight": 20,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-incentivized-traffic",
+      "phrase": "incentivized traffic",
+      "weight": 24,
+      "tag": "crypto-gray"
+    },
+    {
+      "id": "kw-cr-drop-deposits",
+      "phrase": "cr drop",
+      "weight": 24,
+      "tag": "crypto-gray"
     }
   ],
   "titles": [
@@ -2490,6 +2598,36 @@
       "id": "neg-sponsored-post",
       "phrase": "sponsored post",
       "weight": -10,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-best-affiliate-tracking",
+      "phrase": "best affiliate tracking software",
+      "weight": -25,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-top-picks",
+      "phrase": "top picks for",
+      "weight": -20,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-ultimate-guide",
+      "phrase": "ultimate guide to",
+      "weight": -18,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-comparison-review",
+      "phrase": "comparison review",
+      "weight": -18,
+      "tag": "negative"
+    },
+    {
+      "id": "neg-ranked-list",
+      "phrase": "ranked list",
+      "weight": -15,
       "tag": "negative"
     },
     {

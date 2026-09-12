@@ -22,6 +22,9 @@ services:
         required: false
     environment:
       TELEGRAM_REALTIME: "1"
+      TELEGRAM_REALTIME_ROLE_FILTER: ${TELEGRAM_REALTIME_ROLE_FILTER:-buyer_supergroup}
+      TELETHON_IPC_SOCKET: ${TELETHON_IPC_SOCKET:-data/runtime/telethon.sock}
+      TELETHON_IPC_FORMAT: ${TELETHON_IPC_FORMAT:-msgpack}
       MONGO_URI: ${MONGO_URI:-mongodb://127.0.0.1:27017}
     volumes:
       - ./data:/app/data

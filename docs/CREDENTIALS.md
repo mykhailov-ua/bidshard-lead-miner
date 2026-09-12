@@ -93,7 +93,17 @@ After credentials, create a session:
 docker compose run --rm -it parser telegram login --qr
 ```
 
-Session file: `data/runtime/telethon.session` (path in yaml).
+Session file: `data/runtime/telethon.session` (path in yaml). On Docker VPS the file lives in named volume `parser_runtime`, not host `./data/runtime/`.
+
+Upload an existing `.session` file (same `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` as `.env`):
+
+```bash
+# default: my_session.session or data/runtime/telethon.session
+make vps-sync-telethon-session
+SESSION_FILE=/path/to/account.session make vps-sync-telethon-session
+```
+
+Then restart: `ssh vps 'cd /opt/lead-intent-processor && docker compose restart parser'`
 
 ---
 
@@ -143,12 +153,14 @@ Atlas: [register](https://www.mongodb.com/cloud/atlas/register) -> Connect -> Dr
 
 ## CRM sidecar (`crm-bot`)
 
-HTTP sidecar + CLI. No web UI, no Telegram Bot API. Parser webhook: `POST /v1/leads` with Bearer auth.
+HTTP sidecar + CLI + optional Telegram export bot. Parser webhook: `POST /v1/leads` with Bearer auth.
 
 | Variable | Purpose |
 |----------|---------|
 | `CRM_WEBHOOK_ADDR` | Listen addr (default `127.0.0.1:8080`; bind localhost in prod) |
 | `CRM_WEBHOOK_SECRET` | Bearer token for parser only (`PARSER_CRM_WEBHOOK_SECRET`) |
+| `CRM_TELEGRAM_BOT_TOKEN` | BotFather token; enables export commands in `crm-bot run` |
+| `CRM_TELEGRAM_ALLOWED_CHAT_IDS` | Comma-separated chat ids allowed to `/export` and `/jsonl` |
 | `CRM_API_URL` | Remote CLI base URL (`https://crm.example.com`) |
 | `CRM_API_USER` / `CRM_API_PASSWORD` | Caddy basicauth for `crm-bot api` |
 | `PARSER_LEAD_STATUS_ENABLED` | Must be `true` on parser so leads get `status: new` |
@@ -160,6 +172,8 @@ make build-crm-bot
 ./bin/crm-bot config check
 ./bin/crm-bot run
 ```
+
+Telegram export (inside `crm-bot` container): `cat config/env/.env.crm-telegram.example >> .env`, set token + chat id, `docker compose up -d crm-bot`. Commands: `/stats`, `/export`, `/export new 100`, `/jsonl`.
 
 ### Remote CLI (laptop -> VPS)
 
@@ -238,6 +252,22 @@ cp .env.example .env
 docker compose run --rm parser config check
 docker compose run --rm parser scan --source=forum,reddit --output=pretty
 ```
+
+---
+
+## GitHub Actions deploy (`.github/workflows/deploy.yml`)
+
+Repository secrets for CI deploy to VPS:
+
+| Secret | Required | Notes |
+|--------|----------|-------|
+| `VPS_SSH_PRIVATE_KEY` | yes | Deploy key for `VPS_SSH_USER@VPS_SSH_HOST` |
+| `VPS_SSH_HOST` | yes | Hostname or IP |
+| `VPS_SSH_USER` | yes | Usually `root` |
+| `VPS_SSH_PORT` | recommended | **`2222`** if SSH is not on port 22 (workflow default is 2222 when unset) |
+| `VPS_REMOTE_DIR` | optional | Default `/opt/lead-intent-processor` |
+
+Local P0 deploy: `make vps-deploy-p0` (see `docs/ICP.md`). Optional overlays: `config/env/.env.crm-telegram.local`, `config/env/.env.telegram-alert.local` (gitignored).
 
 ---
 

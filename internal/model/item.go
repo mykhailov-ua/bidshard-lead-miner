@@ -15,10 +15,12 @@ type RawItem struct {
 	Username         string
 	ForumUserID      string
 	MessageID        int64
+	SenderUserID     int64
 	ReplyToMessageID int64
 	ReplyContext     string
 	ChatType         string
 	ChannelAbout     string
+	SenderBio        string
 	CrawlHTML        string
 	PostedAt         time.Time
 }
@@ -45,6 +47,9 @@ func (r RawItem) ContactTelegram() string {
 		if strings.HasPrefix(lower, "telegram:user_id:") {
 			return contact
 		}
+		if nonTelegramContactHint(lower) {
+			return ""
+		}
 		if strings.Contains(contact, "@") && !strings.HasPrefix(contact, "@") &&
 			!strings.HasPrefix(lower, "telegram:") {
 			return ""
@@ -55,6 +60,25 @@ func (r RawItem) ContactTelegram() string {
 		return normalizeTelegramContact(r.Username)
 	}
 	return ""
+}
+
+func nonTelegramContactHint(lower string) bool {
+	switch {
+	case strings.HasPrefix(lower, "domain:"),
+		strings.HasPrefix(lower, "serp:"),
+		strings.HasPrefix(lower, "jobboard:"),
+		strings.HasPrefix(lower, "github:"),
+		strings.HasPrefix(lower, "reddit:"),
+		strings.HasPrefix(lower, "discord:"),
+		strings.HasPrefix(lower, "forum:"),
+		strings.HasPrefix(lower, "warrior:"),
+		strings.HasPrefix(lower, "review:"),
+		strings.HasPrefix(lower, "email:"),
+		strings.HasPrefix(lower, "skype:"):
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeTelegramContact(v string) string {

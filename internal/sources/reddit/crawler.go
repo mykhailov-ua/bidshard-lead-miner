@@ -44,6 +44,10 @@ func NewCrawler(cfg config.Config) *Crawler {
 			"postback failing",
 			"self-hosted tracker",
 			"tracker migration",
+			"click id not found",
+			"media buying team",
+			"pay usdt tracker",
+			"keitaro too expensive",
 		}
 	}
 	maxResults := cfg.RedditMaxResults

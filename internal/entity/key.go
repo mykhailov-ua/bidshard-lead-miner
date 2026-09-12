@@ -29,8 +29,8 @@ var keyPriority = map[string]int{
 	KindDomain:          1,
 	KindForumUID:        2,
 	KindForumUser:       3,
+	KindTelegramUserID:  3,
 	KindTelegram:        4,
-	KindTelegramUserID:  4,
 	KindTelegramChannel: 5,
 }
 
@@ -72,7 +72,8 @@ func sortKeys(keys []EntityKey) {
 	}
 }
 
-func isOrgLikeName(name string) bool {
+// IsOrgLikeName filters personal two-token names from company entity keys.
+func IsOrgLikeName(name string) bool {
 	name = strings.TrimSpace(name)
 	if len(name) < 3 {
 		return false

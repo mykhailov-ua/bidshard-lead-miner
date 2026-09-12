@@ -3,6 +3,8 @@ package scoring
 import (
 	"strings"
 	"time"
+
+	"github.com/bidshard/parser/internal/validate"
 )
 
 type Priority string
@@ -44,6 +46,13 @@ func ScoreWithBoosts(reg *Registry, text *LeadText, source string, stack []strin
 	score += dispBoost
 	if rep != nil {
 		score += rep.Boost(source)
+	}
+	if validate.IsSEOMarketingCopy(text.Context, text.Title) {
+		score -= 100
+	}
+	score -= validate.ListicleScorePenalty(text.Title)
+	if validate.HasCryptoGrayBuyerSignal(combined) {
+		score += validate.CryptoGrayScoreBoost
 	}
 	if opts.TimeDecay {
 		score = ApplyTimeDecay(score, opts.PostedAt, time.Now().UTC())

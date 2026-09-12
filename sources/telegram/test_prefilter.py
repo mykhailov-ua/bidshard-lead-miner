@@ -1,6 +1,7 @@
 import unittest
 
 from sources.telegram.prefilter import (
+    channel_discover_reject,
     channel_icp_relevant,
     is_instant_drop_message,
     is_spam_message,
@@ -48,6 +49,21 @@ class PrefilterTest(unittest.TestCase):
         self.assertFalse(
             channel_icp_relevant(["VIP signal course mentorship paid tips only"])
         )
+
+    def test_channel_discover_reject(self) -> None:
+        reject, reason = channel_discover_reject("igaming_news", [])
+        self.assertTrue(reject)
+        self.assertEqual(reason, "block_handle")
+        reject, reason = channel_discover_reject("soltrending", [])
+        self.assertTrue(reject)
+        reject, _ = channel_discover_reject("randomchannel", [])
+        self.assertTrue(reject)
+        reject, _ = channel_discover_reject("voluum", [])
+        self.assertFalse(reject)
+        reject, _ = channel_discover_reject(
+            "vip_signals", ["VIP signal course mentorship paid tips only"]
+        )
+        self.assertTrue(reject)
 
     def test_job_tutorial_noise_rejected(self) -> None:
         self.assertFalse(

@@ -44,7 +44,7 @@ func ResolveKeys(in ResolveInput) []EntityKey {
 	if in.CompanyName == "" {
 		// Fall back to display/gravatar names only when they look like orgs, not personal names.
 		for _, candidate := range []string{in.GravatarName, in.DisplayName} {
-			if company := NormalizeCompany(candidate); company != "" && isOrgLikeName(candidate) {
+			if company := NormalizeCompany(candidate); company != "" && IsOrgLikeName(candidate) {
 				keys = append(keys, EntityKey{Kind: KindCompany, Value: company})
 				break
 			}
@@ -84,6 +84,10 @@ func ResolveKeys(in ResolveInput) []EntityKey {
 		case "telegram_user_id":
 			if id := strings.TrimSpace(c.Value); id != "" {
 				keys = append(keys, EntityKey{Kind: KindTelegramUserID, Value: id})
+			}
+		case "jobboard_company":
+			if company := NormalizeCompany(c.Value); company != "" {
+				keys = append(keys, EntityKey{Kind: KindCompany, Value: company})
 			}
 		}
 	}

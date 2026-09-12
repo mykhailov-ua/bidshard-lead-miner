@@ -3,6 +3,9 @@ package filter
 import "testing"
 
 func TestRejectNonBuyerContext(t *testing.T) {
+	if drop, _ := RejectNonBuyerContext("jobboard:jobs.dou.ua/tapok", "We are hiring media buyer", "Media Buyer"); drop {
+		t.Fatal("expected jobboard source to bypass job-context drop")
+	}
 	drop, reason := RejectNonBuyerContext("forum:affiliatefix", "We are hiring media buyer", "")
 	if !drop || reason == "" {
 		t.Fatalf("job post should drop: drop=%v reason=%q", drop, reason)

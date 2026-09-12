@@ -26,5 +26,8 @@ func ClientOptionsFrom(cfg config.Config) []Option {
 	if cfg.GeminiRequestTimeout > 0 {
 		opts = append(opts, WithHTTPClient(httpclient.ClientWithSharedTransport(cfg.GeminiRequestTimeout)))
 	}
+	if cfg.GeminiMaxOutputTokens > 0 {
+		opts = append(opts, WithMaxOutputTokens(cfg.GeminiMaxOutputTokens))
+	}
 	return opts
 }

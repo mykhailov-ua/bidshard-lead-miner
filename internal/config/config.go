@@ -30,6 +30,8 @@ type Config struct {
 	TelegramDryRun            bool
 	TelegramConfigPath        string
 	TelethonPython            string
+	TelethonIPCSocket         string // UDS path for Telethon->Go (empty = stdout pipe NDJSON)
+	TelethonIPCFormat         string // ndjson|msgpack (msgpack default when socket set)
 	Source                    string
 	SupplySeedPath            string
 	SupplyHostRPS             float64
@@ -38,6 +40,10 @@ type Config struct {
 	SourceRegistryPath        string
 	ForumSeedPath             string
 	ForumRegistryPath         string
+	JobboardRegistryPath      string
+	EmployerRegistryPath      string
+	EmployerReverseMaxPerRun  int
+	EmployerReverseRescanDays int
 	WebPainRegistryPath       string
 	ForumBaseURL              string
 	ForumHostAllowlist        []string
@@ -63,8 +69,13 @@ type Config struct {
 	GeoBlockCountries         []string
 	DisposableDomainsPath     string
 
+	LLMProvider           string
+	OllamaBaseURL         string
+	OllamaModel           string
+	OllamaEmbedModel      string
 	GeminiAPIKey          string
 	GeminiModel           string
+	GeminiJunkAnalyze     bool
 	GeminiAnalyzeInterval time.Duration
 	GeminiReportInterval  time.Duration
 	GeminiBatchSize       int
@@ -73,6 +84,7 @@ type Config struct {
 	GeminiTPM             int
 	GeminiEmbedRPM        int
 	GeminiMaxRetries      int
+	GeminiMaxOutputTokens int
 	GeminiRequestTimeout  time.Duration
 	ColdJunkQueueSize     int
 	ColdJunkCollection    string
@@ -113,6 +125,13 @@ type Config struct {
 	GeminiEmbedSpamMin              float64
 	GeminiLeadAnalyzeInterval       time.Duration
 	GeminiLeadBatchSize             int
+	GeminiLeadEngageBatchSize       int
+	GeminiBatchMode                 bool          // async Batch API for warm path (50% token cost, no RPM)
+	GeminiBatchFlushInterval        time.Duration // spill -> batches.create cadence
+	GeminiBatchPollInterval         time.Duration // poll in-flight batch jobs
+	GeminiBatchSpillPath            string
+	GeminiBatchEngageSpillPath      string
+	GeminiBatchStatePath            string
 	GeminiQuotaCriticalPct          int
 	GeminiQuotaHighPct              int
 	GeminiQuotaNormalPct            int
@@ -199,6 +218,7 @@ type Config struct {
 	EntityLinkSuggestInterval         time.Duration
 	HTTPWorkers                       int
 	ProxyURLs                         []string      // PARSER_PROXY_LIST; HTTP crawlers only (not Mongo/Gemini)
+	ProxyListFile                     string        // PARSER_PROXY_LIST_FILE; one proxy per line (see config/env/proxy.list)
 	ProxySources                      []string      // PARSER_PROXY_SOURCES; empty = all crawlers may use proxy
 	ProxyDailyMBCap                   int           // PARSER_PROXY_DAILY_MB_CAP; 0 = no cap
 	ProxyRPS                          float64       // PARSER_PROXY_RPS; per-proxy req/s; 0 = default 0.5
@@ -209,10 +229,13 @@ type Config struct {
 	BGWorkerEnabled                   bool
 	BGTelegramEnabled                 bool
 	BGSerpTelegramInterval            time.Duration
+	SerpTelegramDorkMax               int // PARSER_SERP_TELEGRAM_DORK_MAX; 0 = unlimited
 	BGTelegramDiscoverInterval        time.Duration
 	BGTelegramScrapeInterval          time.Duration
 	BGTelegramWebInterval             time.Duration
 	BGForumDiscoverInterval           time.Duration
+	BGForumCrawlEnabled               bool
+	BGForumCrawlInterval              time.Duration
 	BGSourceRegistrySyncInterval      time.Duration
 	BGAutoReportInterval              time.Duration
 	BGDiscordDiscoverInterval         time.Duration
@@ -239,6 +262,8 @@ type Config struct {
 	TelegramWebRescanDays             int
 	TelegramWebDomains                []string // allowlist; empty = pending queue from registry
 	ProcessorTaskTimeout              time.Duration
+	ParserAcceptMinScore              int // M8: absolute score floor for non-telegram (0=off)
+	ParserTelegramAcceptMinScore      int // M8: telegram score floor when buyer voice passed (0=off)
 }
 
 func Load() (Config, error) {
@@ -249,13 +274,14 @@ func Load() (Config, error) {
 		PollInterval:                      time.Duration(envInt("PARSER_POLL_SEC", 120)) * time.Second,
 		WorkerCount:                       envInt("PARSER_WORKERS", 4),
 		TaskBuffer:                        envInt("PARSER_TASK_BUFFER", 128),
-		SourceConcurrency:                 envInt("PARSER_SOURCE_CONCURRENCY", 3),
+		SourceConcurrency:                 envInt("PARSER_SOURCE_CONCURRENCY", 0),
 		ScanTimeout:                       envDuration("PARSER_SCAN_TIMEOUT", 5*time.Minute),
 		HTTPTimeout:                       envDuration("PARSER_HTTP_TIMEOUT", 30*time.Second),
 		ShutdownTimeout:                   envDuration("PARSER_SHUTDOWN_TIMEOUT", 120*time.Second),
 		CollectDrainTimeout:               envDuration("PARSER_COLLECT_DRAIN_TIMEOUT", 120*time.Second),
 		HTTPWorkers:                       envInt("PARSER_HTTP_WORKERS", 10),
 		ProxyURLs:                         parseCSV(env("PARSER_PROXY_LIST", "")),
+		ProxyListFile:                     env("PARSER_PROXY_LIST_FILE", ""),
 		ProxySources:                      parseCSV(strings.ToLower(env("PARSER_PROXY_SOURCES", ""))),
 		ProxyDailyMBCap:                   envInt("PARSER_PROXY_DAILY_MB_CAP", 0),
 		ProxyRPS:                          envFloat("PARSER_PROXY_RPS", 0),
@@ -280,6 +306,8 @@ func Load() (Config, error) {
 		TelegramConfigPath:                env("TELEGRAM_CONFIG_PATH", "config/sources.telegram.yaml"),
 		TelegramRealtime:                  envBool("TELEGRAM_REALTIME", false),
 		TelethonPython:                    env("PARSER_TELETHON_PYTHON", ""),
+		TelethonIPCSocket:                 env("TELETHON_IPC_SOCKET", ""),
+		TelethonIPCFormat:                 env("TELETHON_IPC_FORMAT", ""),
 		Source:                            env("PARSER_SOURCE", "all"),
 		SupplySeedPath:                    env("SUPPLY_SEED_PATH", "data/seeds/domains.csv"),
 		SupplyHostRPS:                     envFloat("SUPPLY_HOST_RPS", 2),
@@ -287,6 +315,10 @@ func Load() (Config, error) {
 		SourceRegistryPath:                env("SOURCE_REGISTRY_PATH", "data/runtime/source_registry.json"),
 		ForumSeedPath:                     env("FORUM_SEED_PATH", "data/seeds/forum_threads.csv"),
 		ForumRegistryPath:                 env("FORUM_REGISTRY_PATH", "data/runtime/discovered_forum_threads.json"),
+		JobboardRegistryPath:              env("JOBBOARD_REGISTRY_PATH", "data/runtime/discovered_job_urls.json"),
+		EmployerRegistryPath:              env("EMPLOYER_REGISTRY_PATH", "data/runtime/discovered_employers.json"),
+		EmployerReverseMaxPerRun:          envInt("EMPLOYER_REVERSE_MAX_PER_RUN", 15),
+		EmployerReverseRescanDays:         envInt("EMPLOYER_REVERSE_RESCAN_DAYS", 7),
 		WebPainRegistryPath:               env("WEB_PAIN_REGISTRY_PATH", "data/runtime/discovered_web_pain.json"),
 		ForumBaseURL:                      env("FORUM_BASE_URL", ""),
 		ForumHostAllowlist:                parseCSV(env("FORUM_HOST_ALLOWLIST", "")),
@@ -299,8 +331,13 @@ func Load() (Config, error) {
 		LanderHeadlessQueueMax:            envInt("PARSER_LANDER_HEADLESS_QUEUE_MAX", 200),
 		LanderHeadlessDrainLimit:          envInt("PARSER_LANDER_HEADLESS_DRAIN_LIMIT", 25),
 		LanderHeadlessMaxBrowsers:         envInt("PARSER_LANDER_HEADLESS_MAX_BROWSERS", 2),
+		LLMProvider:                       env("LLM_PROVIDER", "gemini"),
+		OllamaBaseURL:                     env("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
+		OllamaModel:                       env("OLLAMA_MODEL", "gemma3:12b"),
+		OllamaEmbedModel:                  env("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
 		GeminiAPIKey:                      env("GEMINI_API_KEY", ""),
 		GeminiModel:                       env("GEMINI_MODEL", "gemini-3.6-flash"),
+		GeminiJunkAnalyze:                 envBool("GEMINI_JUNK_ANALYZE", true),
 		GeminiAnalyzeInterval:             envDuration("GEMINI_ANALYZE_INTERVAL", 15*time.Minute),
 		GeminiReportInterval:              envDuration("GEMINI_REPORT_INTERVAL", 6*time.Hour),
 		GeminiBatchSize:                   envInt("GEMINI_BATCH_SIZE", 20),
@@ -309,6 +346,7 @@ func Load() (Config, error) {
 		GeminiTPM:                         envInt("GEMINI_TPM", 0),
 		GeminiEmbedRPM:                    envInt("GEMINI_EMBED_RPM", 0),
 		GeminiMaxRetries:                  envInt("GEMINI_MAX_RETRIES", 0),
+		GeminiMaxOutputTokens:             envInt("GEMINI_MAX_OUTPUT_TOKENS", 8192),
 		GeminiRequestTimeout:              envDuration("GEMINI_REQUEST_TIMEOUT", 60*time.Second),
 		ColdJunkQueueSize:                 envInt("COLD_JUNK_QUEUE_SIZE", 512),
 		ColdJunkCollection:                env("COLD_JUNK_COLLECTION", "junk_leads"),
@@ -346,7 +384,14 @@ func Load() (Config, error) {
 		GeminiEmbedPainMin:                envFloat("GEMINI_EMBED_PAIN_MIN", 0.78),
 		GeminiEmbedSpamMin:                envFloat("GEMINI_EMBED_SPAM_MIN", 0.82),
 		GeminiLeadAnalyzeInterval:         envDuration("GEMINI_LEAD_ANALYZE_INTERVAL", 5*time.Minute),
-		GeminiLeadBatchSize:               envInt("GEMINI_LEAD_BATCH_SIZE", 15),
+		GeminiLeadBatchSize:               envInt("GEMINI_LEAD_BATCH_SIZE", 12),
+		GeminiLeadEngageBatchSize:         envInt("GEMINI_LEAD_ENGAGE_BATCH_SIZE", 4),
+		GeminiBatchMode:                   envBool("GEMINI_BATCH_MODE", false),
+		GeminiBatchFlushInterval:          envDuration("GEMINI_BATCH_FLUSH_INTERVAL", 30*time.Minute),
+		GeminiBatchPollInterval:           envDuration("GEMINI_BATCH_POLL_INTERVAL", 2*time.Minute),
+		GeminiBatchSpillPath:              env("GEMINI_BATCH_SPILL_PATH", "data/runtime/gemini_batch_spill.jsonl"),
+		GeminiBatchEngageSpillPath:        env("GEMINI_BATCH_ENGAGE_SPILL_PATH", "data/runtime/gemini_batch_engage_spill.jsonl"),
+		GeminiBatchStatePath:              env("GEMINI_BATCH_STATE_PATH", "data/runtime/gemini_batch_jobs.json"),
 		GeminiQuotaCriticalPct:            envInt("GEMINI_QUOTA_CRITICAL_PCT", 20),
 		GeminiQuotaHighPct:                envInt("GEMINI_QUOTA_HIGH_PCT", 40),
 		GeminiQuotaNormalPct:              envInt("GEMINI_QUOTA_NORMAL_PCT", 25),
@@ -412,10 +457,13 @@ func Load() (Config, error) {
 		BGWorkerEnabled:                   envBool("PARSER_BG_WORKER", true),
 		BGTelegramEnabled:                 envBool("PARSER_BG_TELEGRAM", true),
 		BGSerpTelegramInterval:            time.Duration(envInt("PARSER_BG_SERP_TELEGRAM_MIN", 60)) * time.Minute,
+		SerpTelegramDorkMax:               envInt("PARSER_SERP_TELEGRAM_DORK_MAX", 24),
 		BGTelegramDiscoverInterval:        time.Duration(envInt("PARSER_BG_TELEGRAM_DISCOVER_MIN", 360)) * time.Minute,
 		BGTelegramScrapeInterval:          time.Duration(envInt("PARSER_BG_TELEGRAM_SCRAPE_MIN", 30)) * time.Minute,
 		BGTelegramWebInterval:             time.Duration(envInt("PARSER_BG_TELEGRAM_WEB_MIN", 120)) * time.Minute,
 		BGForumDiscoverInterval:           envDuration("PARSER_BG_FORUM_DISCOVER_INTERVAL", 12*time.Hour),
+		BGForumCrawlEnabled:               envBool("PARSER_BG_FORUM_CRAWL", true),
+		BGForumCrawlInterval:              envDuration("PARSER_BG_FORUM_CRAWL_INTERVAL", 6*time.Hour),
 		BGSourceRegistrySyncInterval:      time.Duration(envInt("PARSER_BG_SOURCE_REGISTRY_SYNC_MIN", 30)) * time.Minute,
 		BGAutoReportInterval:              envDuration("PARSER_BG_AUTO_REPORT_INTERVAL", 7*24*time.Hour),
 		BGDiscordDiscoverInterval:         envDuration("PARSER_BG_DISCORD_DISCOVER_INTERVAL", 24*time.Hour),
@@ -442,6 +490,8 @@ func Load() (Config, error) {
 		TelegramWebRescanDays:             envInt("TELEGRAM_WEB_RESCAN_DAYS", 30),
 		TelegramWebDomains:                parseCSV(env("TELEGRAM_WEB_DOMAINS", "")),
 		ProcessorTaskTimeout:              envDuration("PARSER_TASK_TIMEOUT", 90*time.Second),
+		ParserAcceptMinScore:              envInt("PARSER_ACCEPT_MIN_SCORE", 70),
+		ParserTelegramAcceptMinScore:      envInt("PARSER_TELEGRAM_ACCEPT_MIN_SCORE", 50),
 		WarriorSeedPath:                   env("WARRIOR_SEED_PATH", "data/seeds/warrior_threads.csv"),
 		WarriorHostRPS:                    envFloat("WARRIOR_HOST_RPS", 1),
 		KeywordStatsCollection:            env("KEYWORD_STATS_COLLECTION", "keyword_stats"),
@@ -474,6 +524,14 @@ func Load() (Config, error) {
 
 	applyComplianceDefaults(&cfg)
 	applyProxyDefaults(&cfg)
+
+	if len(cfg.ProxyURLs) == 0 && strings.TrimSpace(cfg.ProxyListFile) != "" {
+		fromFile, err := LoadProxyURLsFromFile(cfg.ProxyListFile)
+		if err != nil {
+			return Config{}, fmt.Errorf("PARSER_PROXY_LIST_FILE: %w", err)
+		}
+		cfg.ProxyURLs = fromFile
+	}
 
 	if err := ValidateProxyURLs(cfg.ProxyURLs); err != nil {
 		return Config{}, fmt.Errorf("PARSER_PROXY_LIST: %w", err)

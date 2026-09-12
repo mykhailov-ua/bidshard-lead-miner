@@ -19,12 +19,17 @@ import (
 // This handler only validates JSON shape and auth; it does not write again.
 const maxBodyBytes = 64 << 10
 
-type Handler struct {
-	secret string
+type LeadNotifier interface {
+	NotifyLead(ctx context.Context, doc sink.LeadDoc)
 }
 
-func NewHandler(secret string) *Handler {
-	return &Handler{secret: strings.TrimSpace(secret)}
+type Handler struct {
+	secret string
+	notify LeadNotifier
+}
+
+func NewHandler(secret string, notify LeadNotifier) *Handler {
+	return &Handler{secret: strings.TrimSpace(secret), notify: notify}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -36,9 +41,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	if _, err := decodeLeadDoc(w, r); err != nil {
+	doc, err := decodeLeadDoc(w, r)
+	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
+	}
+	if h.notify != nil {
+		h.notify.NotifyLead(r.Context(), doc)
 	}
 	crmmetrics.IncWebhookAccepted()
 	w.WriteHeader(http.StatusAccepted)
@@ -89,9 +98,9 @@ type Server struct {
 
 // NewMux serves parser webhook ingest and /v1/admin/* CRM API on one listener.
 // Admin routes have no in-process auth; Caddy basicauth sits in front on VPS.
-func NewMux(webhookSecret string, leadStore *store.LeadStore, explainer admin.LeadExplainer) http.Handler {
+func NewMux(webhookSecret string, leadStore *store.LeadStore, explainer admin.LeadExplainer, notify LeadNotifier) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/v1/leads", NewHandler(webhookSecret))
+	mux.Handle("/v1/leads", NewHandler(webhookSecret, notify))
 	if leadStore != nil {
 		mux.Handle("/v1/admin/", admin.NewHandler(leadStore, explainer))
 	}

@@ -26,6 +26,16 @@ func TestFilterJunkContactsDropsCSS(t *testing.T) {
 	}
 }
 
+func TestIsFalseTelegramHandleSerpDomain(t *testing.T) {
+	t.Parallel()
+	if !IsFalseTelegramHandle("@serp:www.redtrack.io") {
+		t.Fatal("expected domain-shaped serp handle to be false")
+	}
+	if !IsSyntheticContact("telegram:@serp:www.redtrack.io") {
+		t.Fatal("expected synthetic serp contact")
+	}
+}
+
 func TestIsFalseTelegramHandle(t *testing.T) {
 	t.Parallel()
 	if !IsFalseTelegramHandle("@github") {

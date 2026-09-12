@@ -153,18 +153,24 @@ func recordRoundReject(stats *RoundState, reason string) {
 		stats.RejectedIntent.Add(1)
 	case "lang":
 		stats.RejectedLang.Add(1)
-	case "context":
+	case "context", "author_seller":
 		stats.RejectedContext.Add(1)
+	case "instant_drop":
+		stats.HardRejected.Add(1)
 	case "contact":
 		stats.RejectedContact.Add(1)
 	case "no_contacts":
 		stats.RejectedNoContacts.Add(1)
+	case "no_reachable_contact":
+		stats.RejectedNoReachableContact.Add(1)
 	case "email_no_context":
 		stats.RejectedEmailNoContext.Add(1)
 	case "role_email":
 		stats.RejectedRoleEmail.Add(1)
 	case "empty_hash":
 		stats.RejectedEmptyHash.Add(1)
+	case "store_error":
+		stats.RejectedStore.Add(1)
 	default:
 		stats.Dropped.Add(1)
 		reason = "dropped"

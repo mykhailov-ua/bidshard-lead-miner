@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Stream VPS docker logs. Install: make install-lead-tail
+set -euo pipefail
+
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)/../lib/lead_cli_root.sh"
+
+ROOT="$(lead_cli_require_root lead-logs)" || exit 1
+# shellcheck disable=SC1091
+source "$ROOT/scripts/lib/lead_logs.sh"
+lead_logs_from_vps "$ROOT" -f --tail 100 "$@"

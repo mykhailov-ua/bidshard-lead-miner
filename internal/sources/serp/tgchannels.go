@@ -2,12 +2,14 @@ package serp
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/bidshard/parser/internal/extract"
+	"github.com/bidshard/parser/internal/filter"
 	"github.com/bidshard/parser/internal/metrics"
 )
 
@@ -54,8 +56,14 @@ func appendTelegramChannelDiscoveries(path string, dork string, results []SERPRe
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	added := 0
+	skipped := 0
 	for _, u := range handles {
 		u = strings.ToLower(strings.TrimPrefix(u, "@"))
+		if reject, reason := filter.TelegramDiscoverReject(u, dork); reject {
+			skipped++
+			slog.Debug("serp channel triage skip", "username", u, "reason", reason, "dork", dork)
+			continue
+		}
 		if _, ok := seenUser[u]; ok {
 			continue
 		}
@@ -83,6 +91,9 @@ func appendTelegramChannelDiscoveries(path string, dork string, results []SERPRe
 	}
 	if added > 0 {
 		metrics.RecordSourcesDiscovered("telegram", added)
+	}
+	if skipped > 0 {
+		slog.Debug("serp channel triage finished", "skipped", skipped, "added", added, "dork", dork)
 	}
 
 	return writeTGChannelFile(path, existing)

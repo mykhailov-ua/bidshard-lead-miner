@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,10 +11,34 @@ from .crossmention import discover_cross_mentions
 from .domains import append_domains
 from .geo_heuristic import channel_geo_reject
 from .invites import discover_invite_hashes
-from .prefilter import channel_icp_relevant
+from .prefilter import channel_discover_reject, channel_icp_relevant
 from .telethon_retry import call_with_flood_wait, is_flood_wait
 
 LOG = logging.getLogger("telegram.discover")
+
+
+def load_employer_tg_queries(path: str | Path) -> list[str]:
+    p = Path(path)
+    if not p.exists():
+        return []
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        LOG.warning("employer tg query file unreadable path=%s error=%s", p, exc)
+        return []
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for entry in data.get("queries", []):
+        name = str(entry.get("name", "")).strip()
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(name)
+    return out
 
 
 def load_serp_entries(path: str | Path) -> list[ChatConfig]:
@@ -32,7 +57,17 @@ def load_serp_entries(path: str | Path) -> list[ChatConfig]:
         username = str(entry.get("username", "")).strip().lstrip("@").lower()
         invite_hash = str(entry.get("invite_hash", "")).strip()
         title = str(entry.get("title", username or invite_hash or "channel"))
-        if channel_geo_reject([title, str(entry.get("query", ""))]):
+        query = str(entry.get("query", ""))
+        if channel_geo_reject([title, query]):
+            continue
+        reject, reason = channel_discover_reject(username, [title, query])
+        if reject:
+            LOG.debug(
+                "serp registry skip username=%s invite=%s reason=%s",
+                username,
+                invite_hash,
+                reason,
+            )
             continue
         chat = ChatConfig(
             name=title,
@@ -124,11 +159,23 @@ def merge_chat_lists(
 ) -> list[ChatConfig]:
     by_key: dict[str, ChatConfig] = {}
     for chat in discovered:
-        by_key[chat.channel_key()] = chat
-    # Manual entries override discovered duplicates (curated channels win).
+        if chat.enabled:
+            by_key[chat.channel_key()] = chat
+    # Manual entries override discovered duplicates; enabled:false drops registry noise.
     for chat in manual:
-        by_key[chat.channel_key()] = chat
+        key = chat.channel_key()
+        if chat.enabled:
+            by_key[key] = chat
+        else:
+            by_key.pop(key, None)
     return list(by_key.values())
+
+
+def sync_manual_curation(manual: list[ChatConfig], store: Any) -> None:
+    """Persist yaml curation (roles via re-upsert; disables via enabled flag)."""
+    for chat in manual:
+        store.upsert_channel(chat, "manual")
+        store.set_channel_enabled(chat.channel_key(), chat.enabled)
 
 
 async def run_discover(
@@ -146,17 +193,32 @@ async def run_discover(
         if invite_hashes:
             discovered.extend(await discover_invite_hashes(client, invite_hashes))
 
-    if discover.enabled and discover.queries:
+    queries = list(discover.queries)
+    if discover.employer_tg_queries_path:
+        employer_queries = load_employer_tg_queries(discover.employer_tg_queries_path)
+        if employer_queries:
+            LOG.info(
+                "employer tg queries loaded count=%d path=%s",
+                len(employer_queries),
+                discover.employer_tg_queries_path,
+            )
+            queries.extend(employer_queries)
+    if os.environ.get("TELEGRAM_DISCOVER_SKIP_SEARCH", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    ):
+        queries = []
+    if discover.enabled and queries:
         discovered.extend(
             await discover_via_search(
-                client, discover.queries, discover.limit_per_query
+                client, queries, discover.limit_per_query
             )
         )
 
     for chat in discovered:
         store.upsert_channel(chat, "discover")
-    for chat in manual:
-        store.upsert_channel(chat, "manual")
+    sync_manual_curation(manual, store)
 
     cross_new: list[ChatConfig] = []
     cross_forward: list[ChatConfig] = []
@@ -172,6 +234,7 @@ async def run_discover(
             seeds,
             discover.cross_mention,
             known_keys,
+            store,
         )
         for seed in seeds:
             store.mark_cross_mention_scanned(seed.channel_key())

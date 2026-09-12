@@ -3,21 +3,28 @@ package gemini
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 )
 
+// ErrOutputTruncated is returned when Gemini stops with finishReason MAX_TOKENS (truncated JSON).
+var ErrOutputTruncated = errors.New("gemini: output truncated (MAX_TOKENS)")
+
 const defaultBaseURL = "https://generativelanguage.googleapis.com/v1beta"
 
 type Client struct {
-	apiKey     string
-	model      string
-	baseURL    string
-	httpClient *http.Client
-	limits     ModelLimits
-	limiter    *QuotaLimiter
+	apiKey           string
+	model            string
+	baseURL          string
+	provider         string
+	ollamaEmbedModel string
+	httpClient       *http.Client
+	limits           ModelLimits
+	limiter          *QuotaLimiter
+	maxOutputTokens  int
 }
 
 type Option func(*Client)
@@ -37,6 +44,11 @@ func WithLimitConfig(cfg LimitConfig) Option {
 	}
 }
 
+// WithMaxOutputTokens sets generateContent maxOutputTokens (0 = API default).
+func WithMaxOutputTokens(n int) Option {
+	return func(cl *Client) { cl.maxOutputTokens = n }
+}
+
 func NewClient(apiKey, model string, opts ...Option) (*Client, error) {
 	apiKey = strings.TrimSpace(apiKey)
 	if apiKey == "" {
@@ -50,6 +62,7 @@ func NewClient(apiKey, model string, opts ...Option) (*Client, error) {
 		apiKey:     apiKey,
 		model:      model,
 		baseURL:    defaultBaseURL,
+		provider:   LLMProviderGemini,
 		httpClient: &http.Client{Timeout: 60 * time.Second},
 		limits:     lc.ModelLimits,
 		limiter:    NewQuotaLimiter(lc),
@@ -98,6 +111,7 @@ type part struct {
 type generationConfig struct {
 	ResponseMIMEType string         `json:"responseMimeType"`
 	ResponseSchema   map[string]any `json:"responseSchema"`
+	MaxOutputTokens  int            `json:"maxOutputTokens,omitempty"`
 }
 
 type generateResponse struct {
@@ -107,6 +121,7 @@ type generateResponse struct {
 				Text string `json:"text"`
 			} `json:"parts"`
 		} `json:"content"`
+		FinishReason string `json:"finishReason"`
 	} `json:"candidates"`
 	Error *apiError `json:"error"`
 }
@@ -118,12 +133,19 @@ type apiError struct {
 }
 
 func (c *Client) generateJSON(ctx context.Context, priority Priority, systemPrompt, userPrompt string, schema map[string]any) ([]byte, error) {
+	if c != nil && c.provider == LLMProviderOllama {
+		return c.generateOllamaJSON(ctx, priority, systemPrompt, userPrompt, schema)
+	}
+	genCfg := generationConfig{
+		ResponseMIMEType: "application/json",
+		ResponseSchema:   schema,
+	}
+	if c.maxOutputTokens > 0 {
+		genCfg.MaxOutputTokens = c.maxOutputTokens
+	}
 	body := generateRequest{
-		Contents: []content{{Parts: []part{{Text: userPrompt}}}},
-		GenerationConfig: generationConfig{
-			ResponseMIMEType: "application/json",
-			ResponseSchema:   schema,
-		},
+		Contents:         []content{{Parts: []part{{Text: userPrompt}}}},
+		GenerationConfig: genCfg,
 	}
 	if systemPrompt != "" {
 		body.SystemInstruction = &content{Parts: []part{{Text: systemPrompt}}}
@@ -151,7 +173,11 @@ func (c *Client) generateJSON(ctx context.Context, priority Priority, systemProm
 	if len(parsed.Candidates) == 0 || len(parsed.Candidates[0].Content.Parts) == 0 {
 		return nil, fmt.Errorf("gemini: empty response")
 	}
-	text := strings.TrimSpace(parsed.Candidates[0].Content.Parts[0].Text)
+	cand := parsed.Candidates[0]
+	if reason := strings.ToUpper(strings.TrimSpace(cand.FinishReason)); reason == "MAX_TOKENS" {
+		return nil, ErrOutputTruncated
+	}
+	text := strings.TrimSpace(cand.Content.Parts[0].Text)
 	if text == "" {
 		return nil, fmt.Errorf("gemini: empty text")
 	}

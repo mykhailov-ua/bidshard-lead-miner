@@ -13,7 +13,7 @@ func CollectPriorityFamily(family string) int {
 	switch strings.ToLower(strings.TrimSpace(family)) {
 	case "reddit", "forum", "reviews":
 		return CollectPriorityHigh
-	case "supply", "serp", "discord":
+	case "supply", "serp", "discord", "jobboard":
 		return CollectPriorityMedium
 	case "lander", "github", "webpain":
 		return CollectPriorityLow
@@ -28,7 +28,7 @@ func CollectPriority(source string) int {
 	switch {
 	case strings.HasPrefix(source, "reddit:"), strings.HasPrefix(source, "forum:"), strings.HasPrefix(source, "reviews:"):
 		return CollectPriorityHigh
-	case strings.HasPrefix(source, "supply:"), strings.HasPrefix(source, "ads_txt:"), strings.HasPrefix(source, "serp:"), strings.HasPrefix(source, "discord:"):
+	case strings.HasPrefix(source, "supply:"), strings.HasPrefix(source, "ads_txt:"), strings.HasPrefix(source, "serp:"), strings.HasPrefix(source, "discord:"), strings.HasPrefix(source, "jobboard:"):
 		return CollectPriorityMedium
 	case strings.HasPrefix(source, "webpain:"), strings.HasPrefix(source, "github:"), strings.HasPrefix(source, "lander:"):
 		return CollectPriorityLow

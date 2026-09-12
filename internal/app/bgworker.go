@@ -22,41 +22,22 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 		return
 	}
 
-	jobs := []bgworker.Job{
-		{
-			Name:          "serp_telegram_catalog",
-			Interval:      cfg.BGSerpTelegramInterval,
+	jobs := serpHarvestBackgroundJobs(cfg)
+
+	if cfg.BGForumCrawlEnabled {
+		jobs = append(jobs, bgworker.Job{
+			Name:          "forum_crawl",
+			Interval:      cfg.BGForumCrawlInterval,
+			InitialDelay:  5 * time.Minute,
 			SkipIfRunning: true,
 			Run: func(ctx context.Context) error {
-				return serp.RunBGHarvest(ctx, cfg, "serp_telegram_catalog", func(ctx context.Context) error {
-					return serp.NewCrawler(cfg, nil).HarvestTelegramCatalog(ctx)
-				})
+				return runForumCrawlOnce(ctx, cfg, deps)
 			},
-		},
-		{
-			Name:          "serp_forum_threads",
-			Interval:      cfg.BGForumDiscoverInterval,
-			SkipIfRunning: true,
-			Run: func(ctx context.Context) error {
-				return serp.RunBGHarvest(ctx, cfg, "serp_forum_threads", func(ctx context.Context) error {
-					return serp.NewCrawler(cfg, nil).HarvestForumThreads(ctx, cfg.ForumRegistryPath)
-				})
-			},
-		},
-		{
-			Name:          "serp_web_pain_catalog",
-			Interval:      cfg.BGForumDiscoverInterval,
-			SkipIfRunning: true,
-			Run: func(ctx context.Context) error {
-				return serp.RunBGHarvest(ctx, cfg, "serp_web_pain_catalog", func(ctx context.Context) error {
-					return serp.NewCrawler(cfg, nil).HarvestWebPainCatalog(ctx, cfg.WebPainRegistryPath, domaincascade.Config{
-						RegistryPath:        cfg.SourceRegistryPath,
-						TelegramDomainsPath: cfg.TelegramDomainsPath,
-					})
-				})
-			},
-		},
-		{
+		})
+	}
+
+	jobs = append(jobs,
+		bgworker.Job{
 			Name:          "domain_cascade_registry",
 			Interval:      cfg.BGSourceRegistrySyncInterval,
 			SkipIfRunning: true,
@@ -73,7 +54,7 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 				return err
 			},
 		},
-		{
+		bgworker.Job{
 			Name:          "source_registry_sync",
 			Interval:      cfg.BGSourceRegistrySyncInterval,
 			SkipIfRunning: true,
@@ -82,7 +63,7 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 				return err
 			},
 		},
-	}
+	)
 
 	if cfg.BGTelegramEnabled && cfg.TelegramAPIHash != "" && cfg.TelegramAPIID > 0 {
 		jobs = append(jobs,

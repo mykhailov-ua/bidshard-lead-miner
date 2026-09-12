@@ -38,6 +38,12 @@ func GeoComplianceErrors(cfg Config, prodProfile bool) []string {
 	}
 	var out []string
 	if cfg.GeminiAPIKey == "" {
+		if rawCRMWithoutGeminiOK(cfg) {
+			if !cfg.ParserLeadStatusEnabled {
+				out = append(out, "PARSER_CRM_WEBHOOK active but PARSER_LEAD_STATUS_ENABLED=false - CRM inbox needs status=new")
+			}
+			return out
+		}
 		out = append(out, "PARSER_CRM_WEBHOOK active but GEMINI_API_KEY empty - enable geo classify or disable webhook")
 		return out
 	}
@@ -59,4 +65,9 @@ func GeoComplianceErrors(cfg Config, prodProfile bool) []string {
 
 func crmWebhookActive(cfg Config) bool {
 	return cfg.CRMWebhookEnabled || strings.TrimSpace(cfg.CRMWebhookURL) != ""
+}
+
+// rawCRMWithoutGeminiOK: defer off, hot-path geo.Filter on GeoBlockCountries; Gemini intentionally disabled.
+func rawCRMWithoutGeminiOK(cfg Config) bool {
+	return !cfg.ParserGeminiDefer && len(cfg.GeoBlockCountries) > 0
 }

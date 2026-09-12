@@ -194,6 +194,56 @@ TRACKER_PAIN_HINTS = (
     "s2s",
 )
 
+# M11 crypto-gray ICP: payout + infra + antifraud pain (see docs/ICP.md).
+CRYPTO_PAYOUT_HINTS = (
+    "trc20",
+    "erc20",
+    "usdt",
+    "crypto payout",
+    "crypto settlement",
+    "weekly usdt",
+    "daily usdt",
+    "no kyc",
+    "capitalist",
+    " pst",
+    "pst ",
+)
+
+INFRA_STACK_HINTS = (
+    "keitaro",
+    "binom",
+    "zeustrack",
+    "hideclick",
+    "cloaking.house",
+    "cloaking house",
+    "fraudfilter",
+    "js fingerprint",
+    "maxmind",
+    "ipqualityscore",
+    "ipqs",
+    "voluum",
+    "redtrack",
+    "clickflare",
+    "bemob",
+)
+
+ANTIFRAUD_PAIN_HINTS = (
+    "shaving",
+    "scrubbing",
+    "bot click",
+    "fake lead",
+    "fake leads",
+    "auto-fill",
+    "autofill",
+    "trash deposit",
+    "cr drop",
+    "incentivized traffic",
+    "fraudulent traffic",
+    "balance frozen",
+    "network froze",
+    "network frozen",
+)
+
 CHANNEL_SPAM_HINTS = (
     "signal",
     "signals",
@@ -208,11 +258,59 @@ CHANNEL_POSITIVE_HINTS = (
     "affiliate",
     "igaming",
     "media buy",
+    "mediabuy",
+    "media_buy",
+    "mediabuying",
     "arbitrage",
     "tracker",
     "acquisition",
     "performance marketing",
     "cpa",
+    "keitaro",
+    "binom",
+    "voluum",
+    "redtrack",
+    "clickflare",
+    "buyer",
+    "postback",
+    "s2s",
+    "clickid",
+    "ftd",
+    "cloak",
+)
+
+# Keep aligned with internal/filter/telegram_discover.go.
+CHANNEL_DISCOVER_BLOCK_HANDLES = frozenset(
+    {
+        "igaming_news",
+        "partnerkin_job",
+        "affiliatechannel_igaming",
+        "partneroff_pro",
+        "soltrending",
+        "pumpspy",
+        "pumpalert",
+        "cryptopumpsignals",
+        "moonshotgems",
+    }
+)
+
+CHANNEL_DISCOVER_BLOCK_SUBSTRINGS = (
+    "_news",
+    "_jobs",
+    "_job_",
+    "jobboard",
+    "job_board",
+    "vacancy",
+    "partnerkin",
+    "soltrending",
+    "pumpspy",
+    "pumpalert",
+    "cryptopump",
+    "moonshot",
+    "gemsalert",
+    "migrationspam",
+    "migrate2us",
+    "usdtairdrop",
 )
 
 JOB_HINTS = (
@@ -296,6 +394,31 @@ def has_tracker_pain_signal(text: str) -> bool:
     return any(hint in body for hint in TRACKER_PAIN_HINTS)
 
 
+def has_crypto_payout_signal(text: str) -> bool:
+    body = _lower(text)
+    return any(hint in body for hint in CRYPTO_PAYOUT_HINTS)
+
+
+def has_infra_stack_signal(text: str) -> bool:
+    body = _lower(text)
+    return any(hint in body for hint in INFRA_STACK_HINTS)
+
+
+def has_antifraud_pain_signal(text: str) -> bool:
+    body = _lower(text)
+    return any(hint in body for hint in ANTIFRAUD_PAIN_HINTS)
+
+
+def has_crypto_gray_icp_signal(text: str) -> bool:
+    """(infra or tracker) AND (crypto payout OR antifraud pain)."""
+    if not (text or "").strip():
+        return False
+    infra = has_infra_stack_signal(text) or has_tracker_pain_signal(text)
+    if not infra:
+        return False
+    return has_crypto_payout_signal(text) or has_antifraud_pain_signal(text)
+
+
 def has_substance(text: str) -> bool:
     stripped = _EMAIL_RE.sub(" ", text)
     stripped = re.sub(r"(?:telegram:)?@[a-zA-Z][a-zA-Z0-9_]{3,}", " ", stripped)
@@ -373,3 +496,32 @@ def channel_icp_relevant(texts: list[str]) -> bool:
     if spam_hits >= 2 and pos_hits == 0:
         return False
     return pos_hits > 0 or has_pain_signal(blob)
+
+
+def channel_discover_reject(username: str, texts: list[str] | None = None) -> tuple[bool, str]:
+    """Reject discovered channels before registry/chats. Mirrors Go TelegramDiscoverReject."""
+    if not prefilter_enabled():
+        return False, ""
+    user = username.strip().lstrip("@").lower()
+    parts = [user] if user else []
+    if texts:
+        for text in texts:
+            body = str(text).strip()
+            if body:
+                parts.append(body.lower())
+    blob = " ".join(parts).strip()
+    if not blob:
+        return True, "empty"
+    if user:
+        if user in CHANNEL_DISCOVER_BLOCK_HANDLES:
+            return True, "block_handle"
+        for sub in CHANNEL_DISCOVER_BLOCK_SUBSTRINGS:
+            if sub in user:
+                return True, "block_username"
+    spam_hits = sum(1 for h in CHANNEL_SPAM_HINTS if h in blob)
+    pos_hits = sum(1 for h in CHANNEL_POSITIVE_HINTS if h in blob)
+    if spam_hits >= 2 and pos_hits == 0:
+        return True, "spam_channel"
+    if pos_hits == 0 and not has_pain_signal(blob):
+        return True, "intel_only"
+    return False, ""

@@ -107,6 +107,15 @@ class CursorStoreTest(unittest.TestCase):
             self.assertFalse(store.can_global_search(2))
             store.close()
 
+    def test_global_search_daily_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = CursorStore(Path(tmp) / "crawler.db")
+            self.assertTrue(store.can_global_search_daily(3))
+            store.record_global_search(3)
+            self.assertFalse(store.can_global_search_daily(3))
+            self.assertEqual(store.global_search_count_today(), 3)
+            store.close()
+
     def test_intel_deprioritize_interval(self) -> None:
         chat = ChatConfig(name="Partner Jobs", username="partneroff_pro", geo="global")
         with tempfile.TemporaryDirectory() as tmp:

@@ -6,7 +6,12 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from sources.telegram.config import ChatConfig, load_config
-from sources.telegram.discover import discover_via_search, load_serp_entries, merge_chat_lists
+from sources.telegram.discover import (
+    discover_via_search,
+    load_employer_tg_queries,
+    load_serp_entries,
+    merge_chat_lists,
+)
 
 
 def _telethon_missing() -> bool:
@@ -18,6 +23,23 @@ def _telethon_missing() -> bool:
 
 
 class DiscoverTest(unittest.TestCase):
+    def test_load_employer_tg_queries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "employer_tg_queries.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "queries": [
+                            {"name": "TapOK", "normalized": "tapok"},
+                            {"name": "TapOK"},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            got = load_employer_tg_queries(path)
+            self.assertEqual(got, ["TapOK"])
+
     def test_load_serp_entries(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "channels.json"
@@ -25,9 +47,17 @@ class DiscoverTest(unittest.TestCase):
                 json.dumps(
                     {
                         "channels": [
-                            {"username": "Aff_Lead"},
-                            {"invite_hash": "AbCdEfGhIjKlMn"},
+                            {
+                                "username": "Aff_Lead",
+                                "title": "Affiliate media buying leads",
+                                "query": "voluum tracker",
+                            },
+                            {
+                                "invite_hash": "AbCdEfGhIjKlMn",
+                                "title": "Igaming affiliate tracker chat",
+                            },
                             {"username": "aff_lead"},
+                            {"username": "igaming_news"},
                         ]
                     }
                 ),
@@ -37,6 +67,7 @@ class DiscoverTest(unittest.TestCase):
             keys = {c.channel_key() for c in got}
             self.assertIn("u:aff_lead", keys)
             self.assertIn("i:AbCdEfGhIjKlMn", keys)
+            self.assertNotIn("u:igaming_news", keys)
 
     def test_merge_prefers_manual_geo(self) -> None:
         manual = [ChatConfig(name="m", username="foo", geo="eu")]
@@ -44,6 +75,14 @@ class DiscoverTest(unittest.TestCase):
         merged = merge_chat_lists(manual, discovered)
         self.assertEqual(len(merged), 1)
         self.assertEqual(merged[0].geo, "eu")
+
+    def test_merge_manual_disable_drops_discovered(self) -> None:
+        manual = [
+            ChatConfig(name="off", username="noise", geo="global", enabled=False)
+        ]
+        discovered = [ChatConfig(name="noise", username="noise", geo="global")]
+        merged = merge_chat_lists(manual, discovered)
+        self.assertEqual(merged, [])
 
     def test_discover_defaults_in_config(self) -> None:
         yaml_text = """

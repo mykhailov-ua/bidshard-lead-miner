@@ -57,11 +57,16 @@ async def scrape_discussion_messages(
 
     emitted = 0
 
+    from .history_chunk import iter_messages_chunked
+
     async def _iter() -> None:
         nonlocal emitted
-        async for message in client.iter_messages(discussion_entity, limit=message_limit):
-            if message.id <= last_id:
-                break
+        async for message in iter_messages_chunked(
+            client,
+            discussion_entity,
+            total_limit=message_limit,
+            stop_before_id=last_id,
+        ):
             if await on_message(message):
                 emitted += 1
 

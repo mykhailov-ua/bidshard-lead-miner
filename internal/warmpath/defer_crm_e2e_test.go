@@ -19,7 +19,7 @@ type stubLeadBatchAnalyzer struct {
 	respond func(items []gemini.LeadBatchInput) ([]gemini.LeadBatchResult, error)
 }
 
-func (s *stubLeadBatchAnalyzer) AnalyzeLeadBatch(_ context.Context, items []gemini.LeadBatchInput, _ bool) ([]gemini.LeadBatchResult, error) {
+func (s *stubLeadBatchAnalyzer) AnalyzeLeadBatchOpts(_ context.Context, items []gemini.LeadBatchInput, _ gemini.LeadBatchOptions) ([]gemini.LeadBatchResult, error) {
 	if s.respond == nil {
 		return nil, nil
 	}

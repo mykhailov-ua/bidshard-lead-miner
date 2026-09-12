@@ -7,7 +7,10 @@ from unittest.mock import AsyncMock, patch
 
 from sources.telegram.config import ChatConfig
 from sources.telegram.cursor import CursorStore
-from sources.telegram.join_policy import resolve_invite_entity
+from sources.telegram.join_policy import (
+    invite_join_daily_limit,
+    resolve_invite_entity,
+)
 
 
 def _telethon_missing() -> bool:
@@ -101,6 +104,56 @@ class JoinPolicyTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(calls), 2)
         self.assertIsInstance(calls[1], ImportChatInviteRequest)
         self.assertTrue(store.can_invite_join(3))
+
+    def test_default_daily_limit_is_two(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(invite_join_daily_limit(), 2)
+
+    async def test_join_skipped_when_not_icp(self) -> None:
+        from telethon.tl.functions.messages import CheckChatInviteRequest
+
+        chat = ChatConfig(name="signals", invite_hash="badhash", geo="global")
+        checked = SimpleNamespace(title="VIP signal course mentorship paid tips")
+
+        async def fake_client(req: object) -> object:
+            if isinstance(req, CheckChatInviteRequest):
+                return checked
+            raise AssertionError("ImportChatInviteRequest must not be called")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = CursorStore(Path(tmp) / "crawler.db")
+            try:
+                with patch.dict(os.environ, {"TELEGRAM_INVITE_JOIN": "1"}, clear=False):
+                    with self.assertRaises(ValueError):
+                        await resolve_invite_entity(fake_client, chat, store)
+            finally:
+                store.close()
+
+    async def test_join_skipped_at_daily_limit(self) -> None:
+        from telethon.tl.functions.messages import CheckChatInviteRequest
+
+        chat = ChatConfig(name="aff chat", invite_hash="limithash", geo="global")
+        checked = SimpleNamespace(title="Igaming affiliate media buying tracker")
+
+        async def fake_client(req: object) -> object:
+            if isinstance(req, CheckChatInviteRequest):
+                return checked
+            raise AssertionError("unexpected request")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = CursorStore(Path(tmp) / "crawler.db")
+            store.record_invite_join()
+            store.record_invite_join()
+            try:
+                with patch.dict(
+                    os.environ,
+                    {"TELEGRAM_INVITE_JOIN": "1", "TELEGRAM_INVITE_JOIN_LIMIT": "2"},
+                    clear=False,
+                ):
+                    with self.assertRaises(ValueError):
+                        await resolve_invite_entity(fake_client, chat, store)
+            finally:
+                store.close()
 
 
 if __name__ == "__main__":

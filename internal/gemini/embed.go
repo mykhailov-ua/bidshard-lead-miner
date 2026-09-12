@@ -30,6 +30,9 @@ type embedResponse struct {
 }
 
 func (c *Client) EmbedText(ctx context.Context, text string) ([]float32, error) {
+	if c != nil && c.provider == LLMProviderOllama {
+		return c.embedOllamaText(ctx, pretty.Truncate(text, 1500))
+	}
 	body := embedRequest{
 		Model:                "models/" + defaultEmbedModel,
 		Content:              embedContent{Parts: []part{{Text: pretty.Truncate(text, 1500)}}},

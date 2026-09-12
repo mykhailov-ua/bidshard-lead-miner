@@ -36,7 +36,7 @@ jobs:
           VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
         run: |
           test -n "$VPS_SSH_HOST" || { echo "missing secret VPS_SSH_HOST"; exit 1; }
-          port="${VPS_SSH_PORT:-22}"
+          port="${VPS_SSH_PORT:-2222}"
           ssh-keyscan -p "$port" -H "$VPS_SSH_HOST" >> ~/.ssh/known_hosts
 
       - name: Rsync and docker compose up

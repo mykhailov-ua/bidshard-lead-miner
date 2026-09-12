@@ -4,8 +4,10 @@ import logging
 from typing import Any
 
 from .config import ChatConfig, CrossMentionConfig
+from .cursor import CursorStore
 from .domains import RegistryEntry
 from .invites import discover_invite_hashes
+from .join_policy import try_join_invite_seed
 from .message_text import combined_message_text
 from .prefilter import channel_icp_relevant
 from .telethon_retry import call_with_flood_wait, is_flood_wait
@@ -14,7 +16,9 @@ from .tglinks import extract_from_texts, web_domains
 LOG = logging.getLogger("telegram.crossmention")
 
 
-async def resolve_seed_entity(client: Any, chat: ChatConfig) -> Any | None:
+async def resolve_seed_entity(
+    client: Any, chat: ChatConfig, store: CursorStore | None = None
+) -> Any | None:
     from telethon.tl.functions.messages import CheckChatInviteRequest
 
     try:
@@ -38,6 +42,10 @@ async def resolve_seed_entity(client: Any, chat: ChatConfig) -> Any | None:
             )
             if checked is not None and getattr(checked, "chat", None) is not None:
                 return checked.chat
+            if checked is not None and store is not None:
+                joined = await try_join_invite_seed(client, chat, store, checked)
+                if joined is not None:
+                    return joined
     except Exception as exc:
         if is_flood_wait(exc):
             LOG.warning(
@@ -239,6 +247,7 @@ async def discover_cross_mentions(
     seeds: list[ChatConfig],
     cfg: CrossMentionConfig,
     known_keys: set[str],
+    store: CursorStore | None = None,
 ) -> tuple[list[ChatConfig], list[ChatConfig], list[RegistryEntry]]:
     """Return (text-discovered channels, forward-chased channels, domain registry rows)."""
     if not cfg.enabled or not seeds:
@@ -256,7 +265,7 @@ async def discover_cross_mentions(
 
     scanned = 0
     for seed in seeds:
-        entity = await resolve_seed_entity(client, seed)
+        entity = await resolve_seed_entity(client, seed, store)
         if entity is None:
             continue
 

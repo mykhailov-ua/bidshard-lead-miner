@@ -122,7 +122,9 @@ func (c *Coordinator) runRound(
 	state := &pipeline.RoundState{}
 
 	g, gctx := errgroup.WithContext(roundCtx)
-	g.SetLimit(c.cfg.SourceConcurrency)
+	if limit := effectiveSourceConcurrency(c.cfg.SourceConcurrency); limit > 0 {
+		g.SetLimit(limit)
+	}
 
 	for _, src := range c.sources {
 		src := src
@@ -187,10 +189,12 @@ func (c *Coordinator) runRound(
 		"rejected_context", stats.RejectedContext,
 		"rejected_contact", stats.RejectedContact,
 		"rejected_no_contacts", stats.RejectedNoContacts,
+		"rejected_no_reachable_contact", stats.RejectedNoReachableContact,
 		"rejected_email_no_context", stats.RejectedEmailNoContext,
 		"rejected_role_email", stats.RejectedRoleEmail,
 		"rejected_empty_hash", stats.RejectedEmptyHash,
 		"rejected_mx", stats.RejectedMX,
+		"rejected_store", stats.RejectedStore,
 		"top_reject_reasons", pipeline.TopRejectReasons(stats, 3),
 	)
 }
@@ -230,6 +234,15 @@ func (c *Coordinator) ActiveRoundCancel() context.CancelFunc {
 		return nil
 	}
 	return c.activeRound.cancel
+}
+
+// effectiveSourceConcurrency returns 0 for unlimited (one goroutine per source).
+// Positive values cap parallel Collect calls via errgroup.SetLimit.
+func effectiveSourceConcurrency(cfg int) int {
+	if cfg <= 0 {
+		return 0
+	}
+	return cfg
 }
 
 func newRoundID() string {

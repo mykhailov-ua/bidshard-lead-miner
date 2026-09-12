@@ -11,9 +11,7 @@ func TestApplyProxyDefaultsScopesWhenUnset(t *testing.T) {
 		t.Fatalf("sources=%v", cfg.ProxySources)
 	}
 	if !cfg.ProxyEnabledForSource("serp") {
-		// ok
-	} else {
-		t.Fatal("serp should not use proxy with default scope")
+		t.Fatal("serp should use proxy with default scope")
 	}
 	if !cfg.ProxyEnabledForSource("forum") {
 		t.Fatal("forum should use proxy with default scope")

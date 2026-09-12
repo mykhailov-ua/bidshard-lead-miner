@@ -130,7 +130,36 @@ func TestProcessorAcceptsForumRegistryKeywordPain(t *testing.T) {
 		MX:       validate.StubMX{OK: true},
 	}
 
-	// Phrase matches keywords.json; legacy forum HasPainSignal did not include it.
+	// Phrase matches keywords.json; forum accepts require forum_user handle (M6).
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:   "forum:affiliatefix.com/redtrack-switch",
+			Raw:      "Need redtrack alternative before renewal. ops@igaming-team.com",
+			Contact:  "forum:user/buyer_red",
+			Username: "buyer_red",
+		},
+	})
+	if !out.Accepted {
+		t.Fatalf("expected accept via keyword prescan, outcome=%+v", out)
+	}
+}
+
+func TestProcessorRejectsForumWithoutForumUser(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	proc := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
 	out := proc.Process(context.Background(), Task{
 		RoundID: "r1",
 		Item: model.RawItem{
@@ -139,8 +168,40 @@ func TestProcessorAcceptsForumRegistryKeywordPain(t *testing.T) {
 			Contact: "ops@igaming-team.com",
 		},
 	})
+	if out.Accepted {
+		t.Fatal("expected reject without forum_user contact")
+	}
+	if out.RejectReason != "forum_no_user_contact" {
+		t.Fatalf("reject_reason=%q want forum_no_user_contact", out.RejectReason)
+	}
+}
+
+func TestProcessorAcceptsForumWithForumUserContact(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	proc := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:   "forum:affiliatefix.com/voluum-thread",
+			Raw:      "voluum alternative postback failing on renewal. ops@igaming-team.com",
+			Contact:  "forum:user/media_buyer",
+			Username: "media_buyer",
+		},
+	})
 	if !out.Accepted {
-		t.Fatalf("expected accept via keyword prescan, outcome=%+v", out)
+		t.Fatalf("expected accept with forum_user, outcome=%+v", out)
 	}
 }
 
@@ -163,9 +224,10 @@ func TestProcessorRejectsMissingMX(t *testing.T) {
 	out := proc.Process(context.Background(), Task{
 		RoundID: "r1",
 		Item: model.RawItem{
-			Source:  "forum:affiliatefix.com/redtrack-switch",
-			Raw:     "Need redtrack alternative before renewal. ops@igaming-team.com",
-			Contact: "ops@igaming-team.com",
+			Source:   "forum:affiliatefix.com/redtrack-switch",
+			Raw:      "Need redtrack alternative before renewal. ops@igaming-team.com",
+			Contact:  "forum:user/buyer_red",
+			Username: "buyer_red",
 		},
 	})
 	if out.Accepted {
@@ -598,16 +660,15 @@ func TestProcessorRejectsLinkedIn(t *testing.T) {
 	}
 }
 
-func TestProcessorAcceptsDomainContact(t *testing.T) {
+func TestProcessorRejectsDomainOnlyContact(t *testing.T) {
 	t.Parallel()
 
 	reg := scoring.NewRegistry("../../testdata/keywords.json")
 	_ = reg.Load(context.Background())
 
-	store := sink.NewStubStore()
 	proc := &Processor{
 		Registry: reg,
-		Store:    store,
+		Store:    sink.NewStubStore(),
 		MX:       validate.StubMX{OK: true},
 	}
 
@@ -619,11 +680,39 @@ func TestProcessorAcceptsDomainContact(t *testing.T) {
 			Contact: "domain:buyer-team.com",
 		},
 	})
-	if !out.Accepted {
-		t.Fatalf("expected domain contact accepted, outcome=%+v", out)
+	if out.Accepted {
+		t.Fatal("expected domain-only reject")
 	}
-	if out.Lead.HashID == "" {
-		t.Fatal("expected hash_id")
+	if out.RejectReason != "no_reachable_contact" {
+		t.Fatalf("reason=%q want no_reachable_contact", out.RejectReason)
+	}
+}
+
+func TestProcessorRejectsJobboardCompanySeed(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	_ = reg.Load(context.Background())
+
+	proc := &Processor{
+		Registry: reg,
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "jobboard:company/tapok",
+			Raw:     "keitaro gambling media buyer postback failing",
+			Contact: "jobboard:company/tapok",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected jobboard company seed reject")
+	}
+	if out.RejectReason != "no_reachable_contact" {
+		t.Fatalf("reason=%q want no_reachable_contact", out.RejectReason)
 	}
 }
 

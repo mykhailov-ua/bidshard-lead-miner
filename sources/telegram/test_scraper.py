@@ -12,7 +12,7 @@ from sources.telegram.scraper import emit_line, fetch_reply_context, process_scr
 
 
 class ConfigTest(unittest.TestCase):
-    def test_excludes_ru_and_disabled(self) -> None:
+    def test_excludes_ru_keeps_disabled_for_curation(self) -> None:
         yaml_text = """
 chats:
   - name: latam
@@ -32,8 +32,10 @@ chats:
             f.write(yaml_text)
             path = f.name
         cfg = load_config(path)
-        usernames = {c.username for c in cfg.chats}
-        self.assertEqual(usernames, {"latam_chat"})
+        by_user = {c.username: c for c in cfg.chats}
+        self.assertTrue(by_user["latam_chat"].enabled)
+        self.assertFalse(by_user["off_chat"].enabled)
+        self.assertNotIn("arb_rf", by_user)
 
 
 class CursorStoreTest(unittest.TestCase):

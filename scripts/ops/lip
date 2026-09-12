@@ -21,14 +21,16 @@ lip - lead-intent-processor VPS helper
 
 Commands:
   deploy [--sync-only]     rsync repo to VPS and docker compose up
-  logs [-f] [--tail N]     parser container logs (default tail 50)
+  logs [-f] [--tail N] [--service S]  docker logs (default parser, tail 50)
   ps                       docker compose ps on VPS
   stats                    crm-bot db stats (Mongo lead counts)
   export [path]            pull data/export/leads.jsonl from VPS
+  tail                     stream new accepted leads from VPS JSONL export
   check                    remote parser config check
   backup                   remote make backup
   ssh [cmd...]             SSH to VPS (shell if no cmd)
-  install-shell            append source line to ~/.zshrc
+  install-shell            append lip aliases to ~/.zshrc
+  install-lead-tail        symlink lead-tail into ~/.local/bin
 
 Config: config/env/.env.vps-deploy.local (see .env.vps-deploy.example)
 EOF
@@ -51,24 +53,9 @@ cmd_deploy() {
 }
 
 cmd_logs() {
-	local follow=0 tail_n=50
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-		-f | --follow) follow=1; shift ;;
-		--tail)
-			tail_n="${2:?--tail needs a number}"
-			shift 2
-			;;
-		-h | --help) usage; exit 0 ;;
-		*) printf 'lip logs: unknown arg %s\n' "$1" >&2; exit 2 ;;
-		esac
-	done
-	vps_load_config "$ROOT"
-	if [[ "$follow" == 1 ]]; then
-		vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose logs -f --tail=${tail_n} parser"
-	else
-		vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose logs --tail=${tail_n} parser"
-	fi
+	# shellcheck disable=SC1091
+	source "$ROOT/scripts/lib/lead_logs.sh"
+	lead_logs_from_vps "$ROOT" "$@"
 }
 
 cmd_ps() {
@@ -87,6 +74,12 @@ cmd_export() {
 	vps_rsync_pull_export "$ROOT" "$dest"
 	printf 'lip export: %s\n' "$dest"
 	wc -l "$dest" 2>/dev/null || true
+}
+
+cmd_tail() {
+	# shellcheck disable=SC1091
+	source "$ROOT/scripts/lib/lead_tail.sh"
+	lead_tail_from_vps "$ROOT" "$@"
 }
 
 cmd_check() {
@@ -114,11 +107,16 @@ cmd_install_shell() {
 	local rc="${HOME}/.zshrc"
 	if [[ -f "$rc" ]] && grep -Fq "lip-aliases.sh" "$rc" 2>/dev/null; then
 		printf 'lip install-shell: already in %s\n' "$rc"
-		exit 0
+	else
+		printf '\n# lead-intent-processor VPS CLI\n%s\n' "$line" >>"$rc"
+		printf 'lip install-shell: appended to %s\n' "$rc"
 	fi
-	printf '\n# lead-intent-processor VPS CLI\n%s\n' "$line" >>"$rc"
-	printf 'lip install-shell: appended to %s\n' "$rc"
-	printf 'Run: source %s\n' "$rc"
+	bash "$ROOT/scripts/ops/install-lead-tail.sh"
+	printf 'lip install-shell: run: source %s && lead-tail\n' "$rc"
+}
+
+cmd_install_lead_tail() {
+	bash "$ROOT/scripts/ops/install-lead-tail.sh"
 }
 
 main() {
@@ -130,10 +128,12 @@ main() {
 	ps) cmd_ps ;;
 	stats) cmd_stats ;;
 	export) cmd_export "$@" ;;
+	tail) cmd_tail "$@" ;;
 	check) cmd_check ;;
 	backup) cmd_backup ;;
 	ssh) cmd_ssh "$@" ;;
 	install-shell) cmd_install_shell ;;
+	install-lead-tail) cmd_install_lead_tail ;;
 	"" | -h | --help) usage ;;
 	*)
 		printf 'lip: unknown command %s\n' "$cmd" >&2

@@ -8,12 +8,9 @@ import (
 	"github.com/bidshard/parser/internal/telethon"
 )
 
-// ValidateTelethonForRun fails fast when telegram bg jobs are enabled but session is missing.
+// ValidateTelethonForRun fails fast when a run will start Telethon but session is missing.
 func ValidateTelethonForRun(cfg config.Config) error {
-	if !cfg.BGTelegramEnabled {
-		return nil
-	}
-	if cfg.TelegramAPIID == 0 || cfg.TelegramAPIHash == "" {
+	if !telethonRequiredForRun(cfg) {
 		return nil
 	}
 	sessionPath := telethon.SessionPath(cfg.TelegramConfigPath)
@@ -24,4 +21,18 @@ func ValidateTelethonForRun(cfg config.Config) error {
 		return fmt.Errorf("telethon session %s: %w", sessionPath, err)
 	}
 	return nil
+}
+
+func telethonRequiredForRun(cfg config.Config) bool {
+	if cfg.TelegramRealtime || cfg.TelegramSidecar {
+		return cfg.TelegramAPIID != 0 && cfg.TelegramAPIHash != ""
+	}
+	if !cfg.BGTelegramEnabled || cfg.TelegramAPIID == 0 || cfg.TelegramAPIHash == "" {
+		return false
+	}
+	// BG telegram jobs are not started on scan-once or when bg worker is off.
+	if cfg.ScanOnce || !cfg.BGWorkerEnabled {
+		return false
+	}
+	return true
 }

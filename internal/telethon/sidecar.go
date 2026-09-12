@@ -22,6 +22,8 @@ type Options struct {
 	LoginFresh   bool
 	DiscoverOnly bool
 	Realtime     bool
+	IPCSocket    string // TELETHON_IPC_SOCKET; when set Python writes MessagePack frames to UDS
+	IPCFormat    string // TELETHON_IPC_FORMAT: ndjson|msgpack
 	ExtraEnv     []string
 }
 
@@ -110,6 +112,78 @@ func RunDiscover(ctx context.Context, opts Options) error {
 	})
 }
 
+// HistoryExportOptions configures M5 historical pain mining export.
+type HistoryExportOptions struct {
+	ConfigPath string
+	PythonBin  string
+	WorkDir    string
+	Since      string
+	Out        string
+	Format     string
+	RoleFilter string
+	Relax      bool
+}
+
+func RunHistoryExport(ctx context.Context, opts HistoryExportOptions) error {
+	if opts.ConfigPath == "" {
+		opts.ConfigPath = "config/sources.telegram.yaml"
+	}
+	if strings.TrimSpace(opts.Since) == "" {
+		return fmt.Errorf("telethon history export: --since required")
+	}
+	if strings.TrimSpace(opts.Out) == "" {
+		opts.Out = "data/export/tg_history_pain.ndjson"
+	}
+	if strings.TrimSpace(opts.Format) == "" {
+		opts.Format = "ndjson"
+	}
+	if strings.TrimSpace(opts.RoleFilter) == "" {
+		opts.RoleFilter = "buyer_supergroup"
+	}
+	return runWithSessionLock(opts.ConfigPath, func() error {
+		if opts.WorkDir == "" {
+			wd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			opts.WorkDir = wd
+		}
+		workDir, err := filepath.Abs(opts.WorkDir)
+		if err != nil {
+			return err
+		}
+		workDir, err = resolveRepoRoot(workDir)
+		if err != nil {
+			return err
+		}
+		if opts.PythonBin == "" {
+			opts.PythonBin = defaultPythonBin(workDir)
+		}
+
+		args := []string{
+			"-m", "sources.telegram.history_export",
+			"--config", opts.ConfigPath,
+			"--since", opts.Since,
+			"--out", opts.Out,
+			"--format", opts.Format,
+			"--role-filter", opts.RoleFilter,
+		}
+		if opts.Relax {
+			args = append(args, "--relax")
+		}
+		cmd := exec.CommandContext(ctx, opts.PythonBin, args...)
+		cmd.Dir = workDir
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Env = buildEnv(workDir, nil)
+
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("telethon history export: %w", err)
+		}
+		return nil
+	})
+}
+
 func RunExportRegistry(ctx context.Context, opts Options) error {
 	if opts.ConfigPath == "" {
 		opts.ConfigPath = "config/sources.telegram.yaml"
@@ -185,9 +259,11 @@ func Run(ctx context.Context, opts Options, stdout io.Writer) error {
 
 		cmd := exec.CommandContext(ctx, opts.PythonBin, args...)
 		cmd.Dir = opts.WorkDir
-		cmd.Stdout = stdout
+		if stdout != nil {
+			cmd.Stdout = stdout
+		}
 		cmd.Stderr = os.Stderr
-		cmd.Env = buildEnv(opts.WorkDir, opts.ExtraEnv)
+		cmd.Env = buildEnv(opts.WorkDir, appendIPCEnv(opts, opts.ExtraEnv))
 		// Put sidecar in its own process group so cancel kills the whole Python tree.
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
@@ -231,6 +307,17 @@ func defaultPythonBin(workDir string) string {
 		return venv
 	}
 	return "python3"
+}
+
+func appendIPCEnv(opts Options, extra []string) []string {
+	out := append([]string(nil), extra...)
+	if socket := strings.TrimSpace(opts.IPCSocket); socket != "" {
+		out = append(out, "TELETHON_IPC_SOCKET="+socket)
+	}
+	if format := strings.TrimSpace(opts.IPCFormat); format != "" {
+		out = append(out, "TELETHON_IPC_FORMAT="+format)
+	}
+	return out
 }
 
 func buildEnv(workDir string, extra []string) []string {

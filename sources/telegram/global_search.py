@@ -1,7 +1,9 @@
 """Optional global pain search during scrape round (not discover).
 
 TELEGRAM_GLOBAL_SEARCH=1 runs iter_messages(None, search=...) before channel loop.
-Hourly query budget in telegram_runtime (TELEGRAM_GLOBAL_SEARCH_LIMIT, default 5/hour UTC).
+Hourly query budget in telegram_runtime (TELEGRAM_GLOBAL_SEARCH_LIMIT, default 3/hour UTC).
+Daily cap (TELEGRAM_GLOBAL_SEARCH_DAILY_LIMIT, default 3/day UTC).
+Night window only (TELEGRAM_GLOBAL_SEARCH_UTC_HOURS, default 2-6 UTC).
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ import json
 import logging
 import os
 import re
+from datetime import datetime, timezone
 from typing import Any, TextIO
 
 from .config import ScraperConfig
@@ -31,11 +34,56 @@ def global_search_enabled() -> bool:
 
 
 def global_search_hourly_limit() -> int:
-    raw = os.environ.get("TELEGRAM_GLOBAL_SEARCH_LIMIT", "5").strip()
+    raw = os.environ.get("TELEGRAM_GLOBAL_SEARCH_LIMIT", "3").strip()
     try:
         return max(0, int(raw))
     except ValueError:
-        return 5
+        return 3
+
+
+def global_search_daily_limit() -> int:
+    raw = os.environ.get("TELEGRAM_GLOBAL_SEARCH_DAILY_LIMIT", "3").strip()
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 3
+
+
+def parse_utc_hours_window(raw: str) -> frozenset[int]:
+    """Parse hour spec: '2-6' or '2,3,4' or '2-6,14'. Returns UTC hours 0-23."""
+    hours: set[int] = set()
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            start_s, end_s = part.split("-", 1)
+            start = int(start_s.strip()) % 24
+            end = int(end_s.strip()) % 24
+            if start <= end:
+                hours.update(range(start, end + 1))
+            else:
+                hours.update(range(start, 24))
+                hours.update(range(0, end + 1))
+        else:
+            hours.add(int(part) % 24)
+    return frozenset(hours)
+
+
+def global_search_utc_hours_raw() -> str:
+    return os.environ.get("TELEGRAM_GLOBAL_SEARCH_UTC_HOURS", "2-6").strip()
+
+
+def in_global_search_window(now: datetime | None = None) -> bool:
+    raw = global_search_utc_hours_raw()
+    if not raw or raw.lower() in ("*", "all"):
+        return True
+    allowed = parse_utc_hours_window(raw)
+    if not allowed:
+        return False
+    if now is None:
+        now = datetime.now(timezone.utc)
+    return now.hour in allowed
 
 
 def _slug_query(query: str) -> str:
@@ -51,15 +99,24 @@ async def run_global_search(
 ) -> int:
     if not global_search_enabled():
         return 0
+    if not in_global_search_window():
+        LOG.info("global_search_skipped_window")
+        return 0
     terms = cfg.global_search.terms
     if not terms:
         return 0
-    limit = global_search_hourly_limit()
-    if not store.can_global_search(limit):
+    hourly_limit = global_search_hourly_limit()
+    daily_limit = global_search_daily_limit()
+    if not store.can_global_search(hourly_limit):
         LOG.info("global search skipped hourly budget exhausted")
         return 0
+    if not store.can_global_search_daily(daily_limit):
+        LOG.info("global_search_skipped_daily_cap")
+        return 0
 
-    remaining = limit - store.global_search_count_this_hour()
+    hourly_remaining = hourly_limit - store.global_search_count_this_hour()
+    daily_remaining = daily_limit - store.global_search_count_today()
+    remaining = min(hourly_remaining, daily_remaining)
     if remaining <= 0:
         return 0
 
@@ -105,8 +162,9 @@ async def run_global_search(
                     payload["reply_to_message_id"] = int(
                         message.reply_to.reply_to_msg_id
                     )
-                out.write(json.dumps(payload, ensure_ascii=False) + "\n")
-                out.flush()
+                from .ipc import emit_payload
+
+                emit_payload(out, payload)
                 count += 1
             return count
 

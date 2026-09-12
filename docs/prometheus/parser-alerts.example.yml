@@ -85,3 +85,48 @@ groups:
         annotations:
           summary: Daily proxy egress cap reached
           description: CF proxy sources skipped until UTC midnight; raise PARSER_PROXY_DAILY_MB_CAP or wait for reset.
+
+      - alert: ParserProxyCooldownStorm
+        expr: sum(increase(parser_proxy_cooldown_wait_total[15m])) > 30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Proxy pool in cooldown storm
+          description: CF 403/503 or transport failures; forum/tgweb crawl starved. Check proxy quality and PARSER_PROXY_DAILY_MB_CAP.
+
+      - alert: ParserProxyCFBlockSpike
+        expr: sum(increase(parser_proxy_cf_block_total[15m])) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Many proxy endpoints blocked by Cloudflare
+          description: Rotate proxy list or reduce CF source concurrency; see proxy_budget.json state.
+
+      - alert: ParserTelethonSidecarFailed
+        expr: increase(parser_telethon_sidecar_failed_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Telethon sidecar exited with error
+          description: Check TELEGRAM_API_ID/HASH, session file, FloodWait; bg telegram scrape may be down.
+
+      - alert: ParserSerpHarvestFailed
+        expr: increase(parser_serp_harvest_failed_total[1h]) > 5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: SERP harvest failures (DDG throttle or network)
+          description: discover serp / buyer-discover may not fill forum/jobboard registries.
+
+      - alert: ParserInstantDropSpike
+        expr: increase(parser_processor_reject_total{reason="instant_drop"}[1h]) > 100
+        for: 30m
+        labels:
+          severity: info
+        annotations:
+          summary: High instant_drop reject rate
+          description: Seller spam volume in telegram/forum; expected on public channels. Compare accepted/intent ratio via icp-soak-report.

@@ -154,7 +154,7 @@ type stubAnalyzer struct {
 	failN int
 }
 
-func (a *stubAnalyzer) AnalyzeLeadBatch(_ context.Context, items []gemini.LeadBatchInput, _ bool) ([]gemini.LeadBatchResult, error) {
+func (a *stubAnalyzer) AnalyzeLeadBatchOpts(_ context.Context, items []gemini.LeadBatchInput, _ gemini.LeadBatchOptions) ([]gemini.LeadBatchResult, error) {
 	a.calls++
 	if a.calls <= a.failN {
 		return nil, ErrWarmAnalysisExhausted

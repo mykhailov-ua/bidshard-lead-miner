@@ -33,9 +33,18 @@ type Config struct {
 	PendingStaleAge         time.Duration // WARM_ANALYSIS_PENDING_STALE; min age of analysis_status=pending
 	ShutdownDrainTimeout    time.Duration // WARM_ANALYSIS_SHUTDOWN_DRAIN; flush budget after ctx cancel
 	EngageMediumEnabled     bool          // PARSER_GEMINI_ENGAGE_MEDIUM: lite outreach_angle for Medium+warm entity
+	EngageBatchSize         int           // GEMINI_LEAD_ENGAGE_BATCH_SIZE; High-only engage pass chunk
 	TimeDecayEnabled        bool          // PARSER_TIME_DECAY on warm score refresh
 	ChannelTriageEnabled    bool
 	ChannelTriage           telethon.ChannelTriageConfig
+	BatchMode               bool // GEMINI_BATCH_MODE: spill to JSONL + async Batch API (core pass only)
+	BatchFlushInterval      time.Duration
+	BatchPollInterval       time.Duration
+	BatchSpillPath          string
+	BatchEngageSpillPath    string
+	BatchStatePath          string
+	BatchEngageEnabled      bool
+	BatchEnrichEnabled      bool
 }
 
 // ServiceExtras wires optional Mongo pending scan, DLQ, embed prescan, cluster, junk insert.
@@ -60,6 +69,7 @@ type Service struct {
 	cluster        LeadClusterer
 	junk           WarmJunkInserter
 	engageMedium   MediumEngager
+	batchWorker    *BatchWorker
 
 	mu     sync.Mutex
 	buffer []Event
@@ -76,7 +86,7 @@ func NewService(cfg Config, capturer *Capturer, patcher sink.LeadAnalysisPatcher
 	if len(cfg.GeoBlockCountries) == 0 {
 		cfg.GeoBlockCountries = []string{"RU", "BY"}
 	}
-	return &Service{
+	svc := &Service{
 		cfg:            cfg,
 		capturer:       capturer,
 		patcher:        patcher,
@@ -90,6 +100,22 @@ func NewService(cfg Config, capturer *Capturer, patcher sink.LeadAnalysisPatcher
 		engageMedium:   extras.EngageMedium,
 		buffer:         make([]Event, 0, cfg.BatchSize*2),
 	}
+	if cfg.BatchMode && analyzer != nil {
+		if gc, ok := analyzer.(*gemini.Client); ok {
+			spill := NewBatchSpill(cfg.BatchSpillPath)
+			svc.batchWorker = NewBatchWorker(gc, spill, BatchWorkerConfig{
+				FlushInterval:   cfg.BatchFlushInterval,
+				PollInterval:    cfg.BatchPollInterval,
+				SpillPath:       cfg.BatchSpillPath,
+				EngageSpillPath: cfg.BatchEngageSpillPath,
+				StatePath:       cfg.BatchStatePath,
+				EngageEnabled:   cfg.BatchEngageEnabled,
+				EnrichEnabled:   cfg.BatchEnrichEnabled,
+				EngageBatchSize: cfg.EngageBatchSize,
+			}, svc)
+		}
+	}
+	return svc
 }
 
 func (s *Service) Run(ctx context.Context, wg *sync.WaitGroup) {
@@ -104,11 +130,15 @@ func (s *Service) run(ctx context.Context) {
 		"analyze_interval", s.cfg.AnalyzeInterval,
 		"batch_size", s.cfg.BatchSize,
 		"retry_max", s.cfg.RetryMaxAttempts,
+		"batch_mode", s.cfg.BatchMode,
 	)
 
 	var wg sync.WaitGroup
 	worker.Run(ctx, &wg, s.ingestLoop)
 	worker.Run(ctx, &wg, s.analyzeLoop)
+	if s.batchWorker != nil {
+		s.batchWorker.Run(ctx, &wg)
+	}
 	wg.Wait()
 }
 
@@ -183,6 +213,15 @@ func (s *Service) processBatch(ctx context.Context, batch []Event) {
 	if len(batch) == 0 {
 		return
 	}
+	if s.batchWorker != nil {
+		if err := s.batchWorker.Spill(batch, s.cfg.GeoClassifyEnabled); err != nil {
+			slog.Warn("warm path batch spill failed", "count", len(batch), "error", err)
+			s.requeueFront(batch)
+		} else {
+			slog.Debug("warm path batch spilled", "count", len(batch))
+		}
+		return
+	}
 	inputs := make([]gemini.LeadBatchInput, 0, len(batch))
 	byID := make(map[string]Event, len(batch))
 	for _, ev := range batch {
@@ -211,7 +250,12 @@ func (s *Service) processBatch(ctx context.Context, batch []Event) {
 	}
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		results, err := s.analyzer.AnalyzeLeadBatch(ctx, inputs, s.cfg.GeoClassifyEnabled)
+		results, err := s.analyzer.AnalyzeLeadBatchOpts(ctx, inputs, gemini.LeadBatchOptions{
+			GeoClassify:     s.cfg.GeoClassifyEnabled,
+			Engage:          s.cfg.EngageEnabled,
+			Enrich:          s.cfg.EnrichEnabled,
+			EngageBatchSize: s.cfg.EngageBatchSize,
+		})
 		if err == nil {
 			highMin := highMinFromReg(s.registry)
 			for _, res := range results {
@@ -331,6 +375,14 @@ func (s *Service) enqueueDedupe(events []Event) int {
 }
 
 func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatchResult, highMin int) {
+	s.applyResultFinalize(ctx, ev, res, highMin, true)
+}
+
+func (s *Service) applyResultPending(ctx context.Context, ev Event, res gemini.LeadBatchResult, highMin int) {
+	s.applyResultFinalize(ctx, ev, res, highMin, false)
+}
+
+func (s *Service) applyResultFinalize(ctx context.Context, ev Event, res gemini.LeadBatchResult, highMin int, finalize bool) {
 	// Apply deferred Gemini policy: geo hard-reject -> ICP reject only at Low -> hot bump -> pilot/enrich at High.
 	blocked := s.cfg.GeoBlockCountries
 	if s.cfg.GeoClassifyEnabled && res.Geo.ShouldReject(blocked) {
@@ -388,9 +440,13 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 		}
 	}
 
+	status := "done"
+	if !finalize {
+		status = "pending"
+	}
 	patch := sink.LeadAnalysisPatch{
 		HashID:         ev.HashID,
-		AnalysisStatus: "done",
+		AnalysisStatus: status,
 		Score:          score,
 		Priority:       string(priority),
 		ICP:            res.ICP.ICP,
@@ -407,8 +463,10 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 		patch.ContactQuality = q
 	}
 
+	engageOn := s.cfg.EngageEnabled || (finalize && s.cfg.BatchEngageEnabled)
+	enrichOn := s.cfg.EnrichEnabled || (finalize && s.cfg.BatchEnrichEnabled)
 	if s.cfg.PilotTagEnabled && priority == scoring.PriorityHigh {
-		if s.cfg.EngageEnabled {
+		if engageOn {
 			patch.PilotQualified = res.PilotQualified
 			patch.PilotWhy = res.Engagement.PilotWhy
 			patch.Tags = append([]string(nil), res.PilotTags...)
@@ -419,7 +477,7 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 		}
 	}
 
-	if s.cfg.EnrichEnabled && priority == scoring.PriorityHigh {
+	if enrichOn && priority == scoring.PriorityHigh {
 		patch.CompanyType = res.Enrichment.CompanyType
 		patch.EnrichSummary = res.Enrichment.Summary
 		patch.GeoConfidence = res.Enrichment.GeoConfidence
@@ -459,7 +517,7 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 		patch.EngagePriority = ev.EngagePriority
 	}
 
-	if s.cluster != nil && scoring.MeetsMinPriority(priority, scoring.PriorityHigh) {
+	if finalize && s.cluster != nil && scoring.MeetsMinPriority(priority, scoring.PriorityHigh) {
 		if dup, clusterOf, err := s.cluster.CheckDuplicate(ctx, ev.HashID, ev.Snippet); err != nil {
 			slog.Warn("warm lead cluster check failed", "hash_id", ev.HashID, "error", err)
 		} else if dup {
@@ -479,15 +537,33 @@ func (s *Service) applyResult(ctx context.Context, ev Event, res gemini.LeadBatc
 		return
 	}
 	// Defer-mode CRM contract: webhook only after Mongo patch succeeds and lead is not geo/icp rejected.
-	if s.cfg.CRMWebhook != nil && s.cfg.CRMWebhookAfterAnalysis {
+	if finalize && s.cfg.CRMWebhook != nil && s.cfg.CRMWebhookAfterAnalysis {
 		s.cfg.CRMWebhook.NotifyLead(leadForCRM(ev, patch))
 	}
-	if s.cluster != nil && scoring.MeetsMinPriority(priority, scoring.PriorityHigh) {
+	if finalize && s.cluster != nil && scoring.MeetsMinPriority(priority, scoring.PriorityHigh) {
 		if err := s.cluster.Record(ctx, ev.HashID, ev.Snippet); err != nil {
 			slog.Debug("warm lead cluster record failed", "hash_id", ev.HashID, "error", err)
 		}
 	}
-	slog.Debug("warm path lead analyzed", "hash_id", ev.HashID, "priority", patch.Priority, "icp", patch.ICP)
+	slog.Debug("warm path lead analyzed", "hash_id", ev.HashID, "priority", patch.Priority, "icp", patch.ICP, "finalize", finalize)
+}
+
+// computeResultPriority mirrors applyResult score/priority logic without patching.
+func (s *Service) computeResultPriority(ev Event, res gemini.LeadBatchResult, highMin int) scoring.Priority {
+	score := ev.Score
+	priority := scoring.Priority(ev.Priority)
+	if s.cfg.TimeDecayEnabled && !ev.PostedAt.IsZero() {
+		score = scoring.ApplyTimeDecay(score, ev.PostedAt, time.Now().UTC())
+		priority = scoring.PriorityFromScore(s.registry, score)
+	}
+	if s.registry != nil {
+		score, _ = gemini.ApplyICPToScore(score, res.ICP, highMin)
+		priority = scoring.PriorityFromScore(s.registry, score)
+		if res.ICP.Hot && priority == scoring.PriorityMedium {
+			priority = scoring.PriorityHigh
+		}
+	}
+	return priority
 }
 
 func highMinFromReg(reg *scoring.Registry) int {

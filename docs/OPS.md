@@ -60,7 +60,9 @@ Sidecar reads `config/sources.telegram.yaml`; channel registry is canonical in `
 | `TELEGRAM_CHANNEL_SEARCH_LIMIT` | 3 | in-channel `iter_messages(search=...)` queries per channel per day |
 | `TELEGRAM_DISCUSSION_SCRAPE` | 0 | scrape linked discussion groups (high FloodWait) |
 | `TELEGRAM_GLOBAL_SEARCH` | 0 | optional SearchGlobal pain queries at scrape start |
-| `TELEGRAM_GLOBAL_SEARCH_LIMIT` | 5 | max global search queries per UTC hour |
+| `TELEGRAM_GLOBAL_SEARCH_LIMIT` | 3 | max global search queries per UTC hour |
+| `TELEGRAM_GLOBAL_SEARCH_DAILY_LIMIT` | 3 | max global search queries per UTC day |
+| `TELEGRAM_GLOBAL_SEARCH_UTC_HOURS` | 2-6 | UTC hour window for global search (comma or range) |
 | `TELEGRAM_INVITE_JOIN` | 0 | allow `ImportChatInvite` on scrape when not already joined |
 | `TELEGRAM_INVITE_JOIN_LIMIT` | 3 | max invite joins per day when join enabled |
 | `TELEGRAM_REALTIME` | 0 | long-running `NewMessage` listener (`parser telegram realtime`) |

@@ -164,5 +164,11 @@ func envDefaultEmpty(key string) bool {
 }
 
 func precisionBundleEligible(cfg Config) bool {
-	return cfg.ParserGeminiDefer && strings.TrimSpace(cfg.GeminiAPIKey) != ""
+	if cfg.ParserGeminiDefer {
+		if strings.EqualFold(strings.TrimSpace(cfg.LLMProvider), "ollama") {
+			return strings.TrimSpace(cfg.OllamaBaseURL) != "" && strings.TrimSpace(cfg.OllamaModel) != ""
+		}
+		return strings.TrimSpace(cfg.GeminiAPIKey) != ""
+	}
+	return false
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/bidshard/parser/internal/crm/explain"
 	crmmetrics "github.com/bidshard/parser/internal/crm/metrics"
 	"github.com/bidshard/parser/internal/crm/store"
+	"github.com/bidshard/parser/internal/crm/telegrambot"
 	"github.com/bidshard/parser/internal/crm/webhook"
 	"github.com/bidshard/parser/internal/gemini"
 	"github.com/bidshard/parser/internal/sink"
@@ -61,7 +63,17 @@ func NewRuntime(ctx context.Context, cfg config.Config) (*Runtime, error) {
 		explainer = explain.New(leadStore, nil)
 	}
 
-	httpHandler := webhook.NewMux(cfg.WebhookSecret, leadStore, explainer)
+	var leadNotifier webhook.LeadNotifier
+	if cfg.TelegramLeadNotify && strings.TrimSpace(cfg.TelegramBotToken) != "" {
+		leadNotifier = telegrambot.NewLeadNotifier(
+			telegrambot.NewClient(cfg.TelegramBotToken),
+			cfg.TelegramLeadNotifyChatIDs,
+			cfg.TelegramLeadNotifyMinScore,
+			cfg.TelegramLeadNotifyMinScoreNonTelegram,
+		)
+	}
+
+	httpHandler := webhook.NewMux(cfg.WebhookSecret, leadStore, explainer, leadNotifier)
 	httpServer := webhook.NewServer(cfg.WebhookAddr, httpHandler)
 
 	return &Runtime{
@@ -81,6 +93,12 @@ func (rt *Runtime) Run(ctx context.Context, cfg config.Config) error {
 	_ = StartPprofServer(ctx, cfg.PprofAddr)
 
 	var wg sync.WaitGroup
+
+	telegrambot.Run(ctx, telegrambot.Config{
+		Token:          cfg.TelegramBotToken,
+		AllowedChatIDs: cfg.TelegramAllowedChatIDs,
+		ExportJSONPath: cfg.TelegramExportJSONPath,
+	}, rt.leadStore, &wg)
 
 	wg.Add(1)
 	go func() {
@@ -153,6 +171,9 @@ func Run(ctx context.Context, cfg config.Config) error {
 		"collection", cfg.MongoCollection,
 		"webhook_addr", cfg.WebhookAddr,
 		"metrics_addr", cfg.MetricsAddr,
+		"telegram_export", strings.TrimSpace(cfg.TelegramBotToken) != "",
+		"telegram_lead_notify", cfg.TelegramLeadNotify && len(cfg.TelegramLeadNotifyChatIDs) > 0,
+		"telegram_lead_notify_chats", len(cfg.TelegramLeadNotifyChatIDs),
 	)
 
 	err = rt.Run(ctx, cfg)

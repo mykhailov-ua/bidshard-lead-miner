@@ -1,11 +1,15 @@
 package pipeline
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"github.com/bidshard/parser/internal/dedup"
 	"github.com/bidshard/parser/internal/entity"
 	"github.com/bidshard/parser/internal/model"
+	"github.com/bidshard/parser/internal/sink"
+	"github.com/bidshard/parser/internal/validate"
 )
 
 func TestTelegramThreadTextBundlesSixMessages(t *testing.T) {
@@ -54,6 +58,59 @@ func TestTelegramThreadTextIncludesReplyContext(t *testing.T) {
 	}
 	if !strings.Contains(got, "same tracker pain here") {
 		t.Fatalf("missing message text in %q", got)
+	}
+}
+
+func TestProcessorAcceptsTelegramReplyThreadBuyer(t *testing.T) {
+	t.Parallel()
+	reg := loadTestRegistry(t)
+	store := sink.NewStubStore()
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    store,
+		MX:       validate.StubMX{OK: true},
+	}
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:           "telegram:@affiliate_igaming",
+			Raw:              "same issue here, anyone else?",
+			Username:         "buyer_mx",
+			Contact:          "telegram:@buyer_mx",
+			ReplyToMessageID: 10,
+			ReplyContext:     "need voluum alternative, postback failing on FTD",
+			ChatType:         "supergroup",
+		},
+	})
+	if !out.Accepted {
+		t.Fatalf("expected accept, reason=%q", out.RejectReason)
+	}
+}
+
+func TestProcessorRejectsTelegramReplyHelper(t *testing.T) {
+	t.Parallel()
+	reg := loadTestRegistry(t)
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:           "telegram:@affiliate_igaming",
+			Raw:              "DM me for free course on tracker setup",
+			Username:         "helper_svc",
+			Contact:          "telegram:@helper_svc",
+			ReplyToMessageID: 10,
+			ReplyContext:     "need voluum alternative, postback failing",
+			ChatType:         "supergroup",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected helper reply reject")
 	}
 }
 

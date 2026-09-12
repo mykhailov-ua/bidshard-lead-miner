@@ -50,7 +50,17 @@ class CursorStore:
             )
             """
         )
-        # telegram_runtime: invite_join_* (daily), global_search_hour:* (hourly UTC).
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_bio_cache (
+                user_id INTEGER PRIMARY KEY,
+                bio TEXT NOT NULL DEFAULT '',
+                cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        # telegram_runtime: invite_join_* (daily), global_search_day/count (daily),
+        # global_search_hour:* (hourly UTC).
         self._conn.commit()
 
     def _migrate_channels_table(self) -> None:
@@ -469,6 +479,20 @@ class CursorStore:
             return False
         return self.global_search_count_this_hour() < hourly_limit
 
+    def global_search_count_today(self) -> int:
+        today = date.today().isoformat()
+        if self._runtime_get("global_search_day") != today:
+            return 0
+        try:
+            return int(self._runtime_get("global_search_count") or "0")
+        except ValueError:
+            return 0
+
+    def can_global_search_daily(self, daily_limit: int) -> bool:
+        if daily_limit <= 0:
+            return False
+        return self.global_search_count_today() < daily_limit
+
     def global_search_count_this_hour(self) -> int:
         from datetime import datetime, timezone
 
@@ -491,6 +515,46 @@ class CursorStore:
         except ValueError:
             count = 0
         self._runtime_set(key, str(count + queries_run))
+
+        today = date.today().isoformat()
+        if self._runtime_get("global_search_day") != today:
+            self._runtime_set("global_search_day", today)
+            self._runtime_set("global_search_count", str(queries_run))
+            return
+        try:
+            daily = int(self._runtime_get("global_search_count") or "0")
+        except ValueError:
+            daily = 0
+        self._runtime_set("global_search_count", str(daily + queries_run))
+
+    def get_user_bio(self, user_id: int, ttl_days: int = 7) -> str | None:
+        row = self._conn.execute(
+            "SELECT bio, cached_at FROM user_bio_cache WHERE user_id = ?",
+            (int(user_id),),
+        ).fetchone()
+        if not row:
+            return None
+        bio, cached_at = row
+        fresh = self._conn.execute(
+            "SELECT 1 WHERE datetime(?) > datetime('now', ?)",
+            (cached_at, f"-{int(ttl_days)} days"),
+        ).fetchone()
+        if not fresh:
+            return None
+        return str(bio or "")
+
+    def set_user_bio(self, user_id: int, bio: str) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO user_bio_cache (user_id, bio, cached_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET
+                bio = excluded.bio,
+                cached_at = CURRENT_TIMESTAMP
+            """,
+            (int(user_id), bio or ""),
+        )
+        self._conn.commit()
 
     def close(self) -> None:
         self._conn.close()

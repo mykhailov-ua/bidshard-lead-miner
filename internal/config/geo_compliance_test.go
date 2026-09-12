@@ -69,3 +69,29 @@ func TestSyncGeoGateConfigured(t *testing.T) {
 		t.Fatal("expected false with defer and no sync geo")
 	}
 }
+
+func TestGeoComplianceErrorsRawCRMWithoutGemini(t *testing.T) {
+	t.Parallel()
+
+	raw := Config{
+		CRMWebhookEnabled:       true,
+		ParserGeminiDefer:       false,
+		GeoBlockCountries:       []string{"RU", "BY"},
+		ParserLeadStatusEnabled: true,
+	}
+	if errs := GeoComplianceErrors(raw, true); len(errs) != 0 {
+		t.Fatalf("expected no errors for raw CRM without Gemini, got %v", errs)
+	}
+
+	missingStatus := raw
+	missingStatus.ParserLeadStatusEnabled = false
+	if errs := GeoComplianceErrors(missingStatus, true); len(errs) != 1 {
+		t.Fatalf("expected lead status error, got %v", errs)
+	}
+
+	deferOn := raw
+	deferOn.ParserGeminiDefer = true
+	if errs := GeoComplianceErrors(deferOn, true); len(errs) != 1 {
+		t.Fatalf("expected empty key error with defer on, got %v", errs)
+	}
+}

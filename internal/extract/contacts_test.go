@@ -2,6 +2,15 @@ package extract
 
 import "testing"
 
+func TestExtractJobboardCompanyHint(t *testing.T) {
+	t.Parallel()
+
+	got := Extract("keitaro gambling media buyer", "jobboard:company/tapok")
+	if len(got.Contacts) != 1 || got.Contacts[0].Type != "jobboard_company" {
+		t.Fatalf("contacts=%v", got.Contacts)
+	}
+}
+
 func TestExtractForumUserHint(t *testing.T) {
 	t.Parallel()
 
@@ -116,6 +125,48 @@ func TestExtractSkipsCSSTelegramHandles(t *testing.T) {
 		if c.Type == "telegram" {
 			t.Fatalf("unexpected telegram contact %q", c.Value)
 		}
+	}
+}
+
+func TestHasReachableContact(t *testing.T) {
+	t.Parallel()
+
+	if !HasReachableContact([]Contact{{Type: "email", Value: "ops@team.com"}}) {
+		t.Fatal("email should be reachable")
+	}
+	if HasReachableContact([]Contact{{Type: "domain", Value: "buyer-team.com"}}) {
+		t.Fatal("domain-only should not be reachable")
+	}
+	if HasReachableContact([]Contact{{Type: "jobboard_company", Value: "tapok"}}) {
+		t.Fatal("jobboard company seed should not be reachable")
+	}
+}
+
+func TestIntelOnlyContacts(t *testing.T) {
+	t.Parallel()
+
+	if !IntelOnlyContacts([]Contact{
+		{Type: "jobboard_company", Value: "tapok"},
+		{Type: "domain", Value: "buyer-team.com"},
+	}) {
+		t.Fatal("expected intel-only")
+	}
+	if IntelOnlyContacts([]Contact{
+		{Type: "jobboard_company", Value: "tapok"},
+		{Type: "email", Value: "ops@team.com"},
+	}) {
+		t.Fatal("email should break intel-only")
+	}
+}
+
+func TestHasEnrichableIdentity(t *testing.T) {
+	t.Parallel()
+
+	if !HasEnrichableIdentity([]Contact{{Type: "forum_user", Value: "media_buyer"}}) {
+		t.Fatal("forum_user should be enrichable")
+	}
+	if HasEnrichableIdentity([]Contact{{Type: "domain", Value: "buyer-team.com"}}) {
+		t.Fatal("domain should not be enrichable identity")
 	}
 }
 

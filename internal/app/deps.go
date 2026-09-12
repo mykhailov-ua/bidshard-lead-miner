@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -110,8 +111,8 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 	var entityRecorder entity.Recorder
 	var geminiClient *gemini.Client
 
-	if cfg.GeminiAPIKey != "" {
-		client, err := gemini.NewClient(cfg.GeminiAPIKey, cfg.GeminiModel, gemini.ClientOptionsFrom(cfg)...)
+	if gemini.LLMConfigured(cfg) {
+		client, err := gemini.NewFromConfig(cfg)
 		if err != nil {
 			slog.Warn("gemini client init failed", "error", err)
 		} else {
@@ -232,6 +233,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 				}
 			}
 			deps.coldPath = coldpath.NewService(coldpath.Config{
+				AnalyzeEnabled:           cfg.GeminiJunkAnalyze,
 				AnalyzeInterval:          cfg.GeminiAnalyzeInterval,
 				ReportInterval:           cfg.GeminiReportInterval,
 				BatchSize:                cfg.GeminiBatchSize,
@@ -288,7 +290,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 	var leadPatcher sink.LeadAnalysisPatcher
 	var deferCRMWebhook bool
 
-	geminiDefer := cfg.ParserGeminiDefer && geminiClient != nil && deps.mongoClient != nil
+	geminiDefer := cfg.ParserGeminiDefer && geminiClient != nil && deps.mongoClient != nil && gemini.LLMConfigured(cfg)
 	// ParserGeminiDefer matrix when true:
 	//   ON:  warm-path batch (geo/ICP/engage/enrich), AnalysisStatus=pending on accept
 	//   OFF: inline prescan, cluster, engage, enrich, ICP (except ICPTgWebEnabled)
@@ -337,12 +339,17 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 			if cfg.ParserGeminiEngageMedium && geminiClient != nil {
 				warmExtras.EngageMedium = geminiClient
 			}
+			engageEnabled := cfg.ParserGeminiEngage && !cfg.GeminiBatchMode
+			enrichEnabled := cfg.ParserGeminiEnrichSynth && !cfg.GeminiBatchMode
+			batchEngageEnabled := cfg.ParserGeminiEngage && cfg.GeminiBatchMode
+			batchEnrichEnabled := cfg.ParserGeminiEnrichSynth && cfg.GeminiBatchMode
 			deps.warmPath = warmpath.NewService(warmpath.Config{
 				AnalyzeInterval:         cfg.GeminiLeadAnalyzeInterval,
 				BatchSize:               cfg.GeminiLeadBatchSize,
-				EngageEnabled:           cfg.ParserGeminiEngage,
+				EngageEnabled:           engageEnabled,
+				EngageBatchSize:         cfg.GeminiLeadEngageBatchSize,
 				EngageMediumEnabled:     cfg.ParserGeminiEngageMedium,
-				EnrichEnabled:           cfg.ParserGeminiEnrichSynth,
+				EnrichEnabled:           enrichEnabled,
 				PilotTagEnabled:         cfg.ParserPilotTag,
 				GeoBlockCountries:       cfg.GeoBlockCountries,
 				GeoClassifyEnabled:      cfg.ParserGeoClassify,
@@ -355,6 +362,14 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 				ShutdownDrainTimeout:    cfg.WarmAnalysisShutdownDrain,
 				TimeDecayEnabled:        cfg.ParserTimeDecay,
 				ChannelTriageEnabled:    cfg.ParserChannelTriage,
+				BatchMode:               cfg.GeminiBatchMode,
+				BatchFlushInterval:      cfg.GeminiBatchFlushInterval,
+				BatchPollInterval:       cfg.GeminiBatchPollInterval,
+				BatchSpillPath:          cfg.GeminiBatchSpillPath,
+				BatchEngageSpillPath:    cfg.GeminiBatchEngageSpillPath,
+				BatchStatePath:          cfg.GeminiBatchStatePath,
+				BatchEngageEnabled:      batchEngageEnabled,
+				BatchEnrichEnabled:      batchEnrichEnabled,
 				ChannelTriage: telethon.ChannelTriageConfig{
 					ChannelsPath: cfg.TelegramChannelsPath,
 					CursorDBPath: cfg.TelegramCursorDBPath,
@@ -367,6 +382,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 				"warm_embed_prescan", cfg.ParserWarmEmbedPrescan,
 				"warm_embed_cluster", cfg.ParserWarmEmbedCluster,
 				"engage_medium", cfg.ParserGeminiEngageMedium,
+				"batch_mode", cfg.GeminiBatchMode,
 			)
 		}
 	}
@@ -456,7 +472,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 	icpTgWebEnabled := cfg.ParserICPClassifyTgWeb && geminiClient != nil
 	geoEnabled := cfg.ParserGeoClassify && geminiClient != nil && (!geminiDefer || cfg.ParserGeminiSyncGeo)
 	engageEnabled := cfg.ParserGeminiEngage && geminiClient != nil && !geminiDefer
-	intentEnabled := cfg.ParserIntentClassify && geminiClient != nil
+	intentEnabled := cfg.ParserIntentClassify && geminiClient != nil && !geminiDefer
 	enrichSynthEnabled := cfg.ParserGeminiEnrichSynth && geminiClient != nil && !geminiDefer
 	prescanEnabled := cfg.ParserEmbedPrescan && embedPrescan != nil && !geminiDefer
 	clusterEnabled := cfg.ParserEmbedCluster && leadCluster != nil && !geminiDefer
@@ -475,49 +491,51 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		leadStore = deps.bulkStore
 	}
 	deps.processor = &pipeline.Processor{
-		Registry:              reg,
-		Seen:                  dedup.NewSeenCache(50_000, 24*time.Hour),
-		Store:                 leadStore,
-		MX:                    mx,
-		Junk:                  junkCapturer,
-		SourceRep:             sourceRep,
-		KeywordStats:          keywordStats,
-		ICP:                   geminiClient,
-		ICPEnabled:            icpEnabled,
-		ICPTgWebEnabled:       icpTgWebEnabled,
-		TgWebPrescanMode:      scoring.ParseTgWebPrescanMode(cfg.ParserTgWebPrescanMode),
-		Geo:                   geminiClient,
-		GeoEnabled:            geoEnabled,
-		GeoBlockCountries:     cfg.GeoBlockCountries,
-		Engage:                geminiClient,
-		EngageEnabled:         engageEnabled,
-		Intent:                geminiClient,
-		IntentEnabled:         intentEnabled,
-		IntentMinConfidence:   cfg.ParserIntentMinConfidence,
-		LanderOutreachEnabled: cfg.ParserLanderOutreach,
-		Prescan:               embedPrescan,
-		PrescanEnabled:        prescanEnabled,
-		LeadCluster:           leadCluster,
-		LeadClusterEnabled:    clusterEnabled,
-		Enricher:              enricher,
-		ProfileEnricher:       enrich.NewProfileEnricher(cfg),
-		EnrichSynth:           geminiClient,
-		EnrichSynthEnabled:    enrichSynthEnabled,
-		TimeDecayEnabled:      cfg.ParserTimeDecay,
-		PilotTagEnabled:       cfg.ParserPilotTag,
-		LeadStatusEnabled:     cfg.ParserLeadStatusEnabled,
-		GeminiDefer:           geminiDefer,
-		WarmPath:              warmCapturer,
-		EntityClassify:        entityClassifyCapturer,
-		EntityClassifyEnabled: cfg.ParserEntityGeminiEnabled && entityClassifyCapturer != nil,
-		EntityRecorder:        entityRecorder,
-		EntitySightings:       cfg.ParserEntitySightings && entityRecorder != nil,
-		CrossSourceHot:        cfg.ParserCrossSourceHot && cfg.ParserEntitySightings && entityRecorder != nil,
-		CrossSourceWindow:     cfg.CrossSourceHotWindow,
-		CrossSourceBoost:      cfg.CrossSourceHotBoost,
-		EntityHeatEnabled:     cfg.ParserEntityHeatEnabled && cfg.ParserEntitySightings && entityRecorder != nil,
-		EntityHeat:            entityHeatFromConfig(cfg),
-		HardRejectShadowPct:   cfg.HardRejectShadowPct,
+		Registry:               reg,
+		Seen:                   dedup.NewSeenCache(50_000, 24*time.Hour),
+		Store:                  leadStore,
+		MX:                     mx,
+		Junk:                   junkCapturer,
+		SourceRep:              sourceRep,
+		KeywordStats:           keywordStats,
+		ICP:                    geminiClient,
+		ICPEnabled:             icpEnabled,
+		ICPTgWebEnabled:        icpTgWebEnabled,
+		TgWebPrescanMode:       scoring.ParseTgWebPrescanMode(cfg.ParserTgWebPrescanMode),
+		Geo:                    geminiClient,
+		GeoEnabled:             geoEnabled,
+		GeoBlockCountries:      cfg.GeoBlockCountries,
+		Engage:                 geminiClient,
+		EngageEnabled:          engageEnabled,
+		Intent:                 geminiClient,
+		IntentEnabled:          intentEnabled,
+		IntentMinConfidence:    cfg.ParserIntentMinConfidence,
+		LanderOutreachEnabled:  cfg.ParserLanderOutreach,
+		Prescan:                embedPrescan,
+		PrescanEnabled:         prescanEnabled,
+		LeadCluster:            leadCluster,
+		LeadClusterEnabled:     clusterEnabled,
+		Enricher:               enricher,
+		ProfileEnricher:        enrich.NewProfileEnricher(cfg),
+		EnrichSynth:            geminiClient,
+		EnrichSynthEnabled:     enrichSynthEnabled,
+		TimeDecayEnabled:       cfg.ParserTimeDecay,
+		PilotTagEnabled:        cfg.ParserPilotTag,
+		LeadStatusEnabled:      cfg.ParserLeadStatusEnabled,
+		GeminiDefer:            geminiDefer,
+		WarmPath:               warmCapturer,
+		EntityClassify:         entityClassifyCapturer,
+		EntityClassifyEnabled:  cfg.ParserEntityGeminiEnabled && entityClassifyCapturer != nil,
+		EntityRecorder:         entityRecorder,
+		EntitySightings:        cfg.ParserEntitySightings && entityRecorder != nil,
+		CrossSourceHot:         cfg.ParserCrossSourceHot && cfg.ParserEntitySightings && entityRecorder != nil,
+		CrossSourceWindow:      cfg.CrossSourceHotWindow,
+		CrossSourceBoost:       cfg.CrossSourceHotBoost,
+		EntityHeatEnabled:      cfg.ParserEntityHeatEnabled && cfg.ParserEntitySightings && entityRecorder != nil,
+		EntityHeat:             entityHeatFromConfig(cfg),
+		HardRejectShadowPct:    cfg.HardRejectShadowPct,
+		AcceptMinScore:         cfg.ParserAcceptMinScore,
+		TelegramAcceptMinScore: cfg.ParserTelegramAcceptMinScore,
 		SeedFeedback: seedfeedback.NewRecorder(seedfeedback.Config{
 			Enabled:      cfg.ParserSeedFeedback,
 			RegistryPath: cfg.SourceRegistryPath,
@@ -594,7 +612,7 @@ func runIngestOnce(ctx context.Context, cfg config.Config, deps *runtimeDeps, re
 	state := &pipeline.RoundState{}
 	start := time.Now()
 
-	ingest.Scan(ctx, reader, taskCh, state, roundID)
+	ingest.ScanFormat(ctx, reader, ingest.ParseFormat(telethonIPCFormat(cfg)), taskCh, state, roundID)
 	state.Wait()
 	stats := state.Snapshot(roundID, time.Since(start))
 	select {
@@ -637,57 +655,92 @@ func runTelegramSidecarOnce(ctx context.Context, cfg config.Config, deps *runtim
 	if cfg.TelegramDryRun {
 		slog.Warn("telegram dry-run: emitting fixtures only; pipeline skips fixture:* (no Mongo writes)")
 	}
-	pr, pw := io.Pipe()
-
-	sidecarCtx, sidecarCancel := context.WithCancel(ctx)
-	defer sidecarCancel()
-
-	errCh := make(chan error, 1)
-	go func() {
-		err := telethon.Run(sidecarCtx, telethon.Options{
-			ConfigPath: cfg.TelegramConfigPath,
-			PythonBin:  cfg.TelethonPython,
-			DryRun:     cfg.TelegramDryRun,
-			Once:       true,
-		}, pw)
-		_ = pw.Close()
-		errCh <- err
-	}()
-
-	ingestErr := runIngestOnce(ctx, cfg, deps, pr)
-	sidecarErr := <-errCh
-
-	if ingestErr != nil {
-		return ingestErr
-	}
-	if sidecarErr != nil && sidecarErr != context.Canceled {
-		metrics.RecordTelethonSidecarFailed()
-		return sidecarErr
-	}
-	return nil
+	return runTelethonIngest(ctx, cfg, deps, telethonOptions(cfg, telethon.Options{
+		DryRun: cfg.TelegramDryRun,
+		Once:   true,
+	}))
 }
 
 func runTelegramRealtime(ctx context.Context, cfg config.Config, deps *runtimeDeps) error {
-	pr, pw := io.Pipe()
+	return runTelethonIngest(ctx, cfg, deps, telethonOptions(cfg, telethon.Options{
+		Realtime: true,
+		ExtraEnv: []string{"TELEGRAM_REALTIME=1"},
+	}))
+}
 
+func telethonOptions(cfg config.Config, opts telethon.Options) telethon.Options {
+	opts.ConfigPath = cfg.TelegramConfigPath
+	opts.PythonBin = cfg.TelethonPython
+	opts.IPCSocket = cfg.TelethonIPCSocket
+	opts.IPCFormat = telethonIPCFormat(cfg)
+	return opts
+}
+
+func telethonIPCFormat(cfg config.Config) string {
+	if strings.TrimSpace(cfg.TelethonIPCFormat) != "" {
+		return cfg.TelethonIPCFormat
+	}
+	if strings.TrimSpace(cfg.TelethonIPCSocket) != "" {
+		return "msgpack"
+	}
+	return "ndjson"
+}
+
+// runTelethonIngest uses UDS+msgpack when TELETHON_IPC_SOCKET is set; otherwise stdout pipe NDJSON.
+func runTelethonIngest(ctx context.Context, cfg config.Config, deps *runtimeDeps, opts telethon.Options) error {
+	socket := strings.TrimSpace(cfg.TelethonIPCSocket)
 	sidecarCtx, sidecarCancel := context.WithCancel(ctx)
 	defer sidecarCancel()
 
+	if socket == "" {
+		pr, pw := io.Pipe()
+		errCh := make(chan error, 1)
+		go func() {
+			err := telethon.Run(sidecarCtx, opts, pw)
+			_ = pw.Close()
+			errCh <- err
+		}()
+		ingestErr := runIngestOnce(ctx, cfg, deps, pr)
+		sidecarErr := <-errCh
+		if ingestErr != nil {
+			return ingestErr
+		}
+		if sidecarErr != nil && sidecarErr != context.Canceled {
+			metrics.RecordTelethonSidecarFailed()
+			return sidecarErr
+		}
+		return nil
+	}
+
+	server, err := telethon.NewIPCServer(socket)
+	if err != nil {
+		return err
+	}
+	if err := server.Listen(); err != nil {
+		return err
+	}
+	defer server.Close()
+
 	errCh := make(chan error, 1)
 	go func() {
-		err := telethon.Run(sidecarCtx, telethon.Options{
-			ConfigPath: cfg.TelegramConfigPath,
-			PythonBin:  cfg.TelethonPython,
-			Realtime:   true,
-			ExtraEnv:   []string{"TELEGRAM_REALTIME=1"},
-		}, pw)
-		_ = pw.Close()
-		errCh <- err
+		errCh <- telethon.Run(sidecarCtx, opts, nil)
 	}()
 
-	ingestErr := runIngestOnce(ctx, cfg, deps, pr)
-	sidecarErr := <-errCh
+	conn, err := server.Accept(ctx)
+	if err != nil {
+		sidecarCancel()
+		_ = <-errCh
+		return err
+	}
+	defer conn.Close()
 
+	slog.Info("telethon ipc connected",
+		"socket", server.Path(),
+		"format", telethonIPCFormat(cfg),
+	)
+
+	ingestErr := runIngestOnce(ctx, cfg, deps, conn)
+	sidecarErr := <-errCh
 	if ingestErr != nil {
 		return ingestErr
 	}

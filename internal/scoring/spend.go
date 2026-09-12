@@ -28,11 +28,27 @@ var competitorPhrases = []string{
 	"thrivetracker", "peerclick", "peer click", "voluumtrk",
 }
 
+var newbieNoBudgetPhrases = []string{
+	"can't afford", "cant afford", "cannot afford",
+	"want to start my journey", "start my journey",
+	"good and cheap", "cheap tracker", "first cpa offer",
+}
+
 // ApplySpendGate boosts spend signals and caps score when no spend/competitor proof.
 func ApplySpendGate(score int, text string, mediumMin int) int {
 	body := strings.ToLower(text)
 	if HasSpendSignal(body) {
 		score += spendBoost
+	}
+	if HasNewbieNoBudgetSignal(body) && !HasSpendSignal(body) {
+		cap := mediumMin - 1
+		if cap < 0 {
+			cap = 0
+		}
+		if score > cap {
+			score = cap
+		}
+		return score
 	}
 	if !HasSpendSignal(body) && !HasCompetitorMention(body) {
 		cap := mediumMin - 1
@@ -44,6 +60,15 @@ func ApplySpendGate(score int, text string, mediumMin int) int {
 		}
 	}
 	return score
+}
+
+func HasNewbieNoBudgetSignal(text string) bool {
+	for _, phrase := range newbieNoBudgetPhrases {
+		if strings.Contains(text, phrase) {
+			return true
+		}
+	}
+	return false
 }
 
 func HasSpendSignal(text string) bool {

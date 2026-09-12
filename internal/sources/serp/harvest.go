@@ -3,6 +3,7 @@ package serp
 import (
 	"context"
 	"log/slog"
+	"strings"
 
 	"github.com/bidshard/parser/internal/discover"
 	"github.com/bidshard/parser/internal/dorkdisable"
@@ -17,11 +18,12 @@ func (c *Crawler) HarvestTelegramCatalog(ctx context.Context) error {
 		slog.Warn("telegram catalog icp load failed, using embedded fallback", "path", icpPath, "error", err)
 		icp.SerpDorks = fallbackTelegramCatalogDorks()
 	}
-	dorks := icp.SerpDorks
+	dorks := serpHarvestTelegramDorks(icp.SerpDorks)
 	if len(dorks) == 0 {
 		dorks = fallbackTelegramCatalogDorks()
 	}
 	dorks = dorkdisable.FilterActiveDorks(c.disabledDorksPath, dorks)
+	dorks = limitSerpDorks(dorks, c.telegramDorkMax)
 
 	var added int
 	for _, dork := range dorks {
@@ -46,6 +48,28 @@ func (c *Crawler) HarvestTelegramCatalog(ctx context.Context) error {
 	}
 	slog.Info("telegram catalog harvest finished", "new_entries", added)
 	return nil
+}
+
+// serpHarvestTelegramDorks returns ICP dorks for t.me channel harvest.
+// Job-board dorks (DOU/Djinni) are excluded; they are handled by HarvestJobboardURLs.
+func serpHarvestTelegramDorks(dorks []string) []string {
+	all := serpHarvestDorksFromICP(dorks)
+	out := make([]string, 0, len(all))
+	for _, dork := range all {
+		lower := strings.ToLower(dork)
+		if strings.Contains(lower, "jobs.dou.ua") || strings.Contains(lower, "djinni.co") {
+			continue
+		}
+		out = append(out, dork)
+	}
+	return out
+}
+
+func limitSerpDorks(dorks []string, max int) []string {
+	if max <= 0 || len(dorks) <= max {
+		return dorks
+	}
+	return dorks[:max]
 }
 
 func fallbackTelegramCatalogDorks() []string {

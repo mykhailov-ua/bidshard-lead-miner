@@ -13,7 +13,7 @@
 #
 # Docs: README.md, docs/OPS.md, docs/CREDENTIALS.md, docs/DEPLOY.md
 
-.PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight vps-deploy vps-sync vps-export lip-install-shell deploy-preflight ci ci-deploy-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke acceptance-soak warm-path-status docker-headless-build bpf-release-gate bpf-leak-gate tgweb-bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-domains-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop
+.PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight vps-deploy vps-deploy-p0 vps-sync vps-sync-proxy vps-sync-telegram-secrets vps-sync-telethon-session vps-telegram-login vps-telegram-login-qr vps-history-export vps-reddit-offline-archive vps-buyer-discover reddit-offline-archive vps-export lip-install-shell install-lead-tail lead-tail deploy-preflight ci ci-deploy-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke acceptance-soak warm-path-status docker-headless-build bpf-release-gate bpf-leak-gate tgweb-bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-domains-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop buyer-discover
 
 VENV := .venv
 VENV_PY := $(VENV)/bin/python
@@ -104,14 +104,79 @@ vps-preflight: build
 vps-deploy:
 	bash ./scripts/ops/vps-deploy.sh
 
+# P0: BidShard ICP env + parser + crm-bot + telegram realtime (see docs/ICP.md)
+p0-secrets-check:
+	bash ./scripts/ops/p0-secrets-check.sh
+
+p0-secrets-check-vps:
+	bash ./scripts/ops/p0-secrets-check.sh --vps
+
+vps-deploy-p0:
+	bash ./scripts/ops/vps-deploy-p0.sh
+
+vps-status:
+	bash ./scripts/ops/vps-status.sh
+
+vps-p0-telegram-soak:
+	bash ./scripts/ops/vps-p0-telegram-soak.sh
+
+vps-realtime-soak:
+	bash ./scripts/ops/vps-realtime-soak.sh
+
+vps-telegram-realtime-soak:
+	bash ./scripts/ops/vps-telegram-realtime-soak.sh
+
+vps-history-export:
+	bash ./scripts/ops/vps-history-export.sh $(ARGS)
+
+reddit-offline-archive:
+	bash ./scripts/ops/reddit-offline-archive.sh $(ARGS)
+
+vps-reddit-offline-archive:
+	bash ./scripts/ops/vps-reddit-offline-archive.sh $(ARGS)
+
+vps-buyer-discover:
+	bash ./scripts/ops/vps-buyer-discover.sh $(ARGS)
+
+vps-sync-telegram-secrets:
+	bash ./scripts/ops/vps-sync-telegram-secrets.sh
+
+vps-sync-telethon-session:
+	bash ./scripts/ops/vps-sync-telethon-session.sh
+
+vps-telegram-login:
+	bash ./scripts/ops/vps-telegram-login.sh phone
+
+vps-telegram-login-qr:
+	bash ./scripts/ops/vps-telegram-login.sh qr
+
+setup-telegram-alert-group:
+	bash ./scripts/ops/setup-telegram-alert-group.sh
+
+setup-telegram-alert-group-vps:
+	bash ./scripts/ops/setup-telegram-alert-group.sh --vps
+
 vps-sync:
 	VPS_SYNC_ONLY=1 bash ./scripts/ops/vps-deploy.sh
+
+# Upload config/env/proxy.list (from proxy.txt) to VPS; never commit proxy.list.
+vps-sync-proxy:
+	bash ./scripts/ops/sync-proxy-to-vps.sh
 
 vps-export:
 	bash ./scripts/ops/lip export
 
 lip-install-shell:
 	bash ./scripts/ops/lip install-shell
+
+install-lead-tail: build-crm-bot
+	bash ./scripts/ops/install-lead-tail.sh
+
+lead-tail:
+	bash ./scripts/ops/lead-tail
+
+lead-logs:
+	bash ./scripts/ops/lead-logs
 
 # Pre-deploy: vps-preflight + tgweb crawl under eBPF leak probe (Linux + sudo). See scripts/proxy/deploy-preflight.sh
 deploy-preflight: build
@@ -134,6 +199,12 @@ prod-source-smoke: build
 # Epic J: jq gates on JSONL export (pending %, lander junk, CSS contacts, telegram High pain).
 acceptance-soak:
 	bash ./scripts/ops/acceptance-soak.sh
+
+icp-soak-report:
+	bash ./scripts/ops/icp-soak-report.sh
+
+icp-soak-report-vps:
+	bash ./scripts/ops/icp-soak-report.sh --vps
 
 # Warm-path pending/DLQ snapshot (requires mongosh + MONGO_URI).
 warm-path-status:
@@ -168,6 +239,13 @@ tgweb-seed:
 
 tgweb-discover:
 	docker compose -f docker-compose.tgweb.yaml --profile tgweb run --rm tgweb-discover
+
+# SERP harvest (discover.icp.json) + CF crawl via residential proxy (forum,tgweb,serp).
+buyer-discover:
+	bash ./scripts/ops/buyer-discover.sh
+
+vps-install-buyer-discover-cron:
+	bash ./scripts/ops/vps-install-buyer-discover-cron.sh
 
 tgweb-prune:
 	docker compose -f docker-compose.tgweb.yaml --profile tgweb run --rm tgweb-prune

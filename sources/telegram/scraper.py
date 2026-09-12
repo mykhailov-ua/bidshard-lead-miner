@@ -20,7 +20,12 @@ from .discussion import (
     linked_discussion_id,
     scrape_discussion_messages,
 )
-from .discover import chats_for_scrape, merge_chat_lists, run_discover
+from .discover import (
+    chats_for_scrape,
+    merge_chat_lists,
+    run_discover,
+    sync_manual_curation,
+)
 from .global_search import run_global_search
 from .join_policy import resolve_invite_entity
 from .domains import RegistryEntry, append_domains
@@ -80,11 +85,13 @@ def parse_args() -> argparse.Namespace:
 
 
 from .alert_dispatcher import dispatch_pain_alert, should_alert_on_emit
+from .ipc import emit_payload, open_sink
 from .geo_heuristic import channel_geo_reject, channel_geo_texts
 from .history_chunk import iter_messages_chunked
 from .message_text import combined_message_text, message_body_text
 from .prefilter import should_emit_message
 from .telethon_retry import call_with_flood_wait, is_flood_wait
+from .user_enrich import UserBioEnricher, user_enrich_limit
 
 
 def emit_line(
@@ -98,6 +105,7 @@ def emit_line(
     reply_context: str = "",
     chat_type: str = "",
     sender_user_id: int = 0,
+    sender_bio: str = "",
 ) -> bool:
     # Drop spam/empty before NDJSON; Go pipeline never sees filtered messages.
     if not should_emit_message(text):
@@ -114,9 +122,14 @@ def emit_line(
         "username": username,
         "message_id": message_id,
     }
-    if sender_user_id > 0 and not username:
+    if sender_user_id > 0:
         payload["sender_user_id"] = sender_user_id
+    if username:
+        payload["contact"] = f"telegram:@{username.lstrip('@')}"
+    elif sender_user_id > 0:
         payload["contact"] = f"telegram:user_id:{sender_user_id}"
+    if sender_bio:
+        payload["sender_bio"] = sender_bio
     if reply_to_message_id > 0:
         payload["reply_to_message_id"] = reply_to_message_id
     if reply_context:
@@ -125,8 +138,7 @@ def emit_line(
         payload["chat_type"] = chat_type
     if channel_about:
         payload["channel_about"] = channel_about
-    out.write(json.dumps(payload, ensure_ascii=False) + "\n")
-    out.flush()
+    emit_payload(out, payload)
     return True
 
 
@@ -151,8 +163,7 @@ def dry_run(cfg: ScraperConfig, out: TextIO) -> int:
             "username": f"media_buyer_{i}",
             "message_id": 1001 + i,
         }
-        out.write(json.dumps(payload, ensure_ascii=False) + "\n")
-        out.flush()
+        emit_payload(out, payload)
     return 0
 
 
@@ -246,6 +257,7 @@ async def process_scrape_message(
     out: TextIO,
     store: CursorStore,
     chat_key: str,
+    bio_enricher: UserBioEnricher | None = None,
 ) -> bool:
     """Emit one NDJSON row when body passes prefilter. Returns True if emitted."""
     body = combined_message_text(message)
@@ -254,6 +266,9 @@ async def process_scrape_message(
     sender = await message.get_sender()
     username = sender_username(sender)
     user_id = sender_user_id(sender)
+    sender_bio = ""
+    if bio_enricher is not None and should_emit_message(body):
+        sender_bio = await bio_enricher.enrich(client, sender)
     reply_to = 0
     reply_context = ""
     if message.reply_to and getattr(message.reply_to, "reply_to_msg_id", None):
@@ -271,10 +286,16 @@ async def process_scrape_message(
         reply_context=reply_context,
         chat_type=chat_kind,
         sender_user_id=user_id,
+        sender_bio=sender_bio,
     ):
         return False
     store.record_emit(chat_key, message_has_pain(body))
-    if should_alert_on_emit(body, username):
+    if should_alert_on_emit(
+        body,
+        username,
+        chat_type=chat_kind,
+        reply_to_message_id=reply_to,
+    ):
         posted_at = getattr(message, "date", None)
         source_label = chat.username or chat.name or chat_key
         await dispatch_pain_alert(
@@ -315,6 +336,7 @@ async def scrape_discussion_for_channel(
     out: TextIO,
     about_text: str,
     chat_key: str,
+    bio_enricher: UserBioEnricher | None = None,
 ) -> int:
     if not discussion_scrape_enabled():
         return 0
@@ -349,6 +371,7 @@ async def scrape_discussion_for_channel(
             out,
             store,
             chat_key,
+            bio_enricher,
         ):
             emitted += 1
             max_seen = max(max_seen, message.id)
@@ -381,6 +404,7 @@ async def scrape_chat(
     store: CursorStore,
     cfg: ScraperConfig,
     out: TextIO,
+    bio_enricher: UserBioEnricher | None = None,
 ) -> int:
     chat_key = chat.channel_key()
     try:
@@ -419,7 +443,7 @@ async def scrape_chat(
         if require_new and message.id <= last_id:
             return False
         if await process_scrape_message(
-            client, entity, message, chat, about_text, chat_kind, out, store, chat_key
+            client, entity, message, chat, about_text, chat_kind, out, store, chat_key, bio_enricher
         ):
             emitted += 1
             if message.id > last_id:
@@ -504,7 +528,7 @@ async def scrape_chat(
                 )
 
     emitted += await scrape_discussion_for_channel(
-        client, chat, full_entity, store, cfg, out, about_text, chat_key
+        client, chat, full_entity, store, cfg, out, about_text, chat_key, bio_enricher
     )
 
     return emitted
@@ -802,6 +826,7 @@ async def scrape(cfg: ScraperConfig, out: TextIO) -> int:
     session_path = Path(cfg.session)
     with session_exclusive_lock(session_path):
         store = CursorStore(cfg.cursor_db)
+        sync_manual_curation(cfg.chats, store)
         client = build_telegram_client(cfg, api_id, api_hash)
         await connect_telegram_client(client)
         if not await client.is_user_authorized():
@@ -819,11 +844,12 @@ async def scrape(cfg: ScraperConfig, out: TextIO) -> int:
             store.close()
             return 1
 
+        bio_enricher = UserBioEnricher(store, user_enrich_limit())
         total = 0
         try:
             total += await run_global_search(client, cfg, store, out)
             for chat in chats:
-                total += await scrape_chat(client, chat, store, cfg, out)
+                total += await scrape_chat(client, chat, store, cfg, out, bio_enricher)
                 await asyncio.sleep(cfg.poll_delay_sec)
             top = store.top_channels_by_pain(10)
             if top:
@@ -853,10 +879,10 @@ async def main_async(args: argparse.Namespace) -> int:
     if args.login:
         return await login(cfg)
 
-    out = sys.stdout
+    sink = open_sink(sys.stdout)
 
     if args.dry_run:
-        return dry_run(cfg, out)
+        return dry_run(cfg, sink)
 
     if args.export_registry:
         return await export_registry(cfg)
@@ -868,10 +894,10 @@ async def main_async(args: argparse.Namespace) -> int:
         from .realtime import realtime_listen
 
         os.environ["TELEGRAM_REALTIME"] = "1"
-        return await realtime_listen(cfg, out)
+        return await realtime_listen(cfg, sink)
 
     try:
-        return await scrape(cfg, out)
+        return await scrape(cfg, sink)
     except Exception as exc:
         from telethon.errors import SessionPasswordNeededError
 

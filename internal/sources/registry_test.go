@@ -6,10 +6,11 @@ func TestParseSourceList(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string][]string{
-		"":             nil,
-		"all":          {"forum", "supply", "reddit", "discord", "serp"},
-		"warrior":      {"forum"},
-		"forum,reddit": {"forum", "reddit"},
+		"":               nil,
+		"all":            {"forum", "supply", "reddit", "discord", "serp", "reviews"},
+		"warrior":        {"forum"},
+		"forum,reddit":   {"forum", "reddit"},
+		"jobboard,forum": {"jobboard", "forum"},
 	}
 	for in, want := range cases {
 		got := parseSourceList(in)

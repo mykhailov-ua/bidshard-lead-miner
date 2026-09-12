@@ -37,6 +37,45 @@ Use --dry-run to test without an MTProto session.`,
 	cmd.AddCommand(newTelegramWebCmd())
 	cmd.AddCommand(newTelegramDomainsCmd())
 	cmd.AddCommand(newTelegramRealtimeCmd())
+	cmd.AddCommand(newTelegramHistoryExportCmd())
+	return cmd
+}
+
+func newTelegramHistoryExportCmd() *cobra.Command {
+	var since, out, format, roleFilter string
+	var relax bool
+	cmd := &cobra.Command{
+		Use:   "history-export",
+		Short: "Export historical pain messages for outreach (M5)",
+		Long: `Chunked GetHistory crawl with M3 pain AND-gate (tracker+pain or crypto-gray).
+
+Requires TELEGRAM_API_ID, TELEGRAM_API_HASH, and authorized session.
+Shares session lock with scrape/realtime; do not run concurrently.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+			if err := globalOpts.apply(&cfg); err != nil {
+				return err
+			}
+			return telethon.RunHistoryExport(cmd.Context(), telethon.HistoryExportOptions{
+				ConfigPath: cfg.TelegramConfigPath,
+				PythonBin:  cfg.TelethonPython,
+				Since:      since,
+				Out:        out,
+				Format:     format,
+				RoleFilter: roleFilter,
+				Relax:      relax,
+			})
+		},
+	}
+	cmd.Flags().StringVar(&since, "since", "", "start date YYYY-MM-DD (required)")
+	cmd.Flags().StringVar(&out, "out", "data/export/tg_history_pain.ndjson", "output file")
+	cmd.Flags().StringVar(&format, "format", "ndjson", "ndjson or csv")
+	cmd.Flags().StringVar(&roleFilter, "role-filter", "buyer_supergroup", "chat role filter")
+	cmd.Flags().BoolVar(&relax, "relax", false, "log near-miss counts (tracker_only vs pain_only)")
+	_ = cmd.MarkFlagRequired("since")
 	return cmd
 }
 

@@ -1,8 +1,8 @@
 package config
 
-// defaultProxySources scopes residential/datacenter proxy to CF-heavy crawlers.
-// SERP (DuckDuckGo), reddit API, github API, and supply seed fetch stay on direct egress.
-var defaultProxySources = []string{"forum", "tgweb", "lander", "webpain"}
+// defaultProxySources scopes residential/datacenter proxy to CF-heavy crawlers and SERP.
+// reddit API, github API, and supply seed fetch stay on direct egress.
+var defaultProxySources = []string{"forum", "tgweb", "lander", "webpain", "jobboard", "serp"}
 
 func applyProxyDefaults(cfg *Config) {
 	if len(cfg.ProxyURLs) == 0 {

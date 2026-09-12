@@ -10,60 +10,108 @@ import (
 )
 
 type Config struct {
-	MongoURI                  string
-	MongoDB                   string
-	MongoCollection           string
-	SourceStatsCollection     string
-	KeywordStatsCollection    string
-	CrmBoostCollection        string
-	LeadNotesCollection       string
-	LeadCrmMetaCollection     string
-	WebhookFeedbackCollection string
-	EntityCollection          string
-	ShutdownTimeout           time.Duration
-	QueryTimeout              time.Duration
-	WriteTimeout              time.Duration
-	StatsTimeout              time.Duration
-	WebhookAddr               string
-	WebhookSecret             string
-	MetricsAddr               string
-	PprofAddr                 string
-	ExportMaxRows             int
-	SearchTimeout             time.Duration
-	SearchMaxRows             int
-	LogFormat                 string
-	LogLevel                  string
+	MongoURI                              string
+	MongoDB                               string
+	MongoCollection                       string
+	SourceStatsCollection                 string
+	KeywordStatsCollection                string
+	CrmBoostCollection                    string
+	LeadNotesCollection                   string
+	LeadCrmMetaCollection                 string
+	WebhookFeedbackCollection             string
+	EntityCollection                      string
+	ShutdownTimeout                       time.Duration
+	QueryTimeout                          time.Duration
+	WriteTimeout                          time.Duration
+	StatsTimeout                          time.Duration
+	WebhookAddr                           string
+	WebhookSecret                         string
+	MetricsAddr                           string
+	PprofAddr                             string
+	ExportMaxRows                         int
+	SearchTimeout                         time.Duration
+	SearchMaxRows                         int
+	LogFormat                             string
+	LogLevel                              string
+	TelegramBotToken                      string
+	TelegramAllowedChatIDs                []int64
+	TelegramExportJSONPath                string
+	TelegramLeadNotify                    bool
+	TelegramLeadNotifyChatIDs             []int64
+	TelegramLeadNotifyMinScore            int
+	TelegramLeadNotifyMinScoreNonTelegram int
 }
 
 func Load() (Config, error) {
 	parsercfg.LoadDotEnv()
 
 	cfg := Config{
-		MongoURI:                  env("MONGO_URI", ""),
-		MongoDB:                   env("MONGO_DB", "parser"),
-		MongoCollection:           env("PARSER_MONGO_COLLECTION", "leads"),
-		SourceStatsCollection:     env("SOURCE_STATS_COLLECTION", "source_stats"),
-		KeywordStatsCollection:    env("KEYWORD_STATS_COLLECTION", "keyword_stats"),
-		CrmBoostCollection:        env("CRM_BOOST_COLLECTION", "crm_boosts"),
-		LeadNotesCollection:       env("CRM_LEAD_NOTES_COLLECTION", "lead_notes"),
-		LeadCrmMetaCollection:     env("CRM_META_COLLECTION", "lead_crm_meta"),
-		WebhookFeedbackCollection: env("CRM_WEBHOOK_FEEDBACK_COLLECTION", "webhook_feedback"),
-		EntityCollection:          env("ENTITY_COLLECTION", "entities"),
-		ShutdownTimeout:           envDuration("CRM_SHUTDOWN_TIMEOUT", 30*time.Second),
-		QueryTimeout:              envDuration("CRM_QUERY_TIMEOUT", 5*time.Second),
-		WriteTimeout:              envDuration("CRM_WRITE_TIMEOUT", 3*time.Second),
-		StatsTimeout:              envDuration("CRM_STATS_TIMEOUT", 15*time.Second),
-		WebhookAddr:               env("CRM_WEBHOOK_ADDR", "127.0.0.1:8080"),
-		WebhookSecret:             strings.TrimSpace(env("CRM_WEBHOOK_SECRET", "")),
-		MetricsAddr:               env("CRM_METRICS_ADDR", ""),
-		PprofAddr:                 env("CRM_PPROF_ADDR", ""),
-		ExportMaxRows:             envInt("CRM_EXPORT_MAX_ROWS", 500),
-		SearchTimeout:             envDuration("CRM_SEARCH_TIMEOUT", 5*time.Second),
-		SearchMaxRows:             envInt("CRM_SEARCH_MAX_ROWS", 20),
-		LogFormat:                 env("CRM_LOG_FORMAT", "auto"),
-		LogLevel:                  env("CRM_LOG_LEVEL", "info"),
+		MongoURI:                              env("MONGO_URI", ""),
+		MongoDB:                               env("MONGO_DB", "parser"),
+		MongoCollection:                       env("PARSER_MONGO_COLLECTION", "leads"),
+		SourceStatsCollection:                 env("SOURCE_STATS_COLLECTION", "source_stats"),
+		KeywordStatsCollection:                env("KEYWORD_STATS_COLLECTION", "keyword_stats"),
+		CrmBoostCollection:                    env("CRM_BOOST_COLLECTION", "crm_boosts"),
+		LeadNotesCollection:                   env("CRM_LEAD_NOTES_COLLECTION", "lead_notes"),
+		LeadCrmMetaCollection:                 env("CRM_META_COLLECTION", "lead_crm_meta"),
+		WebhookFeedbackCollection:             env("CRM_WEBHOOK_FEEDBACK_COLLECTION", "webhook_feedback"),
+		EntityCollection:                      env("ENTITY_COLLECTION", "entities"),
+		ShutdownTimeout:                       envDuration("CRM_SHUTDOWN_TIMEOUT", 30*time.Second),
+		QueryTimeout:                          envDuration("CRM_QUERY_TIMEOUT", 5*time.Second),
+		WriteTimeout:                          envDuration("CRM_WRITE_TIMEOUT", 3*time.Second),
+		StatsTimeout:                          envDuration("CRM_STATS_TIMEOUT", 15*time.Second),
+		WebhookAddr:                           env("CRM_WEBHOOK_ADDR", "127.0.0.1:8080"),
+		WebhookSecret:                         strings.TrimSpace(env("CRM_WEBHOOK_SECRET", "")),
+		MetricsAddr:                           env("CRM_METRICS_ADDR", ""),
+		PprofAddr:                             env("CRM_PPROF_ADDR", ""),
+		ExportMaxRows:                         envInt("CRM_EXPORT_MAX_ROWS", 500),
+		SearchTimeout:                         envDuration("CRM_SEARCH_TIMEOUT", 5*time.Second),
+		SearchMaxRows:                         envInt("CRM_SEARCH_MAX_ROWS", 20),
+		LogFormat:                             env("CRM_LOG_FORMAT", "auto"),
+		LogLevel:                              env("CRM_LOG_LEVEL", "info"),
+		TelegramBotToken:                      strings.TrimSpace(env("CRM_TELEGRAM_BOT_TOKEN", "")),
+		TelegramAllowedChatIDs:                parseChatIDs(env("CRM_TELEGRAM_ALLOWED_CHAT_IDS", "")),
+		TelegramLeadNotify:                    envBool("CRM_TELEGRAM_LEAD_NOTIFY", false),
+		TelegramLeadNotifyMinScore:            envInt("CRM_TELEGRAM_LEAD_NOTIFY_MIN_SCORE", 0),
+		TelegramLeadNotifyMinScoreNonTelegram: envInt("CRM_TELEGRAM_LEAD_NOTIFY_MIN_SCORE_NON_TELEGRAM", 70),
+		TelegramExportJSONPath: firstNonEmpty(
+			env("CRM_TELEGRAM_EXPORT_JSON_PATH", ""),
+			env("PARSER_EXPORT_JSON_HOST", ""),
+			env("PARSER_EXPORT_JSON", ""),
+			"data/export/leads.jsonl",
+		),
 	}
+	cfg.TelegramLeadNotifyChatIDs = LeadNotifyChatIDs(cfg.TelegramAllowedChatIDs)
 	return cfg, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+func parseChatIDs(raw string) []int64 {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	var out []int64
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		id, err := strconv.ParseInt(part, 10, 64)
+		if err != nil {
+			continue
+		}
+		out = append(out, id)
+	}
+	return out
 }
 
 func (c Config) ValidateForRun() []string {
@@ -99,6 +147,9 @@ type ConfigView struct {
 	SearchMaxRows          int    `json:"search_max_rows"`
 	LogFormat              string `json:"log_format"`
 	LogLevel               string `json:"log_level"`
+	TelegramBotToken       string `json:"telegram_bot_token"`
+	TelegramAllowedChats   int    `json:"telegram_allowed_chats"`
+	TelegramExportJSONPath string `json:"telegram_export_json_path"`
 }
 
 func (c Config) View() ConfigView {
@@ -124,6 +175,9 @@ func (c Config) View() ConfigView {
 		SearchMaxRows:          c.SearchMaxRows,
 		LogFormat:              c.LogFormat,
 		LogLevel:               c.LogLevel,
+		TelegramBotToken:       maskSecret(c.TelegramBotToken),
+		TelegramAllowedChats:   len(c.TelegramAllowedChatIDs),
+		TelegramExportJSONPath: c.TelegramExportJSONPath,
 	}
 }
 

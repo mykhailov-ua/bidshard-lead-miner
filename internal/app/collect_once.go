@@ -114,11 +114,6 @@ func collectDrainTimeout(cfg config.Config) time.Duration {
 }
 
 func runTelegramWebOnce(ctx context.Context, cfg config.Config, deps *runtimeDeps) error {
-	var headless lander.HeadlessFetcher = lander.DisabledHeadless{}
-	if cfg.LanderHeadless {
-		// Cap concurrent browser contexts; default pool returns unavailable until Playwright is wired.
-		headless = lander.NewPlaywrightPoolFetcher(2, cfg.HTTPTimeout)
-	}
 	var ranker lander.PathRanker
 	if cfg.ParserLanderPathGemini && cfg.GeminiAPIKey != "" {
 		if client, err := gemini.NewClient(cfg.GeminiAPIKey, cfg.GeminiModel, gemini.ClientOptionsFrom(cfg)...); err == nil {
@@ -127,7 +122,7 @@ func runTelegramWebOnce(ctx context.Context, cfg config.Config, deps *runtimeDep
 			slog.Warn("tgweb lander path gemini disabled", "error", err)
 		}
 	}
-	crawler, err := tgweb.NewCrawler(cfg, nil, headless, ranker)
+	crawler, err := tgweb.BuildCrawler(cfg, ranker)
 	if err != nil {
 		return err
 	}

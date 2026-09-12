@@ -3,6 +3,8 @@ package filter
 import (
 	"regexp"
 	"strings"
+
+	"github.com/bidshard/parser/internal/validate"
 )
 
 var (
@@ -33,12 +35,27 @@ var (
 
 // RejectNonBuyerContext drops job posts, tutorials, programmatic vertical, and github maintenance noise without buyer pain.
 func RejectNonBuyerContext(source, text, title string) (bool, string) {
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(source)), "jobboard:") {
+		return false, ""
+	}
 	combined := strings.TrimSpace(title + " " + text)
 	if combined == "" {
 		return true, "empty context"
 	}
 	if drop, reason := RejectProgrammaticContext(source, text, title); drop {
 		return true, reason
+	}
+	if drop, reason := RejectAffiliateNetworkSupply(text, title); drop {
+		return true, reason
+	}
+	if drop, reason := RejectNewbieNoBudget(text, title); drop {
+		return true, reason
+	}
+	if validate.IsSEOMarketingCopy(text, title) {
+		return true, "seo marketing copy"
+	}
+	if IsGitHubSource(source) && validate.IsGitHubSourceCodePaste(text, title) {
+		return true, "github source code paste"
 	}
 	if matchesAnyPattern(combined, jobContextRe) && !HasCommercialPainIntent(combined) && !HasBuyerQuestionPattern(combined) {
 		return true, "job or recruiting context"

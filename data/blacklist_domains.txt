@@ -5,6 +5,7 @@ voluum.com
 keitaro.io
 redtrack.io
 binom.org
+cloakingtool.com
 
 # News / gov / search (not affiliate networks)
 google.com

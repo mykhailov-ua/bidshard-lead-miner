@@ -8,10 +8,10 @@ func TestTopRejectReasons(t *testing.T) {
 	t.Parallel()
 
 	stats := RoundStats{
-		RejectedGeo:        12,
-		RejectedLang:       5,
-		RejectedContext:    8,
-		RejectedBlacklist:  3,
+		RejectedGeo:         12,
+		RejectedLang:        5,
+		RejectedContext:     8,
+		RejectedBlacklist:   3,
 		RejectedLowPriority: 1,
 	}
 	got := TopRejectReasons(stats, 3)
@@ -39,6 +39,7 @@ func TestRecordRoundRejectMapsAllBuckets(t *testing.T) {
 		{"context", func(s RoundStats) int { return s.RejectedContext }},
 		{"contact", func(s RoundStats) int { return s.RejectedContact }},
 		{"no_contacts", func(s RoundStats) int { return s.RejectedNoContacts }},
+		{"no_reachable_contact", func(s RoundStats) int { return s.RejectedNoReachableContact }},
 		{"email_no_context", func(s RoundStats) int { return s.RejectedEmailNoContext }},
 		{"role_email", func(s RoundStats) int { return s.RejectedRoleEmail }},
 		{"empty_hash", func(s RoundStats) int { return s.RejectedEmptyHash }},
@@ -53,6 +54,7 @@ func TestRecordRoundRejectMapsAllBuckets(t *testing.T) {
 		{"low_priority", func(s RoundStats) int { return s.RejectedLowPriority }},
 		{"icp", func(s RoundStats) int { return s.RejectedICP }},
 		{"intent", func(s RoundStats) int { return s.RejectedIntent }},
+		{"store_error", func(s RoundStats) int { return s.RejectedStore }},
 	}
 	for _, tc := range cases {
 		recordRoundReject(&state, tc.reason)

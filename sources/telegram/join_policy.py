@@ -2,7 +2,8 @@
 
 Discover uses CheckChatInvite only (invites.py). Scrape calls resolve_invite_entity:
 already-joined invites return chat without ImportChatInvite; preview-only hashes need
-TELEGRAM_INVITE_JOIN=1 and stay under TELEGRAM_INVITE_JOIN_LIMIT per day (crawler.db).
+TELEGRAM_INVITE_JOIN=1, channel_icp_relevant on invite title, and stay under
+TELEGRAM_INVITE_JOIN_LIMIT per day (crawler.db).
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from typing import Any
 
 from .config import ChatConfig
 from .cursor import CursorStore
+from .prefilter import channel_icp_relevant
 from .telethon_retry import call_with_flood_wait, is_flood_wait
 
 LOG = logging.getLogger("telegram.join_policy")
@@ -27,11 +29,16 @@ def invite_join_enabled() -> bool:
 
 
 def invite_join_daily_limit() -> int:
-    raw = os.environ.get("TELEGRAM_INVITE_JOIN_LIMIT", "3").strip()
+    raw = os.environ.get("TELEGRAM_INVITE_JOIN_LIMIT", "2").strip()
     try:
         return max(0, int(raw))
     except ValueError:
-        return 3
+        return 2
+
+
+def invite_preview_icp_relevant(checked: Any) -> bool:
+    title = str(getattr(checked, "title", "") or "")
+    return channel_icp_relevant([title])
 
 
 async def resolve_invite_entity(
@@ -72,7 +79,19 @@ async def resolve_invite_entity(
         raise ValueError(
             "invite preview only; discover should persist chat_id or set TELEGRAM_INVITE_JOIN=1"
         )
+    if not invite_preview_icp_relevant(checked):
+        LOG.info(
+            "invite_join_skipped_not_icp channel_key=%s title=%s",
+            chat.channel_key(),
+            getattr(checked, "title", ""),
+        )
+        raise ValueError("invite join skipped: not icp")
     if not store.can_invite_join(invite_join_daily_limit()):
+        LOG.info(
+            "invite_join_daily_limit channel_key=%s limit=%d",
+            chat.channel_key(),
+            invite_join_daily_limit(),
+        )
         raise ValueError("invite join daily limit reached")
 
     updates = await client(ImportChatInviteRequest(invite_hash))
@@ -84,3 +103,39 @@ async def resolve_invite_entity(
     store.record_invite_join()
     LOG.info("invite join ok channel_key=%s chat_id=%s", chat.channel_key(), entity.id)
     return entity
+
+
+async def try_join_invite_seed(
+    client: Any,
+    chat: ChatConfig,
+    store: CursorStore,
+    checked: Any,
+) -> Any | None:
+    """Join invite-only cross-mention seed when ICP passes and join policy allows."""
+    if getattr(checked, "chat", None) is not None:
+        return checked.chat
+    if not invite_join_enabled():
+        return None
+    if not invite_preview_icp_relevant(checked):
+        LOG.info(
+            "invite_join_skipped_not_icp channel_key=%s title=%s",
+            chat.channel_key(),
+            getattr(checked, "title", ""),
+        )
+        return None
+    if not store.can_invite_join(invite_join_daily_limit()):
+        LOG.info(
+            "invite_join_daily_limit channel_key=%s limit=%d",
+            chat.channel_key(),
+            invite_join_daily_limit(),
+        )
+        return None
+    try:
+        return await resolve_invite_entity(client, chat, store)
+    except ValueError as exc:
+        LOG.debug(
+            "cross-mention invite join skipped key=%s error=%s",
+            chat.channel_key(),
+            exc,
+        )
+        return None

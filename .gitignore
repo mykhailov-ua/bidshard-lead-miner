@@ -25,6 +25,8 @@ internal/sources/serp/data/
 # Local env overlays (tracked: config/env/.env.*.example)
 config/env/.env.*
 !config/env/.env.*.example
+config/env/proxy.list
+proxy.txt
 scripts/proxy/.env.local
 scripts/vps-proxy/.env.local
 scripts/vps-proxy/.credentials

@@ -21,7 +21,7 @@ func applyCRMComplianceDefaults(cfg *Config) {
 	if envUnset("PARSER_LEAD_STATUS_ENABLED") {
 		cfg.ParserLeadStatusEnabled = true
 	}
-	if cfg.GeminiAPIKey == "" {
+	if !llmConfigured(*cfg) {
 		return
 	}
 	if envUnset("PARSER_GEO_CLASSIFY") {
@@ -63,7 +63,14 @@ func applyWarmEmbedPrecisionDefaults(cfg *Config) {
 }
 
 func deferPrecisionEligible(cfg Config) bool {
-	return cfg.ParserGeminiDefer && strings.TrimSpace(cfg.GeminiAPIKey) != ""
+	return cfg.ParserGeminiDefer && llmConfigured(cfg)
+}
+
+func llmConfigured(cfg Config) bool {
+	if strings.EqualFold(strings.TrimSpace(cfg.LLMProvider), "ollama") {
+		return strings.TrimSpace(cfg.OllamaBaseURL) != "" && strings.TrimSpace(cfg.OllamaModel) != ""
+	}
+	return strings.TrimSpace(cfg.GeminiAPIKey) != ""
 }
 
 // applyEmailQualityDefaults turns on MX gate for CRM handoff when env is unset.

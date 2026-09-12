@@ -18,6 +18,7 @@ import (
 )
 
 type Config struct {
+	AnalyzeEnabled           bool // GEMINI_JUNK_ANALYZE; false skips junk Gemini batches (free-tier warm path budget)
 	AnalyzeInterval          time.Duration
 	ReportInterval           time.Duration
 	BatchSize                int
@@ -135,6 +136,7 @@ func (s *Service) Run(ctx context.Context, wg *sync.WaitGroup) {
 
 func (s *Service) run(ctx context.Context) {
 	slog.Info("cold path gemini worker started",
+		"junk_analyze", s.cfg.AnalyzeEnabled,
 		"analyze_interval", s.cfg.AnalyzeInterval,
 		"report_interval", s.cfg.ReportInterval,
 		"batch_size", s.cfg.BatchSize,
@@ -144,7 +146,9 @@ func (s *Service) run(ctx context.Context) {
 
 	var wg sync.WaitGroup
 	worker.Run(ctx, &wg, s.ingestLoop)
-	worker.Run(ctx, &wg, s.analyzeLoop)
+	if s.cfg.AnalyzeEnabled {
+		worker.Run(ctx, &wg, s.analyzeLoop)
+	}
 	worker.Run(ctx, &wg, s.reportLoop)
 	if s.stale != nil {
 		wg.Add(1)

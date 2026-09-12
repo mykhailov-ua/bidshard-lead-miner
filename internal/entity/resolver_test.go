@@ -197,6 +197,34 @@ func TestResolveKeysTelegramUserID(t *testing.T) {
 	}
 }
 
+func TestResolveKeysTelegramUserIDPrimary(t *testing.T) {
+	keys := ResolveKeys(ResolveInput{
+		Source: "telegram:@affnet",
+		Contacts: []extract.Contact{
+			{Type: "telegram", Value: "@buyer_mx"},
+			{Type: "telegram_user_id", Value: "99887766"},
+		},
+	})
+	pk, ok := PrimaryKey(keys)
+	if !ok || pk.Kind != KindTelegramUserID || pk.Value != "99887766" {
+		t.Fatalf("primary=%v keys=%v", pk, keys)
+	}
+}
+
+func TestEntityIDStableForTelegramUserID(t *testing.T) {
+	id1 := EntityID(ResolveKeys(ResolveInput{
+		Source:   "telegram:@chat_a",
+		Contacts: []extract.Contact{{Type: "telegram_user_id", Value: "12345"}},
+	}))
+	id2 := EntityID(ResolveKeys(ResolveInput{
+		Source:   "telegram:@chat_b",
+		Contacts: []extract.Contact{{Type: "telegram_user_id", Value: "12345"}},
+	}))
+	if id1 == "" || id1 != id2 {
+		t.Fatalf("id1=%q id2=%q want same entity", id1, id2)
+	}
+}
+
 func TestResolveKeysEmpty(t *testing.T) {
 	if keys := ResolveKeys(ResolveInput{}); len(keys) != 0 {
 		t.Fatalf("expected no keys, got %v", keys)

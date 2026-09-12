@@ -48,6 +48,7 @@ func init() {
 		newAPICmd(),
 		newDBCmd(),
 		newEntityCmd(),
+		newTailCmd(),
 		newVersionCmd(),
 	)
 }

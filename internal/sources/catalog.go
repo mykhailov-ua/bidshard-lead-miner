@@ -20,6 +20,9 @@ func Catalog() []SourceInfo {
 		{Name: "ct", Note: "opt-in only; not in all"},
 		{Name: "github", Requires: []string{"GITHUB_TOKEN"}, Note: "opt-in only"},
 		{Name: "serp", InAll: true, Note: "DuckDuckGo dorks; writes data/runtime/discovered_telegram_channels.json"},
+		{Name: "reviews", InAll: true, Note: "tracker review sites (Voluum/Keitaro complaints)"},
 		{Name: "webpain", Note: "opt-in; crawl data/runtime/discovered_web_pain.json from open-web SERP"},
+		{Name: "jobboard", Note: "opt-in; crawl data/runtime/discovered_job_urls.json (DOU/Djinni jobs)"},
+		{Name: "tgweb", Note: "opt-in; affiliate sites from discovered_telegram_domains.json"},
 	}
 }

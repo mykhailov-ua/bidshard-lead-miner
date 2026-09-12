@@ -15,6 +15,7 @@ import (
 	"github.com/bidshard/parser/internal/geo"
 	"github.com/bidshard/parser/internal/httpclient"
 	"github.com/bidshard/parser/internal/model"
+	"github.com/bidshard/parser/internal/sources/forum"
 )
 
 type EmitFunc func(ctx context.Context, item model.RawItem) error
@@ -23,6 +24,7 @@ type Crawler struct {
 	client            *http.Client
 	dorks             []string
 	maxResults        int
+	telegramDorkMax   int
 	baseURL           string
 	disabledDorksPath string
 }
@@ -39,6 +41,8 @@ func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 		`"keitaro alternative" tracker`,
 		`site:t.me affiliate marketing`,
 		`site:t.me igaming affiliate`,
+		`site:t.me media buying team`,
+		`site:t.me usdt tracker`,
 		`site:tgstat.com affiliate`,
 		`telegram channel affiliate marketing tracker`,
 	}
@@ -50,6 +54,7 @@ func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 		client:            client,
 		dorks:             dorkdisable.FilterActiveDorks(path, dorks),
 		maxResults:        20,
+		telegramDorkMax:   cfg.SerpTelegramDorkMax,
 		baseURL:           "https://html.duckduckgo.com/html/",
 		disabledDorksPath: path,
 	}
@@ -79,14 +84,25 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		if err := appendTelegramChannelDiscoveries(defaultTGChannelsPath, dork, results); err != nil {
 			slog.Warn("serp telegram channel registry write failed", "error", err)
 		}
-		for _, res := range results {
-			contacts := extract.Extract(res.Snippet)
-			contactStr := ""
-			if !contacts.Rejected && len(contacts.Contacts) > 0 {
-				contactStr = extract.FormatAll(contacts.Contacts)[0]
-			} else {
-				contactStr = "serp:" + res.Domain
+		forumItems := ExtractForumThreadDiscoveries(results)
+		if len(forumItems) > 0 {
+			added, err := forum.AppendThreadDiscoveries(defaultForumThreadsPath, "serp_poll", dork, forumItems)
+			if err != nil {
+				slog.Warn("serp forum thread registry write failed", "error", err)
+			} else if added > 0 {
+				slog.Debug("serp forum threads queued", "dork", dork, "added", added)
 			}
+		}
+		for _, res := range results {
+			if forum.IsKnownForumHost(res.Domain) || forum.IsForumThreadURL(res.URL) {
+				continue
+			}
+			contacts := extract.Extract(res.Snippet)
+			contacts.Contacts = extract.FilterJunkContacts(contacts.Contacts)
+			if contacts.Rejected || len(contacts.Contacts) == 0 {
+				continue
+			}
+			contactStr := extract.FormatAll(contacts.Contacts)[0]
 
 			item := model.RawItem{
 				Source:   "serp:" + res.Domain,

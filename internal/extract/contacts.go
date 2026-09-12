@@ -111,6 +111,13 @@ func Extract(text string, hints ...string) Result {
 			}
 			continue
 		}
+		if strings.HasPrefix(strings.ToLower(hint), "jobboard:company/") {
+			value := strings.TrimSpace(hint[len("jobboard:company/"):])
+			if value != "" {
+				add("jobboard_company", value)
+			}
+			continue
+		}
 		if strings.HasPrefix(strings.ToLower(hint), "forum:user/") {
 			value := strings.TrimSpace(hint[len("forum:user/"):])
 			if value != "" {
@@ -203,6 +210,11 @@ func FormatAll(contacts []Contact) []string {
 			out = append(out, "github:"+value)
 			continue
 		}
+		if c.Type == "jobboard_company" {
+			value := strings.TrimPrefix(c.Value, "jobboard:company/")
+			out = append(out, "jobboard:company/"+value)
+			continue
+		}
 		if c.Type == "forum_user" {
 			value := strings.TrimPrefix(c.Value, "forum:user/")
 			value = strings.TrimPrefix(value, "warrior:user/")
@@ -249,6 +261,35 @@ func HasReachableContact(contacts []Contact) bool {
 		}
 	}
 	return false
+}
+
+// HasEnrichableIdentity reports profile-only handles that ProfileEnricher may resolve to email/telegram.
+func HasEnrichableIdentity(contacts []Contact) bool {
+	for _, c := range contacts {
+		switch c.Type {
+		case "forum_user", "github", "reddit", "telegram_user_id":
+			if strings.TrimSpace(c.Value) != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// IntelOnlyContacts reports when every contact is company/domain seed metadata, not outreach handles.
+func IntelOnlyContacts(contacts []Contact) bool {
+	if len(contacts) == 0 {
+		return false
+	}
+	for _, c := range contacts {
+		switch c.Type {
+		case "jobboard_company", "domain", "review":
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // MergeContacts dedupes by type:value, preserving order of base then append.

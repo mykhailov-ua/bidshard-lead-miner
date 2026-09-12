@@ -1,0 +1,75 @@
+{
+  "_comment": "Example SERP/cross-mention registry for local discover. Copy to data/runtime/discovered_telegram_channels.json on VPS. Usernames match config/sources.telegram.yaml soak + seed rows.",
+  "channels": [
+    {
+      "username": "postback_s2s_pro_n1k",
+      "title": "Postback S2S Pro",
+      "query": "postback s2s tracker"
+    },
+    {
+      "username": "unlim_arbitrage",
+      "title": "Unlim Arbitrage",
+      "query": "unlim arbitrage"
+    },
+    {
+      "username": "buyermedia",
+      "title": "Buyer Media",
+      "query": "media buying team tracker"
+    },
+    {
+      "username": "mediabuyingandselling",
+      "title": "Media Buying and Selling",
+      "query": "media buying arbitrage"
+    },
+    {
+      "username": "aff_lead",
+      "title": "Affiliate media buying leads",
+      "query": "voluum tracker"
+    },
+    {
+      "username": "aff_net",
+      "title": "Affiliate network chat",
+      "query": "voluum alternative telegram"
+    },
+    {
+      "username": "affnet",
+      "title": "Affiliate network buyers",
+      "query": "keitaro alternative"
+    },
+    {
+      "username": "affiliate_igaming",
+      "title": "Igaming affiliate buyers",
+      "query": "igaming media buyer"
+    },
+    {
+      "username": "stmaffiliate",
+      "title": "STM affiliate community",
+      "query": "voluum alternative"
+    },
+    {
+      "username": "affiliate_latam_en",
+      "title": "Affiliate LATAM EN",
+      "query": "mexico affiliate igaming"
+    },
+    {
+      "username": "affiliate_latam",
+      "title": "Affiliate LATAM",
+      "query": "brazil media buying tracker"
+    },
+    {
+      "username": "igaming_acquisition",
+      "title": "Igaming acquisition team",
+      "query": "head of acquisition telegram"
+    },
+    {
+      "username": "keitaro_tracker",
+      "title": "Keitaro Tracker official",
+      "query": "keitaro alternative"
+    },
+    {
+      "username": "igaming_news",
+      "title": "Igaming news digest",
+      "query": "igaming affiliate"
+    }
+  ]
+}

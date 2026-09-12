@@ -14,7 +14,7 @@ import (
 )
 
 func TestCRMBotWebhookSmoke(t *testing.T) {
-	handler := webhook.NewHandler("smoke-secret")
+	handler := webhook.NewHandler("smoke-secret", nil)
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
 

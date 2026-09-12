@@ -58,6 +58,9 @@ func IsTelegramSource(source string) bool {
 }
 
 func hasPainKeyword(lower string) bool {
+	if InfraPainBypassPrescan(lower) {
+		return true
+	}
 	hints := []string{
 		"voluum", "keitaro", "binom", "redtrack", "postback", "tracker",
 		"alternative", "afterburn", "ftd", "self-hosted", "cloak", "safe page",

@@ -1,0 +1,4168 @@
+{
+  "database": "ESPX_QUALIFIED_LEADS.db",
+  "total_leads": 416,
+  "primary_leads": 363,
+  "tier2_leads": 53,
+  "leads": [
+    {
+      "id": 1,
+      "company_name": "Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/affiliatenw/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2,
+      "company_name": "Affiliate Network SA",
+      "website_domain": "https://www.linkedin.com/company/affiliate-network-sa/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3,
+      "company_name": "AdsMain - Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/adsmain-llc/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4,
+      "company_name": "Affiliate Network CPA#1",
+      "website_domain": "https://www.linkedin.com/company/cpa1/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 5,
+      "company_name": "Trafficasa Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/trafficasa-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 7,
+      "company_name": "SolCPA Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/solcpa/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 8,
+      "company_name": "CPX - Leading Affiliate Network In The MENA Region",
+      "website_domain": "https://www.linkedin.com/company/cpxaffiliate/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 10,
+      "company_name": "G4Offers Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/g4offers/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 11,
+      "company_name": "Bizaglo Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/bizaglo-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 12,
+      "company_name": "GFS Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/gfsaffiliatenetwork/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 13,
+      "company_name": "LeadHeaven | Affiliate Network | iGaming",
+      "website_domain": "https://www.linkedin.com/company/leadheaven/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 14,
+      "company_name": "DOPPCALL Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/doppcall/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 16,
+      "company_name": "HealthTrader Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/healthtrader/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 17,
+      "company_name": "The MountainTOP Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/the-mountaintop-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 18,
+      "company_name": "Investing.com Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/investing-com%27s-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 19,
+      "company_name": "F5stat affiliate network",
+      "website_domain": "https://www.linkedin.com/company/f5stat-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 20,
+      "company_name": "CpaCashOffers Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/cpacashoffers/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 21,
+      "company_name": "LeadСash. Financial Affiliate network",
+      "website_domain": "https://www.linkedin.com/company/lead-cash/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 22,
+      "company_name": "LeadHouse - Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/leadhouse-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 24,
+      "company_name": "Revenue Blue Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/revenue-blue-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 25,
+      "company_name": "AffiliBux Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/affilibux/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 26,
+      "company_name": "CIPIAI Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/cipiai/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 27,
+      "company_name": "Affzoom Private Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/affzoom-private-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 29,
+      "company_name": "Lead Chiefs Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/leadcheifs/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 31,
+      "company_name": "FINAFF - AFFILIATE NETWORK",
+      "website_domain": "https://www.linkedin.com/company/finaff-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 32,
+      "company_name": "NexGenAI Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/nexgenai-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 34,
+      "company_name": "Zibarr Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/zibarr-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 36,
+      "company_name": "Adwarda Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/adwarda-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 37,
+      "company_name": "Paysale.com Affiliate network",
+      "website_domain": "https://www.linkedin.com/company/paysale.net/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 38,
+      "company_name": "U-Haul Self-Storage Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/emove-inc.---webselfstorage/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 39,
+      "company_name": "AdvertStar Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/advertstar/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 42,
+      "company_name": "AGATA - Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/agata-story-limited/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 43,
+      "company_name": "LorixAds Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/lorixads-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 44,
+      "company_name": "ORION Partners - Worldwide Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/orion-partners-pro/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 45,
+      "company_name": "CPALeo.com - The #1 CPA Mobile Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/cpaleo-com-the-1-cpa-mobile-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 48,
+      "company_name": "Fivelead Affiliate Network (India)",
+      "website_domain": "https://www.linkedin.com/company/fivelead-affiliate-network-india-/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 50,
+      "company_name": "The Super Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/the-super-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 51,
+      "company_name": "neta2p.com Fashion Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/neta2p-com-fashion-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 52,
+      "company_name": "Atria Property Services - Part of the CBRE Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/atria-property-services-sa/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 53,
+      "company_name": "Cannabis Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/cannabis-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 56,
+      "company_name": "Microeconomics of Competitiveness Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/microeconomics-of-competitiveness-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 60,
+      "company_name": "RevKings - Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/revkings-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 62,
+      "company_name": "Axies SA - Part of the CBRE Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/axies-sa/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 63,
+      "company_name": "Leadrepublik- Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/leadrepublik/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 66,
+      "company_name": "Mobile Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/mobile-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 67,
+      "company_name": "Krixty Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/krixty/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 72,
+      "company_name": "AdsCluster Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/adscluster-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 74,
+      "company_name": "CashYard | Affiliate Network | 🎰 Gambling",
+      "website_domain": "https://www.linkedin.com/company/cashyard-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 75,
+      "company_name": "Afflooks - Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/afflooks/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 76,
+      "company_name": "CPA PRISM - Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/cpa-prism/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 77,
+      "company_name": "AFFVIBE - AFFILIATE NETWORK",
+      "website_domain": "https://www.linkedin.com/company/affvibe/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 79,
+      "company_name": "Cpabestoffer Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/cpabestoffer/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 80,
+      "company_name": "Afilia8 #1 Affiliate Network in Europe, Latam and Africa",
+      "website_domain": "https://www.linkedin.com/company/afilia8-1-affiliate-network-in-europe-latam-and-africa/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 81,
+      "company_name": "Ad Hive Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/ad-hive-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 87,
+      "company_name": "Hareer Deals Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/hareer-deals-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 117,
+      "company_name": "Exploding Ads Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/exploding-ads/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 128,
+      "company_name": "Affpay.Link Smartlink Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/affpay/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 218,
+      "company_name": "Cpamatica",
+      "website_domain": "https://www.linkedin.com/company/cpamatica/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 232,
+      "company_name": "Gambling Affiliation",
+      "website_domain": "https://www.linkedin.com/company/gambling-affiliation/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 340,
+      "company_name": "Maris | Part of the CBRE Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/maris-part-of-the-cbre-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 407,
+      "company_name": "The Business of iGaming",
+      "website_domain": "https://www.linkedin.com/company/the-business-of-igaming/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 444,
+      "company_name": "Webzaa - Performance Marketing & Advertising Company",
+      "website_domain": "https://www.linkedin.com/company/webzaadigital/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 508,
+      "company_name": "IQ Option CPA",
+      "website_domain": "https://www.linkedin.com/company/iq-option-cpa/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 552,
+      "company_name": "Lead Genesis",
+      "website_domain": "https://www.linkedin.com/company/lead-genesis/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 644,
+      "company_name": "Advery | Affiliate & Traffic Hub",
+      "website_domain": "https://www.linkedin.com/company/%D0%B0dvery/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in traffic acquisition, affiliate/partner ecosystem, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 649,
+      "company_name": "Gambling Turkey",
+      "website_domain": "https://www.linkedin.com/company/gamblingturkey/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 675,
+      "company_name": "Monetise - Global Performance Marketing Network",
+      "website_domain": "https://www.linkedin.com/company/monetise-global-lead-generation/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 777,
+      "company_name": "DYNU IN MEDIA | Global CPA Network",
+      "website_domain": "https://www.linkedin.com/company/dynuinmedia/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 819,
+      "company_name": "Hisnak Affiliate Networking Marketplace",
+      "website_domain": "https://www.linkedin.com/company/hisnakmarketplace/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 824,
+      "company_name": "Addspro Inc.",
+      "website_domain": "https://www.linkedin.com/company/addspro/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 834,
+      "company_name": "ADXAD Network",
+      "website_domain": "https://www.linkedin.com/company/adxad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 870,
+      "company_name": "OliMob",
+      "website_domain": "https://www.linkedin.com/company/olimob-cpa/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 878,
+      "company_name": "ad pepper media Spain | 🌶️ Lead Generation - Performance Marketing",
+      "website_domain": "https://www.linkedin.com/company/ad-pepper-media-spain/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 892,
+      "company_name": "Global Affiliate Marketing & Performance Traffic Network",
+      "website_domain": "https://www.linkedin.com/company/maxpointmedia/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 901,
+      "company_name": "AdsPayMedia Private Limited",
+      "website_domain": "https://www.linkedin.com/company/adspaymedia/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 910,
+      "company_name": "Oltre Digital Marketing Agency & Media Network",
+      "website_domain": "https://www.linkedin.com/company/oltredigital/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 926,
+      "company_name": "adseed | Performance Marketing Agentur",
+      "website_domain": "https://www.linkedin.com/company/adseed/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 939,
+      "company_name": "Arbitrage Leads",
+      "website_domain": "https://www.linkedin.com/company/arbitrage-leads/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 945,
+      "company_name": "CPA Bay",
+      "website_domain": "https://www.linkedin.com/company/cpa-bay/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 989,
+      "company_name": "CPA Network",
+      "website_domain": "https://www.linkedin.com/company/cpa-network-inc./",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 990,
+      "company_name": "3SNET CPA Network",
+      "website_domain": "https://www.linkedin.com/company/3snet/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 991,
+      "company_name": "FluxOffer - Premium CPA Network",
+      "website_domain": "https://www.linkedin.com/company/fluxoffer/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 992,
+      "company_name": "CPA Network Reviews",
+      "website_domain": "https://www.linkedin.com/company/cpa-network-reviews/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 993,
+      "company_name": "Trinity CPA Network",
+      "website_domain": "https://www.linkedin.com/company/trinity-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 995,
+      "company_name": "Targeleon - Affiliate/ CPA Network",
+      "website_domain": "https://www.linkedin.com/company/targeleon/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 996,
+      "company_name": "CMA, CA, CS, CPA, CIMA, CIA, CISA, ACCA, ITP, VAT Consultant, CFO, Auditor | Professionals Network",
+      "website_domain": "https://www.linkedin.com/company/taxbondhu/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 997,
+      "company_name": "LeadDealer CPA Network",
+      "website_domain": "https://www.linkedin.com/company/leaddealer-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 998,
+      "company_name": "CPARED CPA Network",
+      "website_domain": "https://www.linkedin.com/company/cpared-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 999,
+      "company_name": "CPA Network Club at Brooklyn College",
+      "website_domain": "https://www.linkedin.com/company/cpa-network-club-at-brooklyn-college/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1000,
+      "company_name": "Adjo.com - Global CPA Network",
+      "website_domain": "https://www.linkedin.com/company/adjo/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1001,
+      "company_name": "NSW Young & Emerging Professionals Committee and Network - CPA Australia",
+      "website_domain": "https://www.linkedin.com/company/nsw-young-professionals-committee-cpa-australia/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1002,
+      "company_name": "CPA Victoria Young Professionals Network Discussion Group",
+      "website_domain": "https://www.linkedin.com/company/cpa-young-professional-network-vic-dg/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1003,
+      "company_name": "CPA.UA affiliate network",
+      "website_domain": "https://www.linkedin.com/company/cpa.ua/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1004,
+      "company_name": "Paragon Ads Cpa Network",
+      "website_domain": "https://www.linkedin.com/company/paragonads-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1005,
+      "company_name": "RevCrowd CPA Network",
+      "website_domain": "https://www.linkedin.com/company/rev-crowd-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1006,
+      "company_name": "CPA Network LLC",
+      "website_domain": "https://www.linkedin.com/company/cpa-network-llc/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1007,
+      "company_name": "C2 CPA Network",
+      "website_domain": "https://www.linkedin.com/company/c2-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1008,
+      "company_name": "VIC EMERGING LEADERS NETWORK - CPA Australia",
+      "website_domain": "https://www.linkedin.com/company/vic-emerging-leaders-network-cpa-aus/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1009,
+      "company_name": "Optimus CPA NETWORK",
+      "website_domain": "https://www.linkedin.com/company/optimus-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1010,
+      "company_name": "Infinity CPA Network",
+      "website_domain": "https://www.linkedin.com/company/infinity-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1011,
+      "company_name": "CPA-NETWORK \"TRAFFCARTEL\"",
+      "website_domain": "https://www.linkedin.com/company/traffcartel/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1012,
+      "company_name": "Cpa Gold Network",
+      "website_domain": "https://www.linkedin.com/company/cpa-gold-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1013,
+      "company_name": "OFFCHECK MEDIA | CPA NETWORK",
+      "website_domain": "https://www.linkedin.com/company/offcheckmedia/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1014,
+      "company_name": "Moore-CPA network",
+      "website_domain": "https://www.linkedin.com/company/moore-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1015,
+      "company_name": "Network USA CPA",
+      "website_domain": "https://www.linkedin.com/company/dghdfgh/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1016,
+      "company_name": "EchoMoonAds | CPA NETWORK",
+      "website_domain": "https://www.linkedin.com/company/echomoonads/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1017,
+      "company_name": "SellAction CPA Network",
+      "website_domain": "https://www.linkedin.com/company/sellaction-net/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1018,
+      "company_name": "Offcheck Ads - Global CPA Network",
+      "website_domain": "https://www.linkedin.com/company/offcheck-ads/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1019,
+      "company_name": "Belonging Network - CPA Australia",
+      "website_domain": "https://www.linkedin.com/company/belonging-network-cpa-australia/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1020,
+      "company_name": "Fin Asset CPA Network",
+      "website_domain": "https://www.linkedin.com/company/finasset-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1021,
+      "company_name": "360 CPA Network",
+      "website_domain": "https://www.linkedin.com/company/360-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1022,
+      "company_name": "Picajio CPA Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/picajio-cpa-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1023,
+      "company_name": "10 key by Touch, Computer Helper, PC, Laptop Network, Help. AI Implementation, Bookkeepers, CPA's",
+      "website_domain": "https://www.linkedin.com/company/computerhelper/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1024,
+      "company_name": "Entrepreneurial CPA Network",
+      "website_domain": "https://www.linkedin.com/company/entrepreneurial-cpa-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1025,
+      "company_name": "W4 - Premium CPA Affiliate Marketing Network",
+      "website_domain": "https://www.linkedin.com/company/w4---premium-cpa-affiliate-marketing-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1026,
+      "company_name": "CPA MAX Affiliate Network",
+      "website_domain": "https://www.linkedin.com/company/cpamax/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1027,
+      "company_name": "CPA Financial Network",
+      "website_domain": "https://www.linkedin.com/company/cpa-financial-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1028,
+      "company_name": "Cpa Retirement Network",
+      "website_domain": "https://www.linkedin.com/company/cpa-retirement-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1029,
+      "company_name": "Vantix Cpa Affiliates Network",
+      "website_domain": "https://www.linkedin.com/company/vantix-cpa-affiliates-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1030,
+      "company_name": "Muslim Ad Network",
+      "website_domain": "https://www.linkedin.com/company/muslim-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1031,
+      "company_name": "ClickAdilla ad network",
+      "website_domain": "https://www.linkedin.com/company/clickadilla/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1032,
+      "company_name": "The Ad Network",
+      "website_domain": "https://www.linkedin.com/company/theadnetwork/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1033,
+      "company_name": "Gay Ad Network",
+      "website_domain": "https://www.linkedin.com/company/gayadnetwork/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1034,
+      "company_name": "AdMana.Net Digital Ad Network Platform",
+      "website_domain": "https://www.linkedin.com/company/admana/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1036,
+      "company_name": "TrafficStore.Pro | Type-in | Native | traffic ad network",
+      "website_domain": "https://www.linkedin.com/company/trafficstore-pro-search-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1037,
+      "company_name": "High School AD Network, LLC",
+      "website_domain": "https://www.linkedin.com/company/high-school-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1038,
+      "company_name": "AdFarm - India's fastest growing Outdoor Ad Network",
+      "website_domain": "https://www.linkedin.com/company/adfarm---digital-advertising-platform-for-physical-world/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1039,
+      "company_name": "aD Network",
+      "website_domain": "https://www.linkedin.com/company/ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1040,
+      "company_name": "AdXXX.com - Adult Ad Network",
+      "website_domain": "https://www.linkedin.com/company/adxxx-adult-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1041,
+      "company_name": "Adstork Ad Network",
+      "website_domain": "https://www.linkedin.com/company/adstork-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1042,
+      "company_name": "Adsterdam Ad Network",
+      "website_domain": "https://www.linkedin.com/company/adsterdam-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1043,
+      "company_name": "Android Ad Network",
+      "website_domain": "https://www.linkedin.com/company/android-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1044,
+      "company_name": "Mantis Ad Network",
+      "website_domain": "https://www.linkedin.com/company/mantis-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1045,
+      "company_name": "The Advert Splash (Ad Network Agency)",
+      "website_domain": "https://www.linkedin.com/company/the-advert-splash/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1046,
+      "company_name": "MyBid Ad Network",
+      "website_domain": "https://www.linkedin.com/company/mybid-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1048,
+      "company_name": "Ad Network | Online Ad",
+      "website_domain": "https://www.linkedin.com/company/ad-network-online-ad/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1049,
+      "company_name": "Ripple Ad Network",
+      "website_domain": "https://www.linkedin.com/company/ripple-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1050,
+      "company_name": "Trafficshop - The ad network you can trust your media buying and traffic monetization",
+      "website_domain": "https://www.linkedin.com/company/trafficshop/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1051,
+      "company_name": "Direct Ad Network Philadelphia",
+      "website_domain": "https://www.linkedin.com/company/imassage-of-southampton/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1052,
+      "company_name": "AD Network Video",
+      "website_domain": "https://www.linkedin.com/company/ad-network-video/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1053,
+      "company_name": "Premium Ad Network For Professional Media Buyers - FroggyAds.com",
+      "website_domain": "https://www.linkedin.com/company/froggyads/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1054,
+      "company_name": "admusketeer all for one ad network",
+      "website_domain": "https://www.linkedin.com/company/admusketeer/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1055,
+      "company_name": "Venue Ad Network",
+      "website_domain": "https://www.linkedin.com/company/venue-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1056,
+      "company_name": "Adness – dating ad network",
+      "website_domain": "https://www.linkedin.com/company/adnesscom/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1057,
+      "company_name": "Ad Network Software",
+      "website_domain": "https://www.linkedin.com/company/ad-media-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1058,
+      "company_name": "Maryland Ad Network",
+      "website_domain": "https://www.linkedin.com/company/maryland-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1059,
+      "company_name": "Virginia Ad Network",
+      "website_domain": "https://www.linkedin.com/company/virginia-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1060,
+      "company_name": "Motown Local Ad Network LLC",
+      "website_domain": "https://www.linkedin.com/company/motown-local-ad-network-llc/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1061,
+      "company_name": "Realpush Ad Network",
+      "website_domain": "https://www.linkedin.com/company/realpush/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1062,
+      "company_name": "Ocean Ad Network",
+      "website_domain": "https://www.linkedin.com/company/ocean-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1063,
+      "company_name": "SUSANE - Your Sustainable Ad Network",
+      "website_domain": "https://www.linkedin.com/company/susane-ad/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1064,
+      "company_name": "Nativly Ad Network",
+      "website_domain": "https://www.linkedin.com/company/nativly-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1065,
+      "company_name": "TrafficHunt Advertising Network",
+      "website_domain": "https://www.linkedin.com/company/traffichunt-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1066,
+      "company_name": "Better Ad Network",
+      "website_domain": "https://www.linkedin.com/company/better-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1068,
+      "company_name": "Native Media - Ad Network",
+      "website_domain": "https://www.linkedin.com/company/native-media-rs/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1070,
+      "company_name": "Blossom Ad Network",
+      "website_domain": "https://www.linkedin.com/company/blossom-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1071,
+      "company_name": "Cue.AD Inc. Online Radio Ad Network",
+      "website_domain": "https://www.linkedin.com/company/cue-ad-inc-online-radio-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1072,
+      "company_name": "Marine Ad Network",
+      "website_domain": "https://www.linkedin.com/company/marine-marketing-solutions/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1073,
+      "company_name": "Ad Network Directory",
+      "website_domain": "https://www.linkedin.com/company/ad-network-directory/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1075,
+      "company_name": "Gelo Ad Network",
+      "website_domain": "https://www.linkedin.com/company/gelo-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1076,
+      "company_name": "Context Ad Network",
+      "website_domain": "https://www.linkedin.com/company/context-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1077,
+      "company_name": "North Carolina Ad Network",
+      "website_domain": "https://www.linkedin.com/company/north-carolina-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1078,
+      "company_name": "Community Ad Network",
+      "website_domain": "https://www.linkedin.com/company/community-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1079,
+      "company_name": "CryptoAudiences.com - Leading crypto ad network",
+      "website_domain": "https://www.linkedin.com/company/cryptoaudiences/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1080,
+      "company_name": "Adbox.az Ad Network",
+      "website_domain": "https://www.linkedin.com/company/ceo-soft/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1081,
+      "company_name": "Niche Ad Network",
+      "website_domain": "https://www.linkedin.com/company/niche-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1083,
+      "company_name": "ProfitOn | Publishers-first ad network",
+      "website_domain": "https://www.linkedin.com/company/profiton-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1084,
+      "company_name": "Comedy Ad Network",
+      "website_domain": "https://www.linkedin.com/company/comedy-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1085,
+      "company_name": "Notify (Mobile Ad Network)",
+      "website_domain": "https://www.linkedin.com/company/notify-mobile-ad-network-/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1086,
+      "company_name": "Texas Ad Network",
+      "website_domain": "https://www.linkedin.com/company/texas-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1087,
+      "company_name": "ADTOV Smart Ad Network",
+      "website_domain": "https://www.linkedin.com/company/adtov-smart-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1088,
+      "company_name": "Wizards Ad Network",
+      "website_domain": "https://www.linkedin.com/company/wizardsads/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1089,
+      "company_name": "AD Network Solutions",
+      "website_domain": "https://www.linkedin.com/company/ad-network-solutions/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1090,
+      "company_name": "ConNext - Premium Local Ad Network",
+      "website_domain": "https://www.linkedin.com/company/connext.media/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1092,
+      "company_name": "Mobile Push Ad Network & DSP - Mobileadvertise.de",
+      "website_domain": "https://www.linkedin.com/company/mobileadvertise/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1093,
+      "company_name": "Beacon Ad Network",
+      "website_domain": "https://www.linkedin.com/company/beacon-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1096,
+      "company_name": "Veg Ad Network",
+      "website_domain": "https://www.linkedin.com/company/veg-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1098,
+      "company_name": "Mobile Ad Network Consulting",
+      "website_domain": "https://www.linkedin.com/company/mobile-ad-network-consulting/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1099,
+      "company_name": "Pennsylvania Ad Network",
+      "website_domain": "https://www.linkedin.com/company/pennsylvania-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1100,
+      "company_name": "New York Ad Network",
+      "website_domain": "https://www.linkedin.com/company/new-york-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1101,
+      "company_name": "AD NETWORK SOLUTIONS LIMITED",
+      "website_domain": "https://www.linkedin.com/company/ad-network-solutions-limited/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1102,
+      "company_name": "Florida Ad Network",
+      "website_domain": "https://www.linkedin.com/company/florida-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1103,
+      "company_name": "Ace Ad Network",
+      "website_domain": "https://www.linkedin.com/company/ace-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1104,
+      "company_name": "Safari Ad Network",
+      "website_domain": "https://www.linkedin.com/company/safari-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1105,
+      "company_name": "Adnetwork Adsperforms Pvt.Ltd",
+      "website_domain": "https://www.linkedin.com/company/adsperforms/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1106,
+      "company_name": "Delaware Ad Network",
+      "website_domain": "https://www.linkedin.com/company/delaware-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1109,
+      "company_name": "California Ad Network",
+      "website_domain": "https://www.linkedin.com/company/california-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1110,
+      "company_name": "Honest Ad Network",
+      "website_domain": "https://www.linkedin.com/company/honestad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1111,
+      "company_name": "Oimobi Ad network",
+      "website_domain": "https://www.linkedin.com/company/oimobi/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1113,
+      "company_name": "Cpa-adnetwork",
+      "website_domain": "https://www.linkedin.com/company/cpa-ad-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1114,
+      "company_name": "Advertrek Ad Network",
+      "website_domain": "https://www.linkedin.com/company/advertrek-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1115,
+      "company_name": "Birmingham Ad Network",
+      "website_domain": "https://www.linkedin.com/company/birmingham-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1116,
+      "company_name": "Ohio Ad Network",
+      "website_domain": "https://www.linkedin.com/company/ohio-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1117,
+      "company_name": "Ad-Network Biz",
+      "website_domain": "https://www.linkedin.com/company/husain-najmi/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1118,
+      "company_name": "Tap Venue - Digital Signage Ad Network",
+      "website_domain": "https://www.linkedin.com/company/tap-venue/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1119,
+      "company_name": "Zilliqa Ad Network",
+      "website_domain": "https://www.linkedin.com/company/zilliqa-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1121,
+      "company_name": "Michigan Ad Network",
+      "website_domain": "https://www.linkedin.com/company/michigan-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1123,
+      "company_name": "Monezilla Ad Network",
+      "website_domain": "https://www.linkedin.com/company/monezilla-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1124,
+      "company_name": "Finance Ad Network",
+      "website_domain": "https://www.linkedin.com/company/finance-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1126,
+      "company_name": "Ultimate Ad Network",
+      "website_domain": "https://www.linkedin.com/company/ultimate-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1127,
+      "company_name": "Biz Ad Network",
+      "website_domain": "https://www.linkedin.com/company/biz-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1128,
+      "company_name": "Illinois Ad Network",
+      "website_domain": "https://www.linkedin.com/company/illinois-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1129,
+      "company_name": "Merge Digital Audio Ad Network",
+      "website_domain": "https://www.linkedin.com/company/merge-digital-audio-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1132,
+      "company_name": "Louisiana Ad Network",
+      "website_domain": "https://www.linkedin.com/company/louisiana-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1136,
+      "company_name": "AD-NETWORK.GR",
+      "website_domain": "https://www.linkedin.com/company/ad-network.gr/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1137,
+      "company_name": "Ad Network 360",
+      "website_domain": "https://www.linkedin.com/company/b2b-worlld/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1138,
+      "company_name": "AD NETWORK SERVICES LTD",
+      "website_domain": "https://www.linkedin.com/company/ad-network-services-ltd/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1139,
+      "company_name": "Affsense Ad Network",
+      "website_domain": "https://www.linkedin.com/company/affsense-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1141,
+      "company_name": "Syndicated Ad Network",
+      "website_domain": "https://www.linkedin.com/company/syndicated-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1144,
+      "company_name": "Metafora AD Network",
+      "website_domain": "https://www.linkedin.com/company/metafora-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1145,
+      "company_name": "The fastest, secret and most dangerous ad network",
+      "website_domain": "https://www.linkedin.com/company/fsmdan/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1147,
+      "company_name": "Plaiding Ad Network",
+      "website_domain": "https://www.linkedin.com/company/plaiding-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1148,
+      "company_name": "OLLO Ad Network",
+      "website_domain": "https://www.linkedin.com/company/ollo-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1149,
+      "company_name": "BooztGames | Ad Network",
+      "website_domain": "https://www.linkedin.com/company/booztgames-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1151,
+      "company_name": "Search Ad Network",
+      "website_domain": "https://www.linkedin.com/company/search-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1152,
+      "company_name": "Wyoming Ad Network",
+      "website_domain": "https://www.linkedin.com/company/wyoming-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1153,
+      "company_name": "Montana Ad Network",
+      "website_domain": "https://www.linkedin.com/company/montana-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1154,
+      "company_name": "Kansas Ad Network",
+      "website_domain": "https://www.linkedin.com/company/kansas-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1155,
+      "company_name": "Missouri Ad Network",
+      "website_domain": "https://www.linkedin.com/company/missouri-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1156,
+      "company_name": "Sd Ad Network",
+      "website_domain": "https://www.linkedin.com/company/sd-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1157,
+      "company_name": "Contra Ad Network",
+      "website_domain": "https://www.linkedin.com/company/contra-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1158,
+      "company_name": "Big Ad Network",
+      "website_domain": "https://www.linkedin.com/company/big-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1159,
+      "company_name": "Vermont Ad Network",
+      "website_domain": "https://www.linkedin.com/company/vermont-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1160,
+      "company_name": "Alaska Ad Network",
+      "website_domain": "https://www.linkedin.com/company/alaska-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1161,
+      "company_name": "Maine Ad Network",
+      "website_domain": "https://www.linkedin.com/company/maine-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1162,
+      "company_name": "Idaho Ad Network",
+      "website_domain": "https://www.linkedin.com/company/idaho-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1163,
+      "company_name": "Hawaii Ad Network",
+      "website_domain": "https://www.linkedin.com/company/hawaii-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1164,
+      "company_name": "Nebraska Ad Network",
+      "website_domain": "https://www.linkedin.com/company/nebraska-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1165,
+      "company_name": "Mississippi Ad Network",
+      "website_domain": "https://www.linkedin.com/company/mississippi-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1166,
+      "company_name": "Nevada Ad Network",
+      "website_domain": "https://www.linkedin.com/company/nevada-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1167,
+      "company_name": "Iowa Ad Network",
+      "website_domain": "https://www.linkedin.com/company/iowa-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1168,
+      "company_name": "Arkansas Ad Network",
+      "website_domain": "https://www.linkedin.com/company/arkansas-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1169,
+      "company_name": "Utah Ad Network",
+      "website_domain": "https://www.linkedin.com/company/utah-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1170,
+      "company_name": "Connecticut Ad Network",
+      "website_domain": "https://www.linkedin.com/company/connecticut-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1171,
+      "company_name": "Oklahoma Ad Network",
+      "website_domain": "https://www.linkedin.com/company/oklahoma-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1172,
+      "company_name": "Oregon Ad Network",
+      "website_domain": "https://www.linkedin.com/company/oregon-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1173,
+      "company_name": "Kentucky Ad Network",
+      "website_domain": "https://www.linkedin.com/company/kentucky-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1174,
+      "company_name": "Minnesota Ad Network",
+      "website_domain": "https://www.linkedin.com/company/minnesota-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1175,
+      "company_name": "Alabama Ad Network",
+      "website_domain": "https://www.linkedin.com/company/alabama-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1176,
+      "company_name": "Wisconsin Ad Network",
+      "website_domain": "https://www.linkedin.com/company/wisconsin-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1177,
+      "company_name": "Colorado Ad Network",
+      "website_domain": "https://www.linkedin.com/company/colorado-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1178,
+      "company_name": "Indiana Ad Network",
+      "website_domain": "https://www.linkedin.com/company/indiana-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1179,
+      "company_name": "Tennessee Ad Network",
+      "website_domain": "https://www.linkedin.com/company/tennessee-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1180,
+      "company_name": "Washington Ad Network",
+      "website_domain": "https://www.linkedin.com/company/washington-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1181,
+      "company_name": "Arizona Ad Network",
+      "website_domain": "https://www.linkedin.com/company/arizona-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1182,
+      "company_name": "Massachusetts Ad Network",
+      "website_domain": "https://www.linkedin.com/company/massachusetts-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1183,
+      "company_name": "Georgia Ad Network",
+      "website_domain": "https://www.linkedin.com/company/georgia-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1184,
+      "company_name": "ICON AD NETWORK PRIVATE LIMITED",
+      "website_domain": "https://www.linkedin.com/company/icon-ad-network-private-limited/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1185,
+      "company_name": "Faisol AD Network",
+      "website_domain": "https://www.linkedin.com/company/faisoladnetwork/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1186,
+      "company_name": "Zero Ad Network",
+      "website_domain": "https://www.linkedin.com/company/zero-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1188,
+      "company_name": "South Dakota Ad Network",
+      "website_domain": "https://www.linkedin.com/company/south-dakota-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1189,
+      "company_name": "North Dakota Ad Network",
+      "website_domain": "https://www.linkedin.com/company/north-dakota-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1190,
+      "company_name": "Rhode Island Ad Network",
+      "website_domain": "https://www.linkedin.com/company/rhode-island-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1191,
+      "company_name": "West Virginia Ad Network",
+      "website_domain": "https://www.linkedin.com/company/west-virginia-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1192,
+      "company_name": "New Hampshire Ad Network",
+      "website_domain": "https://www.linkedin.com/company/new-hampshire-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1193,
+      "company_name": "New Mexico Ad Network",
+      "website_domain": "https://www.linkedin.com/company/new-mexico-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1194,
+      "company_name": "South Carolina Ad Network",
+      "website_domain": "https://www.linkedin.com/company/south-carolina-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1195,
+      "company_name": "New Jersey Ad Network",
+      "website_domain": "https://www.linkedin.com/company/new-jersey-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1197,
+      "company_name": "Wake Up Ad Network",
+      "website_domain": "https://www.linkedin.com/company/wake-up-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1198,
+      "company_name": "Cat-us Ad Network",
+      "website_domain": "https://www.linkedin.com/company/catusadnetwork/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1203,
+      "company_name": "Ad Spin Network",
+      "website_domain": "https://www.linkedin.com/company/adspinnetwork/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1222,
+      "company_name": "Moonrover Performance Marketing Network",
+      "website_domain": "https://www.linkedin.com/company/moonroverpro/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1223,
+      "company_name": "Vevoads | Performance Marketing Network",
+      "website_domain": "https://www.linkedin.com/company/vevoads/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1224,
+      "company_name": "THE PERFORMANCE MARKETING NETWORK LIMITED",
+      "website_domain": "https://www.linkedin.com/company/the-performance-marketing-network-limited/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1225,
+      "company_name": "Moneycrackers-The performance Marketing Network",
+      "website_domain": "https://www.linkedin.com/company/moneycrackers/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1249,
+      "company_name": "Сторінка Performance Marketing Manager",
+      "website_domain": "https://www.linkedin.com/company/performance-marketing-manager/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1289,
+      "company_name": "Epic Partners (Affiliate program)",
+      "website_domain": "https://www.linkedin.com/company/epic-igaming-affiliate-partners/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 1464,
+      "company_name": "Affiliate Growth Partners",
+      "website_domain": "https://www.linkedin.com/company/affiliate-growth-partners/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in traffic acquisition, affiliate/partner ecosystem, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 1478,
+      "company_name": "𝐀𝐟𝐟𝐢𝐥𝐢𝐚𝐭𝐞 𝐌𝐚𝐫𝐤𝐞𝐭𝐢𝐧𝐠 𝐆𝐫𝐨𝐰𝐭𝐡",
+      "website_domain": "https://www.linkedin.com/company/affiliate-growth/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in traffic acquisition, affiliate/partner ecosystem, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 1584,
+      "company_name": "Citirex Digital Marketing Agency, Los Angeles.",
+      "website_domain": "https://www.linkedin.com/company/citirex/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 1798,
+      "company_name": "Shakya Digitech - Digital/Affiliate Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/shakyadigitech-world-digital-marketing-advertising/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2108,
+      "company_name": "Traffic Network Ph",
+      "website_domain": "https://www.linkedin.com/company/traffic-network-ph/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2111,
+      "company_name": "Traffic Network Pte. Ltd.",
+      "website_domain": "https://www.linkedin.com/company/traffic-network-pte.-ltd./",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2112,
+      "company_name": "TRAFFIC NETWORK SOLUTIONS SL",
+      "website_domain": "https://www.linkedin.com/company/traffic-network-solutions-sl/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2113,
+      "company_name": "Brazilian Traffic Network",
+      "website_domain": "https://www.linkedin.com/company/the-brazilian-traffic-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2122,
+      "company_name": "The Canadian Traffic Network",
+      "website_domain": "https://www.linkedin.com/company/the-canadian-traffic-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2129,
+      "company_name": "Global Traffic Network",
+      "website_domain": "https://www.linkedin.com/company/global-traffic-network-inc./",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2136,
+      "company_name": "UNITED STATES TRAFFIC NETWORK",
+      "website_domain": "https://www.linkedin.com/company/united-states-traffic-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2137,
+      "company_name": "Traffic Panda BV",
+      "website_domain": "https://www.linkedin.com/company/trafficpanda/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2159,
+      "company_name": "The Complete Traffic Network",
+      "website_domain": "https://www.linkedin.com/company/the-complete-traffic-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2207,
+      "company_name": "GLOBAL TRAFFIC NETWORK (UK) LIMITED",
+      "website_domain": "https://www.linkedin.com/company/global-traffic-network-uk-limited/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2212,
+      "company_name": "Total Traffic & Weather Network",
+      "website_domain": "https://www.linkedin.com/company/total-traffic-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2261,
+      "company_name": "Financial Traffic Network",
+      "website_domain": "https://www.linkedin.com/company/financial-traffic-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2413,
+      "company_name": "Traffic Light CPA",
+      "website_domain": "https://www.linkedin.com/company/traffic-light-cpa/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2440,
+      "company_name": "Triangle Traffic Network",
+      "website_domain": "https://www.linkedin.com/company/triangle-traffic-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2475,
+      "company_name": "7SearchPPC - Premium Advertising & Monetization Platform",
+      "website_domain": "https://www.linkedin.com/company/7searchppc/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in advertising/adtech, traffic monetization, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 2514,
+      "company_name": "Newsletter Traffic Network",
+      "website_domain": "https://www.linkedin.com/company/newsletter-traffic-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2534,
+      "company_name": "Australia Traffic Network Pty Ltd",
+      "website_domain": "https://www.linkedin.com/company/australia-traffic-network-pty-ltd/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2540,
+      "company_name": "Traffax Traffic Network",
+      "website_domain": "https://www.linkedin.com/company/traffax-traffic-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2588,
+      "company_name": "Mobile Traffic Network Inc",
+      "website_domain": "https://www.linkedin.com/company/mobile-traffic-network-inc/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2589,
+      "company_name": "Metro Traffic Network",
+      "website_domain": "https://www.linkedin.com/company/metro-traffic-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2684,
+      "company_name": "Blindspot",
+      "website_domain": "https://www.linkedin.com/company/seeblindspot/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2758,
+      "company_name": "Kaaf Media Network l Growth Marketing Partner",
+      "website_domain": "https://www.linkedin.com/company/kaafmedia/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in traffic acquisition, performance marketing, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 2815,
+      "company_name": "ADSKNIFE PERFORMANCE MARKETING PRIVATE LIMITED",
+      "website_domain": "https://www.linkedin.com/company/linkedinadsknife/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2908,
+      "company_name": "App Guardians - App Growth Network's Mobile Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/appguardians/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in traffic acquisition, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 2972,
+      "company_name": "SMOAD Networks",
+      "website_domain": "https://www.linkedin.com/company/smoadnetworks/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 2996,
+      "company_name": "RM",
+      "website_domain": "https://www.linkedin.com/company/revmob-mobile-ad-network/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3003,
+      "company_name": "Trafee",
+      "website_domain": "https://www.linkedin.com/company/trafeecpa/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3106,
+      "company_name": "MUDA (Lead Generation Agency)",
+      "website_domain": "https://www.linkedin.com/company/muda-africa1/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3107,
+      "company_name": "IDMS | Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/idms-co-in/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3108,
+      "company_name": "Upbold | Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/upbold/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3110,
+      "company_name": "LeadForge B2B — Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/leadforge-b2b/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3112,
+      "company_name": "Lead Generation B2B | Zoo Agency",
+      "website_domain": "https://www.linkedin.com/company/marketing-b2b-italia/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3114,
+      "company_name": "Inboxpirates - B2B Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/inboxpirates/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3115,
+      "company_name": "Agency Leads - Lead Generation Tool for Staffing Agencies",
+      "website_domain": "https://www.linkedin.com/company/agency-leads/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3117,
+      "company_name": "Growleads.io - AI Powered B2B Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/growleads-io/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3118,
+      "company_name": "Introduksi - B2B Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/introduksi/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3119,
+      "company_name": "Lead Generation",
+      "website_domain": "https://www.linkedin.com/company/salesproomcompany/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3120,
+      "company_name": "Lead Pronto - Lead Generation Experts",
+      "website_domain": "https://www.linkedin.com/company/lead-pronto/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3126,
+      "company_name": "Big Leads - Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/bigleadsco/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3127,
+      "company_name": "Lead Gen Agency",
+      "website_domain": "https://www.linkedin.com/company/lead-gen-agency/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3134,
+      "company_name": "Prosper Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/prosper-lead-generation-agency/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3137,
+      "company_name": "EstateVenture | Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/estateventure/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3141,
+      "company_name": "LGA | Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/lga-ua/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3142,
+      "company_name": "Leadaze: Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/leadaze/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3145,
+      "company_name": "Capia Capital | Outbound Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/capia-capital/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3149,
+      "company_name": "LEADSPRINGER (Lead Generation Agency)",
+      "website_domain": "https://www.linkedin.com/company/leadspringer-lead-generation-agency/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3152,
+      "company_name": "YMMY Marketing - Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/ymmy/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3153,
+      "company_name": "4Pmix Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/4pmix11/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3155,
+      "company_name": "Linkbee | LinkedIn Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/linkbee-linkedin-lead-generation-agency/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3157,
+      "company_name": "growify - lead generation agency",
+      "website_domain": "https://www.linkedin.com/company/growify-lead-generation-agency/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3159,
+      "company_name": "Best Lead Generation Agency in India",
+      "website_domain": "https://www.linkedin.com/company/best-lead-generation-agency-in-india/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3160,
+      "company_name": "Brighta Group | B2B Digital, Brand, Creative & Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/brightagroupglobal/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3161,
+      "company_name": "SaaS a Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/saas-a-lead-generation-agency/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3162,
+      "company_name": "Marketing Services 24-AI-Powered Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/marketing-services24-digital-marketing-agency/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3163,
+      "company_name": "Génération Leads Linkedin - Spécialiste / Expert LinkedIn 🚀 - Agence Linkedin -Formation & coaching",
+      "website_domain": "https://www.linkedin.com/company/lead-generation-specialist-linkedin/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3164,
+      "company_name": "Digital Marketing & B2B Lead Generation Agency",
+      "website_domain": "https://www.linkedin.com/company/digital-marketing-b2b-lead-generation-agency/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3167,
+      "company_name": "DigitalLancers - B2B Lead Generation",
+      "website_domain": "https://www.linkedin.com/company/digitallancers/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3187,
+      "company_name": "UpROI - Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/uproi/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3194,
+      "company_name": "Digital Marketing Agency USA SEO Company, SEM, and affordable PPC Services New York CA, WC,",
+      "website_domain": "https://www.linkedin.com/company/digitalmarketingagencyusa/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3199,
+      "company_name": "BestoSEO - Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/bestoseo-digital-marketing-agency/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3201,
+      "company_name": "DigiDir- Leading Digital Marketing Agency in Delhi NCR, India",
+      "website_domain": "https://www.linkedin.com/company/digidir/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3208,
+      "company_name": "Monarch Web World - The Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/monarchwebworld/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3209,
+      "company_name": "Inside Global - GTM Lead Gen & SDR Experts",
+      "website_domain": "https://www.linkedin.com/company/inside-global/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3244,
+      "company_name": "KlientBoost - The Performance Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/klientboost/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3254,
+      "company_name": "Profitcast Growth Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/profitcast/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in traffic acquisition, performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3257,
+      "company_name": "Flora Fountain: Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/flora-fountain-digital-marketing-agency/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3292,
+      "company_name": "Edelytics, Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/edelytics/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3307,
+      "company_name": "IIS E-Solutions | Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/iis-e-solutions/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3312,
+      "company_name": "Brilliant Brains | AI-Powered Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/brilliant-brains-digital/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3328,
+      "company_name": "Adstrategy - 11 Years of AI Lead Generation",
+      "website_domain": "https://www.linkedin.com/company/adstrategyglobal/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3343,
+      "company_name": "Cheap Lead Generation",
+      "website_domain": "https://www.linkedin.com/company/cheap-lead-generation/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3367,
+      "company_name": "Infinity Reach - The Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/infinity-reach/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3376,
+      "company_name": "#ADINDEX ROI BASED Digital Marketing AGENCY",
+      "website_domain": "https://www.linkedin.com/company/adindex/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3401,
+      "company_name": "Real Performance Marketing",
+      "website_domain": "https://www.linkedin.com/company/real-performance-marketing-houston/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3424,
+      "company_name": "Adsparkx",
+      "website_domain": "https://www.linkedin.com/company/adsparkx/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3439,
+      "company_name": "Attrock - Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/attrock---digital-marketing-company/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3444,
+      "company_name": "Vitamina. Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/a-vitamina/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3450,
+      "company_name": "TargetG: Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/targetgdigital/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3464,
+      "company_name": "Interalia - Digital Marketing & Lead Generation services",
+      "website_domain": "https://www.linkedin.com/company/interalia.net/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3468,
+      "company_name": "Sydney Digital Marketing Agency | ⭐️ Digital Marketing Designed To Power Your Business Revenue",
+      "website_domain": "https://www.linkedin.com/company/sydney-digital-marketing/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3488,
+      "company_name": "QUINT DIGITAL MARKETING AGENCY MELBOURNE",
+      "website_domain": "https://www.linkedin.com/company/quintdigital/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3493,
+      "company_name": "Goseen - Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/goseen/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3495,
+      "company_name": "Hire SEO Expert- Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/hire-seo-expert/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3506,
+      "company_name": "Witrex - Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/witrex/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3507,
+      "company_name": "Global Trend — B2B & DTC Performance Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/global-trend-co-in/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3551,
+      "company_name": "Absolute Digital Media | Award-Winning SEO & Digital Marketing Agency | UK & Dubai",
+      "website_domain": "https://www.linkedin.com/company/absolute-digital-media/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3580,
+      "company_name": "Zenerom Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/zenerom/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3608,
+      "company_name": "ListBuildup | B2B Lead Generation & Prospect List Building Agency",
+      "website_domain": "https://www.linkedin.com/company/listbuildup/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3609,
+      "company_name": "CyberX Studio | Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/cyberxstudio/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3615,
+      "company_name": "Mad Result | Global Performance Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/madresultagency/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3634,
+      "company_name": "Hometown Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/hometowndma/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3654,
+      "company_name": "upGrowth | Growth Marketing Partner",
+      "website_domain": "https://www.linkedin.com/company/upgrowth/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in traffic acquisition, performance marketing, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3675,
+      "company_name": "KWSM: a digital marketing agency",
+      "website_domain": "https://www.linkedin.com/company/kwsmteam/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3677,
+      "company_name": "Spiralytics, Inc. - Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/spiralytics-inc/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3701,
+      "company_name": "Viral Mafia - Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/viral-mafia/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3706,
+      "company_name": "Sieve Softech - Best Digital Marketing Agency in Hyderabad",
+      "website_domain": "https://www.linkedin.com/company/sievesoftech/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3708,
+      "company_name": "Eighthsense | Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/eighthsense/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3725,
+      "company_name": "Bizcon Digital Labs | Growth Marketing & AI Search Agency",
+      "website_domain": "https://www.linkedin.com/company/bizconmedia/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in traffic acquisition, performance marketing, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3742,
+      "company_name": "Seocial9 (Digital Marketing Agency)",
+      "website_domain": "https://www.linkedin.com/company/seocial9/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3761,
+      "company_name": "Suspect To Prospect - The Lead Generation Company",
+      "website_domain": "https://www.linkedin.com/company/suspect-to-prospect/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3827,
+      "company_name": "Digital Marketing Agency USA, Europe (B2B & WordPress)",
+      "website_domain": "https://www.linkedin.com/company/best-digital-marketing-agency-usa-europe/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3865,
+      "company_name": "Volga Tigris Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/volga-tigris-digital-marketing-agency/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3872,
+      "company_name": "Digital Promenade Pvt. Ltd.",
+      "website_domain": "https://www.linkedin.com/company/digital-promenade-promising-digital-marketing-agency/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3876,
+      "company_name": "Vilampara Media (V-Media) - Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/vilamparamedia/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3880,
+      "company_name": "Red Realm-A Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/red-realm-marketing/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3887,
+      "company_name": "Digital Marketing Agency Chennai [DMAC]",
+      "website_domain": "https://www.linkedin.com/company/digital-marketing-agency-chennai-dmac/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 3890,
+      "company_name": "Twodots Media | Digital Marketing Agency for Interior Designers & Architects | Lead Generation",
+      "website_domain": "https://www.linkedin.com/company/twodots-media/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3900,
+      "company_name": "Stratique",
+      "website_domain": "https://www.linkedin.com/company/stratique-marketing-and-lead-generation/",
+      "category": "Direct Advertiser / Lead Gen",
+      "reasoning": "high-volume digital acquisition",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 3972,
+      "company_name": "Bond Agency - Partner-Led Growth",
+      "website_domain": "https://www.linkedin.com/company/bond-partnerships/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in traffic acquisition, affiliate/partner ecosystem, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 4000,
+      "company_name": "DaBrian Marketing Group, LLC - Full Service Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/dabrian-marketing-group/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 4011,
+      "company_name": "Blueprint360 : A Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/blueprint360/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 4040,
+      "company_name": "YouthMonk - SEO | Ads | SMM | SMO | Web Dev | AI tool Dev | Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/youthmonk/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 4060,
+      "company_name": "THRM Digital Marketing Agency",
+      "website_domain": "https://www.linkedin.com/company/thrmdigitalmarketingagency/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 4065,
+      "company_name": "Red Hot Media House Pvt Ltd - Best Digital Marketing Agency in India",
+      "website_domain": "https://www.linkedin.com/company/redhotmediahousepvtltd/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in performance marketing, digital media agency, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 4144,
+      "company_name": "Сторінка AvidSphere LLC",
+      "website_domain": "https://www.linkedin.com/company/avidsphere/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4149,
+      "company_name": "Wellness Partner Program",
+      "website_domain": "https://www.linkedin.com/company/wellnesspartnerprogram/",
+      "category": "Ad Network",
+      "reasoning": "adtech/traffic network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4186,
+      "company_name": "Zipf & Co. Partner-led Growth Framework | Partner Program",
+      "website_domain": "https://www.linkedin.com/company/zipfco/",
+      "category": "Tier 2 Borderline",
+      "reasoning": "Likely operates in traffic acquisition, affiliate/partner ecosystem, indicating exposure to paid or partner-driven traffic and related fraud risk.",
+      "qualification_source": "tier2",
+      "is_espx_icp": 0,
+      "is_tier2_lead": 1
+    },
+    {
+      "id": 4214,
+      "company_name": "Crypto Exchange Directory",
+      "website_domain": "https://www.linkedin.com/company/crypto-exchange-directory/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4218,
+      "company_name": "Crypto Arbitrage",
+      "website_domain": "https://www.linkedin.com/company/cryptocurrencyarbitrage/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4224,
+      "company_name": "Crypto & Casino Advertisers and Publishers",
+      "website_domain": "https://www.linkedin.com/company/crypto-casino-advertisers-and-publishers/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4225,
+      "company_name": "Crypto Arbitrage Trading",
+      "website_domain": "https://www.linkedin.com/company/crypto-arbitrage-trading/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4231,
+      "company_name": "Crypto Arbitrage Strategies",
+      "website_domain": "https://www.linkedin.com/company/crypto-arbitrage-strategies/",
+      "category": "Media Buying / Performance Agency",
+      "reasoning": "paid traffic/performance marketing",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4244,
+      "company_name": "MetaBlock | iGaming",
+      "website_domain": "https://www.linkedin.com/company/metablockigaming/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4263,
+      "company_name": "Crypto Exchange",
+      "website_domain": "https://www.linkedin.com/company/exchangecrypto/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4293,
+      "company_name": "iGaming Hunter",
+      "website_domain": "https://www.linkedin.com/company/igaming-hunter/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4313,
+      "company_name": "SmartBettingGuide",
+      "website_domain": "https://www.linkedin.com/company/sbgcom/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4329,
+      "company_name": "Crypto Casino Guru",
+      "website_domain": "https://www.linkedin.com/company/cryptocasinoguru/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4356,
+      "company_name": "Affiliate Marketing Expert - Make Money Driving FX, Crypto & CPA Conversions",
+      "website_domain": "https://www.linkedin.com/company/affiliate-marketing-expert-make-money-driving-fx-crypto-cpa-conversions/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4390,
+      "company_name": "CCPayment",
+      "website_domain": "https://www.linkedin.com/company/ccpayment/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4434,
+      "company_name": "Inkfish Digital - Professional iGaming and Crypto SEO Content Agency",
+      "website_domain": "https://www.linkedin.com/company/inkfish-digital/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4437,
+      "company_name": "RunCPA",
+      "website_domain": "https://www.linkedin.com/company/runcpa/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4446,
+      "company_name": "Zoexpro.com Crypto Exchange Platform, Spot, Derivatives Trading, Secure, Buy Bitcoin in minutes.",
+      "website_domain": "https://www.linkedin.com/company/zoexpro/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4447,
+      "company_name": "Best Crypto Exchange",
+      "website_domain": "https://www.linkedin.com/company/best-crypto-exchange/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4474,
+      "company_name": "Gem Solutions - Future of iGaming",
+      "website_domain": "https://www.linkedin.com/company/gem-solutions-future-of-igaming/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4477,
+      "company_name": "ZMastery: iGaming SEO Services for Operators",
+      "website_domain": "https://www.linkedin.com/company/zmastery/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4479,
+      "company_name": "PlayWinPlay - iGaming solutions",
+      "website_domain": "https://www.linkedin.com/company/pwpbet/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4506,
+      "company_name": "AdsTaga",
+      "website_domain": "https://www.linkedin.com/company/adstargate-affiliate-network/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4582,
+      "company_name": "CPADOK.media",
+      "website_domain": "https://www.linkedin.com/company/cpadok-media/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4593,
+      "company_name": "BettingSharks Consultancy",
+      "website_domain": "https://www.linkedin.com/company/bettingsharksconsultancy/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4669,
+      "company_name": "Private Affiliate Network | PAN ♛",
+      "website_domain": "https://www.linkedin.com/company/affiliate-network-pan/",
+      "category": "CPA Network",
+      "reasoning": "affiliate/cpa network",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4670,
+      "company_name": "iGamingCraft",
+      "website_domain": "https://www.linkedin.com/company/igamingcraft/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4804,
+      "company_name": "MatGaming",
+      "website_domain": "https://www.linkedin.com/company/matgaming-igaming/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4816,
+      "company_name": "iGamingAward",
+      "website_domain": "https://www.linkedin.com/company/igamingaward/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 4824,
+      "company_name": "Online Casino Api",
+      "website_domain": "https://www.linkedin.com/company/online-casino-api/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    },
+    {
+      "id": 5279,
+      "company_name": "IGA Group - iGamingAdvisors",
+      "website_domain": "https://www.linkedin.com/company/igamingadvisors/",
+      "category": "iGaming/Betting/Crypto Operator",
+      "reasoning": "operator with partner traffic",
+      "qualification_source": "primary",
+      "is_espx_icp": 1,
+      "is_tier2_lead": 0
+    }
+  ]
+}

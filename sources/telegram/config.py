@@ -7,6 +7,10 @@ import yaml
 
 from .icp import load_icp_queries
 
+CHAT_ROLES = frozenset(
+    {"buyer_supergroup", "vendor_support", "supply", "intel_only", "buyer"}
+)
+
 
 @dataclass
 class ChatConfig:
@@ -16,6 +20,14 @@ class ChatConfig:
     geo: str = "global"
     enabled: bool = True
     chat_id: int | None = None
+    # buyer_supergroup | vendor_support | supply | intel_only (M4 curation)
+    role: str = "buyer_supergroup"
+
+    def normalized_role(self) -> str:
+        role = (self.role or "buyer_supergroup").strip().lower()
+        if role not in CHAT_ROLES:
+            return "buyer_supergroup"
+        return role
 
     def channel_key(self) -> str:
         if self.username:
@@ -49,6 +61,9 @@ class DiscoverConfig:
     queries: list[str]
     limit_per_query: int
     serp_channels_path: str
+    employer_tg_queries_path: str = (
+        "data/runtime/discovered_employer_tg_queries.json"
+    )
     domains_path: str = "data/runtime/discovered_telegram_domains.json"
     icp_path: str = "config/discover.icp.json"
     cross_mention: CrossMentionConfig = field(default_factory=CrossMentionConfig)
@@ -59,6 +74,13 @@ class GlobalSearchConfig:
     enabled: bool = False
     terms: list[str] = field(default_factory=list)
     messages_per_query: int = 20
+
+
+def _parse_chat_role(raw: object) -> str:
+    role = str(raw or "buyer_supergroup").strip().lower()
+    if role not in CHAT_ROLES:
+        raise ValueError(f"invalid chat role: {role}")
+    return role
 
 
 @dataclass
@@ -80,8 +102,6 @@ def load_config(path: str | Path) -> ScraperConfig:
         geo = str(entry.get("geo", "global")).lower()
         if geo == "ru":
             continue
-        if not entry.get("enabled", True):
-            continue
         chat_id = entry.get("chat_id")
         parsed_chat_id = int(chat_id) if chat_id is not None else None
         chats.append(
@@ -90,8 +110,9 @@ def load_config(path: str | Path) -> ScraperConfig:
                 username=str(entry.get("username", "")).lstrip("@"),
                 invite_hash=str(entry.get("invite_hash", "")).strip(),
                 geo=geo,
-                enabled=True,
+                enabled=bool(entry.get("enabled", True)),
                 chat_id=parsed_chat_id,
+                role=_parse_chat_role(entry.get("role")),
             )
         )
 
@@ -120,6 +141,12 @@ def load_config(path: str | Path) -> ScraperConfig:
             discover_raw.get(
                 "serp_channels_path",
                 "data/runtime/discovered_telegram_channels.json",
+            )
+        ),
+        employer_tg_queries_path=str(
+            discover_raw.get(
+                "employer_tg_queries_path",
+                "data/runtime/discovered_employer_tg_queries.json",
             )
         ),
         domains_path=str(

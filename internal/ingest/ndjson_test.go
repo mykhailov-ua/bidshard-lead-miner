@@ -35,8 +35,40 @@ func TestParseTelegramSenderUserID(t *testing.T) {
 	if got := item.ContactTelegram(); got != "telegram:user_id:99887766" {
 		t.Fatalf("contact=%q", got)
 	}
+	if item.SenderUserID != 99887766 {
+		t.Fatalf("sender_user_id=%d", item.SenderUserID)
+	}
 	if err := validateTelegramItem(item); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestParseTelegramSenderUserIDWithUsername(t *testing.T) {
+	t.Parallel()
+
+	line := []byte(`{"source":"telegram:@affnet","text":"voluum pain","username":"buyer_mx","message_id":4,"sender_user_id":99887766,"contact":"telegram:@buyer_mx"}`)
+	item, err := parseNDJSONLine(line)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.SenderUserID != 99887766 {
+		t.Fatalf("sender_user_id=%d", item.SenderUserID)
+	}
+	if got := item.ContactTelegram(); got != "telegram:@buyer_mx" {
+		t.Fatalf("contact=%q", got)
+	}
+}
+
+func TestParseTelegramSenderBio(t *testing.T) {
+	t.Parallel()
+
+	line := []byte(`{"source":"telegram:@affnet","text":"voluum pain","username":"buyer","message_id":5,"sender_bio":"keitaro binom media buyer"}`)
+	item, err := parseNDJSONLine(line)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.SenderBio != "keitaro binom media buyer" {
+		t.Fatalf("sender_bio=%q", item.SenderBio)
 	}
 }
 

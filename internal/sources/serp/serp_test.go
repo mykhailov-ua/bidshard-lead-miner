@@ -12,7 +12,7 @@ import (
 
 var mockSERPHTML = `
 <div class="result">
-	<a class="result__a" href="https://blackhatworld.com/seo/best-voluum-alternative.12345">Best Voluum Alternative for Affiliate Marketing</a>
+	<a class="result__a" href="https://t.me/aff_lead">Affiliate buyer channel</a>
 	<a class="result__snippet">Looking for self-hosted tracker, Voluum is too expensive. Contact me on Telegram @aff_lead</a>
 </div>
 `

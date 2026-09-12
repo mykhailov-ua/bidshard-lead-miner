@@ -10,7 +10,7 @@ import (
 
 // HarvestProxyReady reports whether SERP harvest may run given proxy config.
 // Skips when serp is listed in PARSER_PROXY_SOURCES but PARSER_PROXY_LIST is empty.
-// Default proxy scope (forum,tgweb,lander,webpain) keeps serp on direct egress.
+// Default proxy scope includes serp when PARSER_PROXY_LIST is set.
 func HarvestProxyReady(cfg config.Config) bool {
 	if len(cfg.ProxyURLs) > 0 {
 		return true

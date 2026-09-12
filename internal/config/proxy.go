@@ -4,7 +4,7 @@ import "strings"
 
 // ProxyURLsForSource returns PARSER_PROXY_LIST when the source is allowed to use proxy egress.
 // When PARSER_PROXY_SOURCES is unset but PARSER_PROXY_LIST is set, applyProxyDefaults scopes
-// proxy to forum,tgweb,lander,webpain (SERP/reddit/github stay direct).
+// proxy to forum,tgweb,lander,webpain,jobboard,serp (reddit/github stay direct).
 func (c Config) ProxyURLsForSource(sourceID string) []string {
 	if len(c.ProxyURLs) == 0 {
 		return nil

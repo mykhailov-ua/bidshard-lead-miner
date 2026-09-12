@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -58,52 +59,54 @@ type EnrichSynthesizer interface {
 }
 
 type Processor struct {
-	Registry              *scoring.Registry
-	Seen                  *dedup.SeenCache
-	Store                 sink.Store
-	MX                    validate.MXValidator
-	Junk                  *coldpath.Capturer
-	SourceRep             *scoring.SourceReputation
-	KeywordStats          *sink.KeywordStatsStore
-	ICP                   ICPClassifier
-	ICPEnabled            bool
-	ICPTgWebEnabled       bool
-	TgWebPrescanMode      scoring.TgWebPrescanMode
-	Geo                   GeoClassifier
-	GeoEnabled            bool
-	GeoBlockCountries     []string
-	Engage                EngagementClassifier
-	EngageEnabled         bool
-	Intent                IntentClassifier
-	IntentEnabled         bool
-	IntentMinConfidence   float64
-	LanderOutreachEnabled bool
-	Prescan               EmbedPrescanner
-	PrescanEnabled        bool
-	LeadCluster           LeadClusterer
-	LeadClusterEnabled    bool
-	Enricher              *enrich.Enricher
-	ProfileEnricher       *enrich.ProfileEnricher
-	EnrichSynth           EnrichSynthesizer
-	EnrichSynthEnabled    bool
-	TimeDecayEnabled      bool
-	PilotTagEnabled       bool
-	LeadStatusEnabled     bool
-	GeminiDefer           bool
-	WarmPath              *warmpath.Capturer
-	EntityRecorder        entity.Recorder
-	EntitySightings       bool
-	CrossSourceHot        bool
-	CrossSourceWindow     time.Duration
-	CrossSourceBoost      int
-	EntityClassifyEnabled bool
-	EntityClassify        *warmpath.EntityClassifyCapturer
-	EntityHeatEnabled     bool
-	EntityHeat            entity.HeatConfig
-	HardRejectShadowPct   int
-	SeedFeedback          *seedfeedback.Recorder
-	TelegramThread        *entity.ThreadBuffer
-	hashInflight          sync.Map // hash_id -> struct{}
+	Registry               *scoring.Registry
+	Seen                   *dedup.SeenCache
+	Store                  sink.Store
+	MX                     validate.MXValidator
+	Junk                   *coldpath.Capturer
+	SourceRep              *scoring.SourceReputation
+	KeywordStats           *sink.KeywordStatsStore
+	ICP                    ICPClassifier
+	ICPEnabled             bool
+	ICPTgWebEnabled        bool
+	TgWebPrescanMode       scoring.TgWebPrescanMode
+	Geo                    GeoClassifier
+	GeoEnabled             bool
+	GeoBlockCountries      []string
+	Engage                 EngagementClassifier
+	EngageEnabled          bool
+	Intent                 IntentClassifier
+	IntentEnabled          bool
+	IntentMinConfidence    float64
+	LanderOutreachEnabled  bool
+	Prescan                EmbedPrescanner
+	PrescanEnabled         bool
+	LeadCluster            LeadClusterer
+	LeadClusterEnabled     bool
+	Enricher               *enrich.Enricher
+	ProfileEnricher        *enrich.ProfileEnricher
+	EnrichSynth            EnrichSynthesizer
+	EnrichSynthEnabled     bool
+	TimeDecayEnabled       bool
+	PilotTagEnabled        bool
+	LeadStatusEnabled      bool
+	GeminiDefer            bool
+	WarmPath               *warmpath.Capturer
+	EntityRecorder         entity.Recorder
+	EntitySightings        bool
+	CrossSourceHot         bool
+	CrossSourceWindow      time.Duration
+	CrossSourceBoost       int
+	EntityClassifyEnabled  bool
+	EntityClassify         *warmpath.EntityClassifyCapturer
+	EntityHeatEnabled      bool
+	EntityHeat             entity.HeatConfig
+	HardRejectShadowPct    int
+	AcceptMinScore         int // M8: absolute score floor for non-telegram accepts (0=off)
+	TelegramAcceptMinScore int // M8: telegram floor when buyer voice passes (0=off)
+	SeedFeedback           *seedfeedback.Recorder
+	TelegramThread         *entity.ThreadBuffer
+	hashInflight           sync.Map // hash_id -> struct{}
 }
 
 type ProcessOutcome struct {
@@ -119,6 +122,11 @@ type ProcessOutcome struct {
 func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	task.Item.CrawlHTML = model.LimitCrawlHTML(task.Item.CrawlHTML)
 	text := task.Item.Text()
+	if bio := strings.TrimSpace(task.Item.SenderBio); bio != "" {
+		text = text + "\nuser_bio: " + bio
+	}
+	replyThreadBuyer := filter.IsTelegramSource(task.Item.Source) &&
+		filter.TelegramReplyThreadBuyer(task.Item.ReplyToMessageID, task.Item.ReplyContext, text, task.Item.Username)
 	out := ProcessOutcome{}
 	stack, structuredStack := scoring.CollectStack(task.Item.CrawlHTML)
 	if filter.IsLanderSource(task.Item.Source) {
@@ -161,6 +169,12 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		p.captureJunk(ctx, task, coldpath.ReasonBlacklist, "competitor lander domain", 0, nil)
 		return out
 	}
+	if filter.IsSerpSource(task.Item.Source) && filter.SerpBlacklistedSource(task.Item.Source) {
+		out.RejectReason = "blacklist"
+		slog.Debug("serp blacklist reject", "round_id", task.RoundID, "source", task.Item.Source)
+		p.captureJunk(ctx, task, coldpath.ReasonBlacklist, "competitor serp domain", 0, nil)
+		return out
+	}
 
 	if filter.IsIntelOnlySource(task.Item.Source, p.LanderOutreachEnabled) {
 		out.RejectReason = "intel_only"
@@ -200,6 +214,15 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		return out
 	}
 
+	if filter.IsTelegramSource(task.Item.Source) && task.Item.ReplyToMessageID > 0 {
+		if drop, reason := filter.TelegramReplyHelperReject(text); drop {
+			out.RejectReason = "telegram_spam"
+			slog.Debug("telegram reply helper", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
+			p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, reason, 0, nil)
+			return out
+		}
+	}
+
 	if filter.IsTelegramSource(task.Item.Source) {
 		if filter.TelegramChannelBroadcastReject(task.Item.Source, task.Item.ChatType, task.Item.ReplyToMessageID, text) {
 			out.RejectReason = "telegram_spam"
@@ -235,7 +258,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		}
 	}
 
-	if spam, reason := filter.TelegramSpam(task.Item.Source, text); spam {
+	if spam, reason := filter.TelegramSpam(task.Item.Source, text); spam && !replyThreadBuyer {
 		out.RejectReason = "telegram_spam"
 		slog.Debug("telegram spam", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
 		p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, reason, 0, nil)
@@ -278,6 +301,10 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		prescanOK = true
 		slog.Debug("infra pain prescan bypass", "round_id", task.RoundID, "source", task.Item.Source)
 	}
+	if p.Registry != nil && !prescanOK && replyThreadBuyer {
+		prescanOK = true
+		slog.Debug("telegram reply thread prescan pass", "round_id", task.RoundID, "source", task.Item.Source)
+	}
 	if p.Registry != nil && !prescanOK {
 		out.RejectReason = "low_priority"
 		logTgWebReject(task, "keyword prescan miss", nil)
@@ -285,11 +312,21 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		return out
 	}
 
-	contacts := extract.Extract(text, task.Item.Contact, task.Item.ContactTelegram())
+	extractHints := []string{task.Item.Contact, task.Item.ContactTelegram()}
+	if task.Item.SenderUserID > 0 {
+		extractHints = append(extractHints, fmt.Sprintf("telegram:user_id:%d", task.Item.SenderUserID))
+	}
+	contacts := extract.Extract(text, extractHints...)
 	if p.ProfileEnricher != nil {
 		contacts.Contacts = p.ProfileEnricher.MergeContacts(ctx, task.Item.Source, contacts.Contacts, task.Item.Username, task.Item.ForumUserID)
 	}
 	contacts.Contacts = extract.FilterJunkContacts(contacts.Contacts)
+	if extract.IsSyntheticContact(task.Item.Contact) {
+		out.RejectReason = "synthetic_contact"
+		slog.Debug("synthetic contact reject", "round_id", task.RoundID, "source", task.Item.Source, "contact", task.Item.Contact)
+		p.captureJunk(ctx, task, coldpath.ReasonContactReject, "synthetic serp contact", 0, nil)
+		return out
+	}
 
 	if filter.IsTelegramSource(task.Item.Source) {
 		if filter.TelegramInviteWithoutBuyerIntent(task.Item.Source, text) {
@@ -310,6 +347,12 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, "channel self broadcast", 0, nil)
 			return out
 		}
+		if !replyThreadBuyer && !filter.TelegramRequiresBuyerSignal(text) {
+			out.RejectReason = "telegram_no_buyer_voice"
+			slog.Debug("telegram buyer voice reject", "round_id", task.RoundID, "source", task.Item.Source)
+			p.captureJunk(ctx, task, coldpath.ReasonKeywordPrescan, "telegram: no buyer voice", 0, nil)
+			return out
+		}
 	}
 	if filter.IsLanderSource(task.Item.Source) && !filter.LanderRequiresEmailOrSkype(contacts.Contacts) {
 		out.RejectReason = "contact"
@@ -321,6 +364,30 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		out.RejectReason = "lander_no_buyer_signal"
 		slog.Debug("lander buyer signal reject", "round_id", task.RoundID, "source", task.Item.Source)
 		p.captureJunk(ctx, task, coldpath.ReasonKeywordPrescan, "lander: no buyer signal", 0, nil)
+		return out
+	}
+	if filter.IsSerpSource(task.Item.Source) && !filter.SerpRequiresBuyerSignal(text) {
+		out.RejectReason = "serp_no_buyer_signal"
+		slog.Debug("serp buyer signal reject", "round_id", task.RoundID, "source", task.Item.Source)
+		p.captureJunk(ctx, task, coldpath.ReasonKeywordPrescan, "serp: no buyer signal", 0, nil)
+		return out
+	}
+	if filter.IsSerpSource(task.Item.Source) && !filter.SerpHasReachableContact(task.Item.Contact, contacts.Contacts) {
+		out.RejectReason = "no_reachable_contact"
+		slog.Debug("serp placeholder contact reject", "round_id", task.RoundID, "source", task.Item.Source)
+		p.captureJunk(ctx, task, coldpath.ReasonNoReachableContact, "serp: no outreach handle", 0, nil)
+		return out
+	}
+	if filter.IsSerpSource(task.Item.Source) && filter.SerpForumSnippetOnly(task.Item.Source, contacts.Contacts) {
+		out.RejectReason = "serp_forum_snippet"
+		slog.Debug("serp forum snippet reject", "round_id", task.RoundID, "source", task.Item.Source)
+		p.captureJunk(ctx, task, coldpath.ReasonContactReject, "serp: forum snippet without author", 0, nil)
+		return out
+	}
+	if filter.IsForumSource(task.Item.Source) && !filter.ForumHasForumUserContact(contacts.Contacts) {
+		out.RejectReason = "forum_no_user_contact"
+		slog.Debug("forum user contact reject", "round_id", task.RoundID, "source", task.Item.Source)
+		p.captureJunk(ctx, task, coldpath.ReasonContactReject, "forum: no forum_user handle", 0, nil)
 		return out
 	}
 	if !filter.GitHubRequiresPainContext(task.Item.Source, text) {
@@ -436,6 +503,25 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 				priority = scoring.PriorityMedium
 				slog.Debug("ban/tech/team context score floor for llm", "round_id", task.RoundID, "source", task.Item.Source, "score", leadText.Score)
 			}
+		}
+	}
+	if priority == scoring.PriorityLow && replyThreadBuyer {
+		if min := mediumMinFromReg(p.Registry); leadText.Score < min {
+			leadText.Score = min
+			priority = scoring.PriorityFromScore(p.Registry, leadText.Score)
+			slog.Debug("telegram reply thread score floor", "round_id", task.RoundID, "source", task.Item.Source, "score", leadText.Score)
+		}
+	}
+	if priority != scoring.PriorityLow {
+		minScore := p.AcceptMinScore
+		if filter.IsTelegramSource(task.Item.Source) {
+			minScore = p.TelegramAcceptMinScore
+		}
+		if minScore > 0 && leadText.Score < minScore {
+			out.RejectReason = "low_priority"
+			slog.Debug("accept min score skip", "round_id", task.RoundID, "source", task.Item.Source, "score", leadText.Score, "min", minScore)
+			p.captureJunk(ctx, task, coldpath.ReasonLowScore, "", leadText.Score, leadText.Matched)
+			return out
 		}
 	}
 	if priority == scoring.PriorityLow {

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Stream newly accepted leads. Install: make install-lead-tail
+set -euo pipefail
+
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)/../lib/lead_cli_root.sh"
+
+ROOT="$(lead_cli_require_root lead-tail)" || exit 1
+exec "$ROOT/scripts/ops/lip" tail "$@"

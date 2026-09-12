@@ -21,21 +21,21 @@ import (
 var Version = "dev"
 
 type cliOpts struct {
-	source          string
-	output          string
-	logFormat       string
-	quiet           bool
-	noColor         bool
-	jsonStdout      bool
-	exportJSON      string
-	exportFormat    string
-	landerHeadless  bool
-	scanOnce        bool
-	telegramSidecar bool
+	source           string
+	output           string
+	logFormat        string
+	quiet            bool
+	noColor          bool
+	jsonStdout       bool
+	exportJSON       string
+	exportFormat     string
+	landerHeadless   bool
+	scanOnce         bool
+	telegramSidecar  bool
 	telegramRealtime bool
-	telegramDryRun  bool
-	ingestStdin     bool
-	fixture         string
+	telegramDryRun   bool
+	ingestStdin      bool
+	fixture          string
 }
 
 func (o *cliOpts) bindFlags(cmd *cobra.Command) {
@@ -252,7 +252,9 @@ func init() {
 	rootCmd.AddCommand(
 		newRunCmd(),
 		newScanCmd(),
+		newDiscoverCmd(),
 		newTelegramCmd(),
+		newRedditCmd(),
 		newIngestCmd(),
 		newVersionCmd(),
 		newSourcesCmd(),

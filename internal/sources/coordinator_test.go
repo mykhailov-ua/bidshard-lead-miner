@@ -144,6 +144,68 @@ func TestCoordinatorDropsOnFullTaskChannel(t *testing.T) {
 	}
 }
 
+func TestCoordinatorCollectsSourcesInParallel(t *testing.T) {
+	t.Parallel()
+
+	const delay = 120 * time.Millisecond
+	cfg := config.Config{
+		TaskBuffer:        8,
+		SourceConcurrency: 0,
+		ScanTimeout:       5 * time.Second,
+		HTTPTimeout:       time.Second,
+	}
+
+	sources := []Source{
+		&StubSource{name: "stub:a", delay: delay},
+		&StubSource{name: "stub:b", delay: delay},
+		&StubSource{name: "stub:c", delay: delay},
+	}
+	coordinator := NewCoordinator(cfg, sources)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	taskCh := make(chan pipeline.Task, 8)
+	statsCh := make(chan pipeline.RoundStats, 1)
+
+	var drainWG sync.WaitGroup
+	drainWG.Add(1)
+	go func() {
+		defer drainWG.Done()
+		for task := range taskCh {
+			task.Stats.FinishTask()
+		}
+	}()
+
+	start := time.Now()
+	coordinator.runRound(ctx, taskCh, statsCh)
+	elapsed := time.Since(start)
+	close(taskCh)
+	drainWG.Wait()
+
+	stats := <-statsCh
+	if stats.SourcesOK != 3 {
+		t.Fatalf("sources_ok=%d want 3", stats.SourcesOK)
+	}
+	sequential := 3 * delay
+	if elapsed >= sequential-time.Millisecond*20 {
+		t.Fatalf("elapsed=%s expected parallel (< %s)", elapsed, sequential)
+	}
+}
+
+func TestEffectiveSourceConcurrency(t *testing.T) {
+	t.Parallel()
+	if effectiveSourceConcurrency(0) != 0 {
+		t.Fatal("zero cfg should mean unlimited")
+	}
+	if effectiveSourceConcurrency(-1) != 0 {
+		t.Fatal("negative cfg should mean unlimited")
+	}
+	if effectiveSourceConcurrency(2) != 2 {
+		t.Fatal("positive cfg should pass through")
+	}
+}
+
 func TestCoordinatorRoundStatsRejects(t *testing.T) {
 	t.Parallel()
 
@@ -163,11 +225,11 @@ func TestCoordinatorRoundStatsRejects(t *testing.T) {
 	}
 
 	cfg := config.Config{
-		WorkerCount:       2,
-		TaskBuffer:        8,
-		SourceConcurrency: 2,
-		ScanTimeout:       5 * time.Second,
-		HTTPTimeout:       time.Second,
+		WorkerCount:          2,
+		TaskBuffer:           8,
+		SourceConcurrency:    2,
+		ScanTimeout:          5 * time.Second,
+		HTTPTimeout:          time.Second,
 		ProcessorTaskTimeout: 5 * time.Second,
 	}
 	coordinator := NewCoordinator(cfg, []Source{

@@ -11,11 +11,13 @@ import (
 	"github.com/bidshard/parser/internal/sources/discord"
 	"github.com/bidshard/parser/internal/sources/forum"
 	"github.com/bidshard/parser/internal/sources/github"
+	"github.com/bidshard/parser/internal/sources/jobboard"
 	"github.com/bidshard/parser/internal/sources/lander"
 	"github.com/bidshard/parser/internal/sources/reddit"
 	"github.com/bidshard/parser/internal/sources/reviews"
 	"github.com/bidshard/parser/internal/sources/serp"
 	"github.com/bidshard/parser/internal/sources/supply"
+	"github.com/bidshard/parser/internal/sources/tgweb"
 	"github.com/bidshard/parser/internal/sources/webpain"
 )
 
@@ -51,8 +53,8 @@ func parseSourceList(raw string) []string {
 		return nil
 	}
 	if raw == "all" {
-		// Precision default: omit lander (competitor HTML junk). Opt in: PARSER_SOURCE=...,lander
-		return []string{"forum", "supply", "reddit", "discord", "serp"}
+		// Precision default: omit lander/github/tgweb (seeds or sidecar). Opt in via explicit list.
+		return []string{"forum", "supply", "reddit", "discord", "serp", "reviews"}
 	}
 	parts := strings.Split(raw, ",")
 	seen := make(map[string]struct{}, len(parts))
@@ -108,6 +110,14 @@ func buildOne(cfg config.Config, name string) (Source, bool) {
 		return wrapSERP(serp.NewCrawler(cfg, nil)), true
 	case "webpain":
 		return wrapWebPain(webpain.NewAdapter(cfg, nil)), true
+	case "jobboard":
+		return wrapJobboard(jobboard.NewAdapter(cfg, nil)), true
+	case "tgweb":
+		crawler, err := tgweb.BuildCrawler(cfg, nil)
+		if err != nil {
+			return nil, false
+		}
+		return wrapTgweb(crawler), true
 	default:
 		return nil, false
 	}
@@ -221,6 +231,24 @@ func (s *forumSource) Collect(ctx context.Context, emit EmitFunc) error {
 	})
 }
 
+type jobboardSource struct {
+	inner *jobboard.Adapter
+}
+
+func wrapJobboard(inner *jobboard.Adapter) Source {
+	return &jobboardSource{inner: inner}
+}
+
+func (s *jobboardSource) Name() string {
+	return s.inner.Name()
+}
+
+func (s *jobboardSource) Collect(ctx context.Context, emit EmitFunc) error {
+	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
+		return emit(ctx, item)
+	})
+}
+
 type webPainSource struct {
 	inner *webpain.Adapter
 }
@@ -288,6 +316,24 @@ func (s *discordSource) Name() string {
 }
 
 func (s *discordSource) Collect(ctx context.Context, emit EmitFunc) error {
+	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
+		return emit(ctx, item)
+	})
+}
+
+type tgwebSource struct {
+	inner *tgweb.Crawler
+}
+
+func wrapTgweb(inner *tgweb.Crawler) Source {
+	return &tgwebSource{inner: inner}
+}
+
+func (s *tgwebSource) Name() string {
+	return s.inner.Name()
+}
+
+func (s *tgwebSource) Collect(ctx context.Context, emit EmitFunc) error {
 	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
 		return emit(ctx, item)
 	})

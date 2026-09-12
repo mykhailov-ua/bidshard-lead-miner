@@ -5,7 +5,7 @@
 #
 #   VPS_SSH_HOST       SSH host or ~/.ssh/config alias (local: hostiq)
 #   VPS_SSH_USER       default root
-#   VPS_SSH_PORT       default 22
+#   VPS_SSH_PORT       default 2222
 #   VPS_REMOTE_DIR     default /opt/lead-intent-processor
 #   VPS_RSYNC_DELETE   1 = rsync --delete (default 1)
 #
@@ -23,7 +23,7 @@ vps_load_config() {
 
 	export VPS_SSH_HOST="${VPS_SSH_HOST:-hostiq}"
 	export VPS_SSH_USER="${VPS_SSH_USER:-root}"
-	export VPS_SSH_PORT="${VPS_SSH_PORT:-22}"
+	export VPS_SSH_PORT="${VPS_SSH_PORT:-2222}"
 	export VPS_REMOTE_DIR="${VPS_REMOTE_DIR:-/opt/lead-intent-processor}"
 	export VPS_RSYNC_DELETE="${VPS_RSYNC_DELETE:-1}"
 }
@@ -41,6 +41,32 @@ vps_ssh() {
 	ssh $(vps_ssh_opts) "$(vps_ssh_target)" "$@"
 }
 
+# Exit 0 when SSH works; non-zero on timeout/auth/refused.
+vps_ssh_probe() {
+	# shellcheck disable=SC2086
+	ssh $(vps_ssh_opts) "$(vps_ssh_target)" true
+}
+
+vps_ssh_print_help() {
+	local root="${1:-}"
+	printf 'SSH failed: %s (VPS_SSH_HOST=%s port=%s)\n' "$(vps_ssh_target)" "${VPS_SSH_HOST:-?}" "${VPS_SSH_PORT:-?}" >&2
+	printf 'Try: ssh %s\n' "$(vps_ssh_target)" >&2
+	if [[ -n "$root" ]]; then
+		printf 'Config: %s/config/env/.env.vps-deploy.local\n' "$root" >&2
+		printf 'Use ssh config alias (e.g. hostiq) instead of raw IP when ~/.ssh/config has Host entry.\n' >&2
+	fi
+}
+
+vps_ssh_require() {
+	local root="${1:?repo root}"
+	vps_load_config "$root"
+	if vps_ssh_probe; then
+		return 0
+	fi
+	vps_ssh_print_help "$root"
+	return 1
+}
+
 vps_rsync_ssh() {
 	printf '%s' "ssh $(vps_ssh_opts)"
 }
@@ -53,6 +79,7 @@ vps_rsync_push() {
 	fi
 
 	rsync -az "${delete_flag[@]}" \
+		--no-perms --no-owner --no-group \
 		--exclude '.git/' \
 		--exclude 'var/' \
 		--exclude '.env' \
@@ -77,8 +104,31 @@ vps_rsync_pull_export() {
 	rsync -az -e "$(vps_rsync_ssh)" "$(vps_ssh_target):${remote}" "$dest"
 }
 
+vps_post_sync_fix() {
+	vps_ssh "set -euo pipefail; cd '${VPS_REMOTE_DIR}'; \
+		if [[ -f config/env/proxy.list ]]; then chown 10001:10001 config/env/proxy.list; chmod 640 config/env/proxy.list; fi; \
+		mkdir -p data/export data/runtime"
+}
+
 vps_remote_up() {
-	local services="${1:-mongo parser}"
+	local services="${1:-mongo parser crm-bot}"
 	# shellcheck disable=SC2086
-	vps_ssh "set -euo pipefail; cd '${VPS_REMOTE_DIR}'; docker compose build parser; docker compose up -d ${services}; docker compose run --rm parser config check; docker compose ps"
+	vps_ssh "set -euo pipefail; cd '${VPS_REMOTE_DIR}'; \
+		docker compose build parser; \
+		docker compose up -d --force-recreate ${services}; \
+		docker compose run --rm parser config check; \
+		docker compose ps"
+}
+
+vps_remote_telegram_realtime() {
+	vps_ssh "set -euo pipefail; cd '${VPS_REMOTE_DIR}'
+		if ! grep -qE '^TELEGRAM_API_ID=[0-9]+' .env 2>/dev/null || ! grep -qE '^TELEGRAM_API_HASH=.+$' .env 2>/dev/null; then
+			echo 'vps: skip parser-telegram-realtime (set TELEGRAM_API_ID + TELEGRAM_API_HASH in .env)'
+			docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime stop parser-telegram-realtime 2>/dev/null || true
+			docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime rm -f parser-telegram-realtime 2>/dev/null || true
+			exit 0
+		fi
+		docker compose build parser
+		docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime up -d --force-recreate
+		docker compose -f docker-compose.telegram-realtime.yaml ps"
 }

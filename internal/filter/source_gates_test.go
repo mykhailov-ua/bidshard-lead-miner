@@ -67,6 +67,19 @@ func TestGitHubVendorOrgBlocksNamespace(t *testing.T) {
 	}
 }
 
+func TestTelegramRequiresBuyerSignal(t *testing.T) {
+	t.Parallel()
+	if TelegramRequiresBuyerSignal("keitaro update for affiliates this week") {
+		t.Fatal("expected keyword-only digest to fail")
+	}
+	if !TelegramRequiresBuyerSignal("keitaro postback failing again, anyone else?") {
+		t.Fatal("expected commercial pain to pass")
+	}
+	if !TelegramRequiresBuyerSignal("usdt payout scrubbing on keitaro traffic") {
+		t.Fatal("expected crypto-gray signal to pass")
+	}
+}
+
 func TestLanderRequiresBuyerSignal(t *testing.T) {
 	t.Parallel()
 	marketing := "voluum media buyer igaming affiliate s2s postback cost sync pricing"

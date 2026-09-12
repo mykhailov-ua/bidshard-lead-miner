@@ -59,6 +59,12 @@ func LanderRequiresBuyerSignal(text string) bool {
 	return validate.HasCommercialPainIntent(text) || validate.HasBuyerQuestionPattern(text) || scoring.HasBuyerIntentSignal(text)
 }
 
+// TelegramRequiresBuyerSignal blocks keyword-only channel noise on telegram:* (M8).
+func TelegramRequiresBuyerSignal(text string) bool {
+	return validate.HasBuyerQuestionPattern(text) ||
+		validate.HasTrackerPainMessage(text)
+}
+
 // LanderRequiresEmailOrSkype rejects CSS @media-only lander scrapes.
 func LanderRequiresEmailOrSkype(contacts []extract.Contact) bool {
 	for _, c := range contacts {
@@ -138,18 +144,8 @@ func TelegramChannelSelfBroadcast(source string, contacts []extract.Contact) boo
 	return true
 }
 
-var telegramIntelOnlyHandles = map[string]struct{}{
-	"igaming_news":             {},
-	"partnerkin_job":           {},
-	"affiliatechannel_igaming": {},
-	"partneroff_pro":           {},
-}
-
-var telegramIntelOnlySubstrings = []string{
-	"_news", "_jobs", "_job_", "jobboard", "job_board", "vacancy",
-}
-
 // TelegramIntelOnlyChannel reports news digests and job-board channels (not buyer dialog).
+// Uses username block patterns only; discover triage intel_only is for registry pruning, not hot-path drops.
 func TelegramIntelOnlyChannel(source string) bool {
 	if !isTelegramSource(source) {
 		return false
@@ -158,11 +154,12 @@ func TelegramIntelOnlyChannel(source string) bool {
 	if channel == "" {
 		return false
 	}
-	if _, ok := telegramIntelOnlyHandles[channel]; ok {
+	user := strings.ToLower(channel)
+	if _, ok := telegramDiscoverBlockHandles[user]; ok {
 		return true
 	}
-	for _, sub := range telegramIntelOnlySubstrings {
-		if strings.Contains(channel, sub) {
+	for _, sub := range telegramDiscoverBlockSubstrings {
+		if strings.Contains(user, sub) {
 			return true
 		}
 	}

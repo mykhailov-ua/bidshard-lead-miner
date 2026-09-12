@@ -3,6 +3,7 @@ package gemini
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"strconv"
 	"strings"
@@ -46,9 +47,10 @@ func (c *Client) backoffDuration(attempt int, retryAfter time.Duration) time.Dur
 		d = retryAfter
 	}
 	if d > max {
-		return max
+		d = max
 	}
-	return d
+	// Jitter spreads parallel workers after 429/503 so retries do not align on the same second.
+	return d + time.Duration(rand.Float64()*float64(time.Second))
 }
 
 func (c *Client) sleep(ctx context.Context, d time.Duration) error {

@@ -260,6 +260,35 @@ func TestProcessorAcceptsRedditBuyerIntent(t *testing.T) {
 	}
 }
 
+func TestProcessorRejectsTelegramNoBuyerVoice(t *testing.T) {
+	t.Parallel()
+
+	reg := loadTestRegistry(t)
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:   "telegram:@affchat",
+			Raw:      "Weekly digest: voluum keitaro binom market news for affiliates",
+			Contact:  "telegram:@buyer_mx",
+			Username: "buyer_mx",
+			ChatType: "supergroup",
+		},
+	})
+	if out.Accepted {
+		t.Fatalf("expected telegram buyer voice reject, reason=%s", out.RejectReason)
+	}
+	if out.RejectReason != "telegram_no_buyer_voice" {
+		t.Fatalf("unexpected reject reason: %s", out.RejectReason)
+	}
+}
+
 func TestProcessorRejectsTelegramChannelSelfBroadcast(t *testing.T) {
 	t.Parallel()
 
@@ -306,6 +335,192 @@ func TestProcessorRejectsJunkTelegramContactsOnly(t *testing.T) {
 	})
 	if out.Accepted {
 		t.Fatal("expected junk telegram contact only to reject")
+	}
+}
+
+func TestProcessorRejectsSerpSEOMarketing(t *testing.T) {
+	t.Parallel()
+
+	reg := loadTestRegistry(t)
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "serp:digiexe.com",
+			Title:   "Best Affiliate Tracking Software in 2026",
+			Raw:     "voluum too expensive. Top picks for best affiliate tracking software in 2026.",
+			Contact: "serp:digiexe.com",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected serp SEO listicle reject")
+	}
+}
+
+func TestProcessorRejectsGitHubFrontendPaste(t *testing.T) {
+	t.Parallel()
+
+	reg := loadTestRegistry(t)
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	code := `import React from 'react'
+import { motion } from 'framer-motion'
+export default function Landing() {
+  const [x, setX] = useState(0);
+  return <div className="hero">keitaro voluum binom tracker</div>;
+}`
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "github:yheaahmad6-afk/Iphone-16",
+			Title:   "Iphone 16 landing",
+			Raw:     code,
+			Contact: "github:yheaahmad6-afk",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected github frontend paste reject")
+	}
+}
+
+func TestProcessorRejectsSerpCompetitorDomain(t *testing.T) {
+	t.Parallel()
+
+	if err := validate.LoadBlacklistDomains("../../data/blacklist_domains.txt"); err != nil {
+		t.Fatalf("load blacklist: %v", err)
+	}
+	reg := loadTestRegistry(t)
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "serp:cloakingtool.com",
+			Title:   "Keitaro Alternative",
+			Raw:     "keitaro alternative self-hosted tracker pricing sign up",
+			Contact: "telegram:@cloakingtool",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected competitor serp domain reject")
+	}
+}
+
+func TestProcessorRejectsAffiliateNetworkSupply(t *testing.T) {
+	t.Parallel()
+
+	reg := loadTestRegistry(t)
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "telegram:@lanaaff_gang",
+			Raw:     "Affiliate network manager. In-house media buying team. Contact manager @lanaaff_gang",
+			Contact: "telegram:@lanaaff_gang",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected affiliate network supply reject")
+	}
+}
+
+func TestProcessorRejectsBHWNewbieSnippet(t *testing.T) {
+	t.Parallel()
+
+	reg := loadTestRegistry(t)
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "serp:www.blackhatworld.com",
+			Title:   "Looking for Best Cheap VOLUUM alternative",
+			Raw:     "I want to start my journey promoting CPA offers and I can't afford VOLUUM cost now",
+			Contact: "serp:www.blackhatworld.com",
+		},
+	})
+	if out.Accepted {
+		t.Fatalf("expected BHW newbie snippet reject, reason=%s", out.RejectReason)
+	}
+}
+
+func TestProcessorRejectsRedTrackListicle(t *testing.T) {
+	t.Parallel()
+
+	if err := validate.LoadBlacklistDomains("../../data/blacklist_domains.txt"); err != nil {
+		t.Fatalf("load blacklist: %v", err)
+	}
+	reg := loadTestRegistry(t)
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "serp:www.redtrack.io",
+			Title:   "6 Best Keitaro Alternatives in 2026 For Media Buyers",
+			Raw:     "This Keitaro alternative produces detailed reports in real time and aids you in understanding traffic. bot filtering.",
+			Contact: "serp:www.redtrack.io",
+		},
+	})
+	if out.Accepted {
+		t.Fatalf("expected redtrack listicle reject, reason=%s", out.RejectReason)
+	}
+}
+
+func TestProcessorRejectsSerpChannelFacade(t *testing.T) {
+	t.Parallel()
+
+	reg := loadTestRegistry(t)
+	p := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := p.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:  "serp:t.me",
+			Title:   "FRBS Media Buying Team iGaming",
+			Raw:     "Media Buying Team iGaming affiliate marketing tracker voluum keitaro",
+			Contact: "telegram:@frbs_team",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected serp channel facade reject")
 	}
 }
 
