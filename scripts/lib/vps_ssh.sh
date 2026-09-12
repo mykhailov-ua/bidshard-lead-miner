@@ -91,6 +91,7 @@ vps_rsync_push() {
 		--exclude '.venv/' \
 		--exclude 'my_session*.session' \
 		--exclude '*.session' \
+		--exclude 'discord_token_*.txt' \
 		--exclude '.cursor/' \
 		--exclude 'backups/' \
 		-e "$(vps_rsync_ssh)" \

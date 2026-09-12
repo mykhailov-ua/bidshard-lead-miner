@@ -13,6 +13,8 @@ bin/
 # Root MTProto pool (authorized SQLite; never commit)
 my_session*.session
 /*.session
+# Root Discord bot token pool (never commit)
+discord_token_*.txt
 data/*.session
 data/crawler.db
 data/telethon.session

@@ -141,6 +141,12 @@ vps-buyer-discover:
 vps-sync-telegram-secrets:
 	bash ./scripts/ops/vps-sync-telegram-secrets.sh
 
+vps-sync-discord-secrets:
+	bash ./scripts/ops/vps-sync-discord-secrets.sh
+
+discord-pool-link:
+	bash ./scripts/ops/discord-pool-link.sh
+
 vps-sync-telethon-session:
 	bash ./scripts/ops/vps-sync-telethon-session.sh
 

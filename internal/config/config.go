@@ -161,6 +161,7 @@ type Config struct {
 	EnrichSMTPVerify                bool
 	ProfileEnrichEnabled            bool
 	DiscordBotToken                 string
+	DiscordBotTokens                []string
 	DiscordChannelIDs               []string
 	DiscordMaxMessages              int
 	DiscordRegistryPath             string
@@ -543,7 +544,23 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("PARSER_PROXY_LIST: %w", err)
 	}
 
+	applyDiscordTokenDefaults(&cfg)
+
 	return cfg, nil
+}
+
+func applyDiscordTokenDefaults(cfg *Config) {
+	tokens := parseCSV(env("DISCORD_BOT_TOKENS", ""))
+	if len(tokens) == 0 {
+		single := strings.TrimSpace(cfg.DiscordBotToken)
+		if single != "" {
+			tokens = []string{single}
+		}
+	}
+	cfg.DiscordBotTokens = tokens
+	if len(tokens) > 0 {
+		cfg.DiscordBotToken = tokens[0]
+	}
 }
 
 func env(key, fallback string) string {

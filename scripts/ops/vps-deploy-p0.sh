@@ -27,6 +27,11 @@ if [[ -f "$ROOT/.env" ]]; then
 	bash "$ROOT/scripts/ops/vps-sync-telegram-secrets.sh"
 fi
 
+if [[ -f "$ROOT/config/env/.env.discord.local" ]] || ls "$ROOT"/discord_token_*.txt >/dev/null 2>&1; then
+	log "sync discord token pool"
+	bash "$ROOT/scripts/ops/vps-sync-discord-secrets.sh" || true
+fi
+
 log "apply P0 env"
 bash "$ROOT/scripts/ops/vps-apply-p0-env.sh"
 

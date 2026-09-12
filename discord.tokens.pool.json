@@ -1,0 +1,14 @@
+{
+  "tokens": [
+    {
+      "id": 0,
+      "file": "discord_token_0.txt",
+      "label": "discord-bot-0"
+    },
+    {
+      "id": 1,
+      "file": "discord_token_1.txt",
+      "label": "discord-bot-1"
+    }
+  ]
+}

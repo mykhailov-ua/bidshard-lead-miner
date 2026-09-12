@@ -19,7 +19,7 @@ const apiBase = "https://discord.com/api/v10"
 type EmitFunc func(ctx context.Context, item model.RawItem) error
 
 type Crawler struct {
-	token      string
+	pool       *TokenPool
 	channelIDs []string
 	maxMsgs    int
 	client     *http.Client
@@ -32,7 +32,7 @@ func NewCrawler(cfg config.Config) *Crawler {
 		maxMsgs = 50
 	}
 	return &Crawler{
-		token:      strings.TrimSpace(cfg.DiscordBotToken),
+		pool:       NewTokenPool(cfg.DiscordBotTokens),
 		channelIDs: cfg.DiscordChannelIDs,
 		maxMsgs:    maxMsgs,
 		client:     httpclient.Shared(cfg.HTTPTimeout),
@@ -45,7 +45,7 @@ func (c *Crawler) Name() string {
 }
 
 func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
-	if c.token == "" || len(c.channelIDs) == 0 {
+	if c.pool.Len() == 0 || len(c.channelIDs) == 0 {
 		slog.Warn("discord crawl skipped", "reason", "missing token or channel ids")
 		return nil
 	}
@@ -106,6 +106,7 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 
 	slog.Info("discord crawl finished",
 		"channels", len(c.channelIDs),
+		"tokens", c.pool.Len(),
 		"emitted", emitted,
 		"duration_ms", time.Since(start).Milliseconds(),
 	)
@@ -123,25 +124,51 @@ type message struct {
 
 func (c *Crawler) fetchMessages(ctx context.Context, channelID string) ([]message, error) {
 	url := fmt.Sprintf("%s/channels/%s/messages?limit=%d", c.baseURL, channelID, c.maxMsgs)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
+	attempts := c.pool.Len()
+	if attempts <= 0 {
+		attempts = 1
 	}
-	req.Header.Set("Authorization", "Bot "+c.token)
+	var lastErr error
+	for i := 0; i < attempts; i++ {
+		token := c.pool.Pick()
+		if token == "" {
+			return nil, fmt.Errorf("discord token pool empty")
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bot "+token)
 
-	body, status, err := httpclient.DoBytes(c.client, req, 2<<20)
-	if err != nil {
-		return nil, err
+		body, status, err := httpclient.DoBytes(c.client, req, 2<<20)
+		if err != nil {
+			lastErr = err
+			c.pool.Rotate()
+			continue
+		}
+		switch status {
+		case http.StatusOK:
+			var msgs []message
+			if err := json.Unmarshal(body, &msgs); err != nil {
+				return nil, err
+			}
+			return msgs, nil
+		case http.StatusUnauthorized, http.StatusForbidden:
+			lastErr = fmt.Errorf("discord http %d", status)
+			c.pool.Rotate()
+			continue
+		case http.StatusTooManyRequests:
+			lastErr = fmt.Errorf("discord http %d", status)
+			c.pool.Rotate()
+			continue
+		default:
+			return nil, fmt.Errorf("discord http %d", status)
+		}
 	}
-	if status != http.StatusOK {
-		return nil, fmt.Errorf("discord http %d", status)
+	if lastErr != nil {
+		return nil, lastErr
 	}
-
-	var msgs []message
-	if err := json.Unmarshal(body, &msgs); err != nil {
-		return nil, err
-	}
-	return msgs, nil
+	return nil, fmt.Errorf("discord fetch failed")
 }
 
 func truncate(s string, max int) string {

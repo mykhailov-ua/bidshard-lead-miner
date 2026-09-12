@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/bidshard/parser/internal/config"
@@ -31,7 +32,7 @@ func TestCrawlerCollect(t *testing.T) {
 	defer srv.Close()
 
 	c := NewCrawler(config.Config{
-		DiscordBotToken:    "test-token",
+		DiscordBotTokens:   []string{"test-token"},
 		DiscordChannelIDs:  []string{"123"},
 		DiscordMaxMessages: 10,
 	})
@@ -54,5 +55,53 @@ func TestCrawlerCollect(t *testing.T) {
 	}
 	if items[0].PostedAt.IsZero() {
 		t.Fatal("expected posted_at")
+	}
+}
+
+func TestCrawlerRotatesTokenOn429(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch calls.Add(1) {
+		case 1:
+			http.Error(w, "rate limited", http.StatusTooManyRequests)
+		default:
+			if r.Header.Get("Authorization") != "Bot token-b" {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			_ = json.NewEncoder(w).Encode([]map[string]any{
+				{
+					"id":        "2",
+					"content":   "keitaro postback timeout",
+					"timestamp": "2026-08-16T11:00:00Z",
+					"author":    map[string]string{"username": "buyer2"},
+				},
+			})
+		}
+	}))
+	defer srv.Close()
+
+	c := NewCrawler(config.Config{
+		DiscordBotTokens:   []string{"token-a", "token-b"},
+		DiscordChannelIDs:  []string{"999"},
+		DiscordMaxMessages: 5,
+	})
+	c.baseURL = srv.URL
+	c.client = srv.Client()
+
+	var items []model.RawItem
+	if err := c.Collect(context.Background(), func(_ context.Context, item model.RawItem) error {
+		items = append(items, item)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items=%d", len(items))
+	}
+	if calls.Load() < 2 {
+		t.Fatalf("calls=%d want >=2", calls.Load())
 	}
 }
