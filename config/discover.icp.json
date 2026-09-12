@@ -205,6 +205,15 @@
     "site:t.me webview stuck postback",
     "site:t.me s2s from PWA keitaro"
   ],
+  "discord_dorks": [
+    "site:disboard.org voluum affiliate",
+    "site:disboard.org keitaro tracker",
+    "site:top.gg affiliate media buying",
+    "site:discord.me igaming affiliate",
+    "site:discordservers.com affiliate tracker",
+    "site:discord.gg keitaro postback",
+    "site:discord.gg igaming media buyer"
+  ],
   "hosting_dorks": [
     "site:t.me AlexHost keitaro",
     "site:t.me PQ hosting tracker",

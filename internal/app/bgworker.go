@@ -11,6 +11,7 @@ import (
 	"github.com/bidshard/parser/internal/domaincascade"
 	"github.com/bidshard/parser/internal/gemini"
 	"github.com/bidshard/parser/internal/metrics"
+	"github.com/bidshard/parser/internal/sources/discord"
 	"github.com/bidshard/parser/internal/sources/serp"
 	"github.com/bidshard/parser/internal/sources/tgweb"
 	"github.com/bidshard/parser/internal/telethon"
@@ -148,15 +149,26 @@ func startBackgroundWorkers(ctx context.Context, cfg config.Config, deps *runtim
 	}
 
 	if cfg.ParserAutoDiscover && cfg.BGDiscordDiscoverInterval > 0 {
-		// Registry only; DISCORD_CHANNEL_IDS still required for crawl.
 		jobs = append(jobs, bgworker.Job{
 			Name:          "discord_invite_discover",
 			Interval:      cfg.BGDiscordDiscoverInterval,
 			SkipIfRunning: true,
 			Run: func(ctx context.Context) error {
 				return serp.RunBGHarvest(ctx, cfg, "discord_invite_discover", func(ctx context.Context) error {
-					return serp.NewCrawler(cfg, nil).HarvestDiscordInvites(ctx, cfg.DiscordRegistryPath)
+					if err := serp.NewCrawler(cfg, nil).HarvestDiscordInvites(ctx, cfg.DiscordRegistryPath); err != nil {
+						return err
+					}
+					return discord.DiscoverChannels(ctx, cfg)
 				})
+			},
+		})
+	} else if len(cfg.DiscordBotTokens) > 0 && cfg.DiscordAutoDiscoverChannels && cfg.BGDiscordChannelDiscoverInterval > 0 {
+		jobs = append(jobs, bgworker.Job{
+			Name:          "discord_channel_discover",
+			Interval:      cfg.BGDiscordChannelDiscoverInterval,
+			SkipIfRunning: true,
+			Run: func(ctx context.Context) error {
+				return discord.DiscoverChannels(ctx, cfg)
 			},
 		})
 	}

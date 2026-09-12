@@ -15,6 +15,7 @@ type ICPConfig struct {
 	PWADorks        []string `json:"pwa_dorks"`
 	HostingDorks    []string `json:"hosting_dorks"`
 	TGCatalogDorks  []string `json:"tg_catalog_dorks"`
+	DiscordDorks    []string `json:"discord_dorks"`
 	OTCManualRef    []string `json:"otc_manual_ref"`
 }
 

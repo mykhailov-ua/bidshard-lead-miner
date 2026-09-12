@@ -21,14 +21,21 @@ func (c *Crawler) HarvestDiscordInvites(ctx context.Context, registryPath string
 		`site:discord.gg "voluum"`,
 		`site:discord.gg "affiliate" tracker`,
 		`"discord.gg" igaming affiliate`,
+		`site:disboard.org voluum affiliate`,
+		`site:disboard.org keitaro tracker`,
+		`site:top.gg affiliate media buying`,
+		`site:discord.me igaming affiliate`,
+		`site:discordservers.com affiliate tracker`,
 	}
 	icpPath := discover.ResolveICPPath("")
 	if icp, err := discover.LoadICP(icpPath); err == nil {
-		// Reuse discord-tagged SERP dorks from discover.icp.json when present.
 		for _, d := range icp.SerpDorks {
 			if strings.Contains(strings.ToLower(d), "discord") {
 				dorks = append(dorks, d)
 			}
+		}
+		for _, d := range icp.DiscordDorks {
+			dorks = append(dorks, d)
 		}
 	}
 

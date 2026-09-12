@@ -147,6 +147,9 @@ vps-sync-discord-secrets:
 discord-pool-link:
 	bash ./scripts/ops/discord-pool-link.sh
 
+discord-discover:
+	bash ./scripts/ops/discord-discover.sh
+
 vps-sync-telethon-session:
 	bash ./scripts/ops/vps-sync-telethon-session.sh
 

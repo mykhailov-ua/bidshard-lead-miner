@@ -1,7 +1,6 @@
 package discord
 
-// Package discord discovers public invite links (SERP/registry only).
-// Bot join and private servers are out of scope; operators add channel IDs manually.
+// Package discord discovers public invite links (SERP/catalogs) and auto-registers channels.
 
 import (
 	"encoding/json"

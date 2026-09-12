@@ -121,6 +121,9 @@ func AcceptQualitySourceWarnings(cfg Config, prodProfile bool) []string {
 	if containsSourceName(active, "discord") && envDefaultEmpty("DISCORD_BOT_TOKEN") && envDefaultEmpty("DISCORD_BOT_TOKENS") {
 		warnings = append(warnings, "prod: discord in PARSER_SOURCE but DISCORD_BOT_TOKEN(S) unset")
 	}
+	if containsSourceName(active, "discord") && envDefaultEmpty("DISCORD_CHANNEL_IDS") && !cfg.DiscordAutoDiscoverChannels {
+		warnings = append(warnings, "prod: discord in PARSER_SOURCE but DISCORD_CHANNEL_IDS unset and auto-discover off")
+	}
 	if containsSourceName(active, "forum") && !containsSourceName(active, "reddit") && len(cfg.ProxyURLs) > 0 && cfg.ProxyEnabledForSource("forum") {
 		warnings = append(warnings, "prod: forum uses proxy but reddit is not in PARSER_SOURCE; reddit is direct-egress public coverage when proxies cool")
 	}

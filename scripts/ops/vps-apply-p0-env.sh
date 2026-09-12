@@ -33,6 +33,12 @@ set_env PARSER_SEED_PROFILE budget
 # SERP discovery: PARSER_BG_WORKER jobs serp_forum_threads + serp_telegram_catalog.
 # Buyer pain: cron telegram scrape (telegram-pain-cron.sh) + TELEGRAM_ALERT_*.
 set_env PARSER_SOURCE 'forum,serp,jobboard,tgweb,webpain,reviews,discord'
+set_env PARSER_AUTO_DISCOVER true
+set_env DISCORD_AUTO_DISCOVER_CHANNELS true
+set_env DISCORD_JOIN_ENABLED true
+set_env DISCORD_JOIN_DAILY_LIMIT 5
+set_env PARSER_BG_DISCORD_DISCOVER_INTERVAL 24h
+set_env PARSER_BG_DISCORD_CHANNEL_DISCOVER_INTERVAL 6h
 set_env PARSER_GITHUB_ENABLED false
 set_env PARSER_SOURCE_CONCURRENCY 0
 set_env PARSER_WORKERS 8

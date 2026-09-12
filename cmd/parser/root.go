@@ -253,6 +253,7 @@ func init() {
 		newRunCmd(),
 		newScanCmd(),
 		newDiscoverCmd(),
+		newDiscordCmd(),
 		newTelegramCmd(),
 		newRedditCmd(),
 		newIngestCmd(),

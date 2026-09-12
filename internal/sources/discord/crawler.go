@@ -31,9 +31,14 @@ func NewCrawler(cfg config.Config) *Crawler {
 	if maxMsgs <= 0 {
 		maxMsgs = 50
 	}
+	channelPath := cfg.DiscordChannelsPath
+	if channelPath == "" {
+		channelPath = DefaultChannelsPath
+	}
+	channelIDs, _ := ResolveChannelIDs(cfg.DiscordChannelIDs, channelPath, cfg.DiscordAutoDiscoverChannels)
 	return &Crawler{
 		pool:       NewTokenPool(cfg.DiscordBotTokens),
-		channelIDs: cfg.DiscordChannelIDs,
+		channelIDs: channelIDs,
 		maxMsgs:    maxMsgs,
 		client:     httpclient.Shared(cfg.HTTPTimeout),
 		baseURL:    apiBase,

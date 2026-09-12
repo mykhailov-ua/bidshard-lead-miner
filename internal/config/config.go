@@ -165,6 +165,11 @@ type Config struct {
 	DiscordChannelIDs               []string
 	DiscordMaxMessages              int
 	DiscordRegistryPath             string
+	DiscordChannelsPath             string
+	DiscordAutoDiscoverChannels     bool
+	DiscordJoinEnabled              bool
+	DiscordJoinDailyLimit           int
+	BGDiscordChannelDiscoverInterval time.Duration
 	SourceStatsCollection           string
 	CrmBoostCollection              string
 	EmbeddingCollection             string
@@ -428,6 +433,11 @@ func Load() (Config, error) {
 		DiscordChannelIDs:                 parseCSV(env("DISCORD_CHANNEL_IDS", "")),
 		DiscordMaxMessages:                envInt("DISCORD_MAX_MESSAGES", 50),
 		DiscordRegistryPath:               env("DISCORD_REGISTRY_PATH", "data/runtime/discovered_discord_invites.json"),
+		DiscordChannelsPath:             env("DISCORD_CHANNELS_PATH", "data/runtime/discovered_discord_channels.json"),
+		DiscordAutoDiscoverChannels:     envBool("DISCORD_AUTO_DISCOVER_CHANNELS", true),
+		DiscordJoinEnabled:              envBool("DISCORD_JOIN_ENABLED", true),
+		DiscordJoinDailyLimit:           envInt("DISCORD_JOIN_DAILY_LIMIT", 5),
+		BGDiscordChannelDiscoverInterval: envDuration("PARSER_BG_DISCORD_CHANNEL_DISCOVER_INTERVAL", 6*time.Hour),
 		SourceStatsCollection:             env("SOURCE_STATS_COLLECTION", "source_stats"),
 		CrmBoostCollection:                env("CRM_BOOST_COLLECTION", "crm_boosts"),
 		EmbeddingCollection:               env("EMBEDDING_COLLECTION", "snippet_embeddings"),

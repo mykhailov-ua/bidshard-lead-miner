@@ -69,6 +69,12 @@ fi
 log "install telegram pain cron"
 bash "$ROOT/scripts/ops/vps-install-telegram-cron.sh"
 
+if ls "$ROOT"/discord_token_*.txt >/dev/null 2>&1; then
+	log "discord catalog discover (invites + channels)"
+	bash "$ROOT/scripts/ops/vps-sync-discord-secrets.sh" || true
+	bash "$ROOT/scripts/ops/discord-discover.sh" || true
+fi
+
 log "status"
 vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose ps && crontab -l 2>/dev/null | grep telegram-pain-cron || true"
 
