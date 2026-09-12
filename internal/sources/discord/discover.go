@@ -16,8 +16,7 @@ func DiscoverChannels(ctx context.Context, cfg config.Config) error {
 		slog.Warn("discord channel discover skipped", "reason", "missing bot tokens")
 		return nil
 	}
-	pool := NewTokenPool(cfg.DiscordBotTokens)
-	api := NewAPI(pool, httpclient.Shared(cfg.HTTPTimeout), apiBase)
+	client := httpclient.Shared(cfg.HTTPTimeout)
 
 	invitePath := cfg.DiscordRegistryPath
 	if invitePath == "" {
@@ -53,6 +52,10 @@ func DiscoverChannels(ctx context.Context, cfg config.Config) error {
 		}
 		hint := strings.TrimSpace(inv.GuildHint)
 
+		if !InviteEntryLooksICP(inv) {
+			continue
+		}
+		api := NewAPI(NewTokenPool(cfg.DiscordBotTokens), client, apiBase)
 		preview, err := api.GetInvite(ctx, code)
 		if err != nil {
 			slog.Debug("discord invite preview failed", "code", code, "error", err)
@@ -69,7 +72,7 @@ func DiscoverChannels(ctx context.Context, cfg config.Config) error {
 		if guildID == "" {
 			continue
 		}
-		if !GuildLooksICP(guildName, hint+" "+inv.Query) {
+		if !GuildLooksICP(guildName, hint+" "+inv.Query) && !InviteEntryLooksICP(inv) {
 			continue
 		}
 		if _, ok := seenGuild[guildID]; ok {
@@ -78,7 +81,6 @@ func DiscoverChannels(ctx context.Context, cfg config.Config) error {
 
 		if cfg.DiscordJoinEnabled && joins < joinLimit {
 			if _, err := api.AcceptInvite(ctx, code); err != nil {
-				// Already member or invite expired; still try channel list if bot is in guild.
 				slog.Debug("discord invite join skipped", "code", code, "guild", guildName, "error", err)
 			} else {
 				joins++
@@ -89,11 +91,18 @@ func DiscoverChannels(ctx context.Context, cfg config.Config) error {
 		batch = append(batch, channelsForGuild(ctx, api, guildID, guildName, code, "invite_registry")...)
 	}
 
-	// Sync channels from guilds the bot pool already belongs to.
-	guilds, err := api.ListMyGuilds(ctx)
-	if err != nil {
-		slog.Debug("discord list guilds failed", "error", err)
-	} else {
+	// Sync channels from guilds each bot in the pool already belongs to.
+	for _, token := range cfg.DiscordBotTokens {
+		token = strings.TrimSpace(token)
+		if token == "" {
+			continue
+		}
+		api := NewAPI(NewTokenPool([]string{token}), client, apiBase)
+		guilds, err := api.ListMyGuilds(ctx)
+		if err != nil {
+			slog.Debug("discord list guilds failed", "error", err)
+			continue
+		}
 		for _, g := range guilds {
 			guildID := strings.TrimSpace(g.ID)
 			if guildID == "" {

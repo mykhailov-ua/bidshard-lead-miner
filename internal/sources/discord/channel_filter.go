@@ -13,6 +13,15 @@ var discordICPTokens = []string{
 	"igaming", "pwa", "funnel", "traffic", "offer", "network",
 }
 
+// InviteEntryLooksICP trusts SERP/catalog hints stored in invite registry.
+func InviteEntryLooksICP(inv InviteEntry) bool {
+	hint := strings.TrimSpace(inv.GuildHint + " " + inv.Query)
+	if hint == "" {
+		return false
+	}
+	return GuildLooksICP(hint, inv.Source)
+}
+
 // GuildLooksICP filters server names/hints from public catalogs.
 func GuildLooksICP(name, hint string) bool {
 	text := strings.ToLower(strings.TrimSpace(name + " " + hint))
