@@ -52,13 +52,10 @@ func DiscoverChannels(ctx context.Context, cfg config.Config) error {
 		}
 		hint := strings.TrimSpace(inv.GuildHint)
 
-		if !InviteEntryLooksICP(inv) {
-			continue
-		}
 		api := NewAPI(NewTokenPool(cfg.DiscordBotTokens), client, apiBase)
 		preview, err := api.GetInvite(ctx, code)
 		if err != nil {
-			slog.Debug("discord invite preview failed", "code", code, "error", err)
+			slog.Info("discord invite preview failed", "code", code, "error", err)
 			continue
 		}
 		guildID := ""
