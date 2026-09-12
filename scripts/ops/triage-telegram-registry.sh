@@ -22,4 +22,24 @@ print(
         **stats
     )
 )
+
+from pathlib import Path
+import yaml
+from sources.telegram.config import load_config
+from sources.telegram.cursor import CursorStore
+from sources.telegram.pool_sync import sync_registry_pool
+
+cfg_path = Path("config/sources.telegram.yaml")
+if cfg_path.exists():
+    cfg = load_config(cfg_path)
+    store = CursorStore(cfg.cursor_db)
+    try:
+        pool_stats = sync_registry_pool(cfg, store)
+        print(
+            "pool-sync: imported={imported} skipped={skipped} disabled={disabled}".format(
+                **pool_stats
+            )
+        )
+    finally:
+        store.close()
 PY

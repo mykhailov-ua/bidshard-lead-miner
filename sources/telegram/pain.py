@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import re
 
+from .hosting_incident import has_hosting_incident_pain
+from .pain_taxonomy import classify_bidshard_pain
+from .pwa_pain import has_pwa_pain_signal
 from .prefilter import (
     TRACKER_PAIN_HINTS,
     has_buyer_question_signal,
@@ -43,6 +46,15 @@ OPERATIONAL_PAIN_HINTS = (
     "upstream",
     "nginx",
     "отвалился",
+    "expensive",
+    "overprice",
+    "overpriced",
+    "too expensive",
+    "shaves",
+    "shaving",
+    "scrubbing",
+    "admin",
+    "кликов",
 )
 
 _COMMERCIAL_PAIN_RE = [
@@ -63,6 +75,14 @@ _COMMERCIAL_PAIN_RE = [
     re.compile(r"(?i)альтернатива\s+(?:keitaro|binom|voluum|redtrack)"),
     re.compile(r"(?i)не\s+трекает\s+клик"),
     re.compile(r"(?i)отвалился\s+постбек"),
+    re.compile(r"(?i)\b(?:pp|network)\s+shav(?:e|es|ing)\s+leads\b"),
+    re.compile(r"(?i)\bhow\s+to\s+prove\b.{0,40}\b(?:shav|scrub|discrep)"),
+    re.compile(r"(?i)\bв\s+трекере\s+\d+.{0,40}\bпартнерк"),
+]
+
+_VOLUME_SCALE_RE = [
+    re.compile(r"(?i)\b\d{2,}\s*k\s*(?:click|clicks)\b"),
+    re.compile(r"(?i)\b\d+\s*(?:к|k)\s*клик"),
 ]
 
 
@@ -80,15 +100,40 @@ def has_commercial_pain_intent(text: str) -> bool:
     return any(rx.search(body) for rx in _COMMERCIAL_PAIN_RE)
 
 
+def has_volume_scale_signal(text: str) -> bool:
+    body = (text or "").strip()
+    if not body:
+        return False
+    return any(rx.search(body) for rx in _VOLUME_SCALE_RE)
+
+
+def has_tracker_or_scale_leg(text: str) -> bool:
+    if has_tracker_pain_signal(text):
+        return True
+    bucket = classify_bidshard_pain(text)
+    if bucket is not None:
+        return True
+    return has_volume_scale_signal(text)
+
+
 def message_has_tracker_pain(text: str) -> bool:
     """Tracker/cloak + operational pain, or crypto-gray ICP AND-gate (M3/M11)."""
     if not (text or "").strip():
         return False
     if has_crypto_gray_icp_signal(text):
         return True
-    if not has_tracker_pain_signal(text):
+    if has_pwa_pain_signal(text) or has_hosting_incident_pain(text):
+        return True
+    bucket = classify_bidshard_pain(text)
+    if bucket is not None and bucket.passes_m3_bucket_gate():
+        return True
+    if not has_tracker_or_scale_leg(text):
         return False
-    return has_operational_pain_signal(text) or has_commercial_pain_intent(text)
+    return (
+        has_operational_pain_signal(text)
+        or has_commercial_pain_intent(text)
+        or has_volume_scale_signal(text)
+    )
 
 
 def message_has_pain(text: str) -> bool:

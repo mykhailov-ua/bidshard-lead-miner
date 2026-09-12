@@ -238,6 +238,61 @@ func TestProcessorRejectsMissingMX(t *testing.T) {
 	}
 }
 
+func TestProcessorRejectsCISGreyMarketBeforeScoring(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	_ = reg.Load(context.Background())
+
+	proc := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(10, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:   "telegram:melbet_chat",
+			Raw:      "Best melbet funnel setup for newbies",
+			Username: "seller_promo",
+		},
+	})
+	if !out.RejectedGeo {
+		t.Fatal("expected cis grey geo reject")
+	}
+}
+
+func TestProcessorRejectsH8CryptoPayoutBeforeScoring(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	_ = reg.Load(context.Background())
+
+	proc := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(10, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:   "telegram:vip_signals",
+			Raw:      "join vip usdt pump channel weekly payout",
+			Username: "promo_bot",
+		},
+	})
+	if out.Accepted {
+		t.Fatal("expected h8 payment reject")
+	}
+	if out.RejectReason != "payment" {
+		t.Fatalf("reject_reason=%q want payment", out.RejectReason)
+	}
+}
+
 func TestProcessorRejectsGeoBeforeScoring(t *testing.T) {
 	t.Parallel()
 
@@ -855,5 +910,51 @@ func TestProcessorSemanticLeadDedup(t *testing.T) {
 	}
 	if out.Accepted {
 		t.Fatal("expected not accepted")
+	}
+}
+
+func TestProcessorTelegramMessageHashPerMessage(t *testing.T) {
+	t.Parallel()
+
+	reg := scoring.NewRegistry("../../testdata/keywords.json")
+	if err := reg.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	proc := &Processor{
+		Registry: reg,
+		Seen:     dedup.NewSeenCache(1000, 0),
+		Store:    sink.NewStubStore(),
+		MX:       validate.StubMX{OK: true},
+	}
+
+	out1 := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:    "telegram:@aff_chat",
+			Raw:       "voluum postback failing after nginx timeout",
+			Username:  "buyer_ops",
+			MessageID: 101,
+			Contact:   "telegram:@buyer_ops",
+		},
+	})
+	out2 := proc.Process(context.Background(), Task{
+		RoundID: "r1",
+		Item: model.RawItem{
+			Source:    "telegram:@aff_chat",
+			Raw:       "keitaro migration pain with postback drop",
+			Username:  "buyer_ops",
+			MessageID: 102,
+			Contact:   "telegram:@buyer_ops",
+		},
+	})
+	if !out1.Accepted || !out2.Accepted {
+		t.Fatalf("expected both accepted out1=%+v out2=%+v", out1, out2)
+	}
+	if out1.Lead.HashID == "" || out2.Lead.HashID == "" {
+		t.Fatal("expected hash ids")
+	}
+	if out1.Lead.HashID == out2.Lead.HashID {
+		t.Fatal("same contact different message_id should use distinct P3 hash")
 	}
 }

@@ -10,8 +10,21 @@ import (
 const ICPFile = "config/discover.icp.json"
 
 type ICPConfig struct {
-	TelegramSearch []string `json:"telegram_search"`
-	SerpDorks      []string `json:"serp_dorks"`
+	TelegramSearch  []string `json:"telegram_search"`
+	SerpDorks       []string `json:"serp_dorks"`
+	PWADorks        []string `json:"pwa_dorks"`
+	HostingDorks    []string `json:"hosting_dorks"`
+	TGCatalogDorks  []string `json:"tg_catalog_dorks"`
+	OTCManualRef    []string `json:"otc_manual_ref"`
+}
+
+// TelegramHarvestDorks merges core SERP dorks with H3/H4 segment dorks.
+func (cfg ICPConfig) TelegramHarvestDorks() []string {
+	out := make([]string, 0, len(cfg.SerpDorks)+len(cfg.PWADorks)+len(cfg.HostingDorks))
+	out = append(out, cfg.SerpDorks...)
+	out = append(out, cfg.PWADorks...)
+	out = append(out, cfg.HostingDorks...)
+	return out
 }
 
 func LoadICP(path string) (ICPConfig, error) {

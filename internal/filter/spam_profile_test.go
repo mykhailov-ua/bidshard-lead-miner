@@ -35,6 +35,24 @@ func TestSellerAuthorProfile(t *testing.T) {
 	}
 }
 
+func TestSellerAuthorProfileVendorSupport(t *testing.T) {
+	t.Parallel()
+	if drop, _ := SellerAuthorProfileForChannel("media_buyer_ops", "Agency Account Support", "Seller chat", "vendor_support"); drop {
+		t.Fatal("vendor_support should ignore channel about support token")
+	}
+	if drop, _ := SellerAuthorProfileForChannel("fb_accounts_shop", "Agency Support", "", "vendor_support"); !drop {
+		t.Fatal("seller author username should still drop in vendor_support")
+	}
+}
+
+func TestVendorSupportBuyerBoost(t *testing.T) {
+	t.Parallel()
+	text := "agency spend $50k/month, weekly USDT payout, postback failing on keitaro"
+	if !VendorSupportBuyerBoost(text) {
+		t.Fatal("expected vendor support buyer boost")
+	}
+}
+
 func TestHasBanContextSignal(t *testing.T) {
 	t.Parallel()
 	if !HasBanContextSignal("FB ban wave again, pixel not seeing deps on CAPI") {

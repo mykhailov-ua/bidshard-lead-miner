@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/bidshard/parser/internal/extract"
@@ -20,6 +21,17 @@ func LeadHashID(contacts []StoredContact) string {
 	}
 	sort.Strings(parts)
 	sum := sha256.Sum256([]byte(strings.Join(parts, "|")))
+	return hex.EncodeToString(sum[:16])
+}
+
+// TelegramMessageHashID is P3 dedup: one lead per Telegram message (multi-worker safe).
+func TelegramMessageHashID(source string, messageID int64) string {
+	source = strings.ToLower(strings.TrimSpace(source))
+	if messageID <= 0 || !strings.HasPrefix(source, "telegram:") {
+		return ""
+	}
+	key := "tgmsg:" + source + ":" + strconv.FormatInt(messageID, 10)
+	sum := sha256.Sum256([]byte(key))
 	return hex.EncodeToString(sum[:16])
 }
 

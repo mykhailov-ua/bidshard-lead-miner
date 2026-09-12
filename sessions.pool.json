@@ -1,0 +1,26 @@
+{
+  "shard_count": 2,
+  "sessions": [
+    {
+      "id": 0,
+      "role": "hot",
+      "shard": 0,
+      "file": "my_session1.session",
+      "runtime": "data/runtime/telethon.session.0"
+    },
+    {
+      "id": 1,
+      "role": "hot",
+      "shard": 1,
+      "file": "my_session2.session",
+      "runtime": "data/runtime/telethon.session.1"
+    },
+    {
+      "id": 2,
+      "role": "cold",
+      "shard": null,
+      "file": "my_session3.session",
+      "runtime": "data/runtime/telethon.session.2"
+    }
+  ]
+}

@@ -13,7 +13,9 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Any
 
+from .h1_geo_block import h1_should_drop
 from .pain import is_channel_broadcast_alert_skip, message_has_tracker_pain
+from .pain_taxonomy import classify_bidshard_pain, format_pain_bucket_label, format_tier_label
 from .prefilter import ANTIFRAUD_PAIN_HINTS, CRYPTO_PAYOUT_HINTS, PAIN_HINTS, TRACKER_PAIN_HINTS, has_crypto_gray_icp_signal
 
 LOG = logging.getLogger("telegram.alert")
@@ -89,11 +91,22 @@ def format_pain_alert_card(
     else:
         when = "unknown"
 
+    pain = classify_bidshard_pain(text)
+    header = "<b>Pain alert</b>"
+    if pain is not None:
+        header = (
+            f"<b>[HOT] POTENTIAL CLIENT [{html.escape(format_tier_label(pain.tier_hint))}]</b>"
+        )
+
     lines = [
-        "<b>Pain alert</b>",
-        f"Author: {_author_line(username, user_id)}",
-        f"Source: {html.escape(source_label)}",
+        header,
+        f"Contact: {_author_line(username, user_id)}",
+        f"Chat: @{html.escape(chat_username.strip().lstrip('@'))}",
     ]
+    if pain is not None:
+        lines.append(f"Pain: {html.escape(format_pain_bucket_label(pain.pain_bucket))}")
+        lines.append(f"BidShard angle: {html.escape(pain.pitch_line)}")
+    lines.append(f"Source: {html.escape(source_label)}")
     link = _message_link(chat_username, message_id)
     if link:
         lines.append(f'<a href="{html.escape(link)}">Open message</a>')
@@ -163,8 +176,11 @@ def passes_pain_emit_gate(
     *,
     chat_type: str = "",
     reply_to_message_id: int = 0,
+    channel_about: str = "",
 ) -> bool:
     """M3 pain AND-gate without env or Bot API side effects."""
+    if h1_should_drop(text, username, channel_about=channel_about)[0]:
+        return False
     if not message_has_tracker_pain(text):
         return False
     if not (username or "").strip().lstrip("@"):
@@ -192,6 +208,7 @@ def should_alert_on_emit(
         username,
         chat_type=chat_type,
         reply_to_message_id=reply_to_message_id,
+        channel_about="",
     )
 
 

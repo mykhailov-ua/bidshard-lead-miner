@@ -56,6 +56,30 @@ class AlertDispatcherTest(unittest.TestCase):
                     reply_to_message_id=0,
                 )
             )
+            self.assertFalse(
+                should_alert_on_emit(
+                    "melbet landing pack for sale",
+                    "buyer_ops",
+                )
+            )
+            self.assertTrue(
+                should_alert_on_emit(
+                    "voluum postback failing after nginx timeout",
+                    "buyer_ops",
+                )
+            )
+            self.assertTrue(
+                should_alert_on_emit(
+                    "PP shaves leads, how to prove",
+                    "buyer_ops",
+                )
+            )
+            self.assertTrue(
+                should_alert_on_emit(
+                    "Adspect too expensive for FB",
+                    "traffic_lead",
+                )
+            )
 
 
 if __name__ == "__main__":

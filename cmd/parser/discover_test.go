@@ -28,6 +28,16 @@ func (r *discoverSerpHarvestRecorder) HarvestEmployerReverse(context.Context, se
 	return nil
 }
 
+func (r *discoverSerpHarvestRecorder) HarvestTGCatalogSources(context.Context) error {
+	r.calls = append(r.calls, "tg_catalog_meta")
+	return nil
+}
+
+func (r *discoverSerpHarvestRecorder) CrawlTGCatalogPages(context.Context, int) error {
+	r.calls = append(r.calls, "tg_catalog_crawl")
+	return nil
+}
+
 func (r *discoverSerpHarvestRecorder) HarvestTelegramCatalog(context.Context) error {
 	r.calls = append(r.calls, "telegram")
 	return nil
@@ -46,7 +56,7 @@ func TestDiscoverSerpHarvestOrder(t *testing.T) {
 		t.Fatalf("runDiscoverSerpHarvest: %v", err)
 	}
 
-	want := []string{"jobboard", "forum", "employer_reverse", "telegram"}
+	want := []string{"jobboard", "forum", "employer_reverse", "tg_catalog_meta", "tg_catalog_crawl", "telegram"}
 	if len(rec.calls) != len(want) {
 		t.Fatalf("calls=%v want %v", rec.calls, want)
 	}
@@ -105,6 +115,14 @@ func (f *failingDiscoverHarvester) HarvestForumThreads(ctx context.Context, regi
 }
 
 func (f *failingDiscoverHarvester) HarvestEmployerReverse(context.Context, serp.EmployerReverseConfig) error {
+	return nil
+}
+
+func (f *failingDiscoverHarvester) HarvestTGCatalogSources(context.Context) error {
+	return nil
+}
+
+func (f *failingDiscoverHarvester) CrawlTGCatalogPages(context.Context, int) error {
 	return nil
 }
 

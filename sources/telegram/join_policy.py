@@ -20,12 +20,25 @@ from .telethon_retry import call_with_flood_wait, is_flood_wait
 LOG = logging.getLogger("telegram.join_policy")
 
 
+def session_role() -> str:
+    return os.environ.get("TELEGRAM_SESSION_ROLE", "hot").strip().lower()
+
+
 def invite_join_enabled() -> bool:
+    if session_role() == "hot":
+        return False
     return os.environ.get("TELEGRAM_INVITE_JOIN", "").strip().lower() in (
         "1",
         "true",
         "yes",
     )
+
+
+def invite_join_allowed() -> bool:
+    """Cold session only: hot scrape workers must not mass-join (SHARDING_SESSION)."""
+    if session_role() == "hot":
+        return False
+    return invite_join_enabled()
 
 
 def invite_join_daily_limit() -> int:
@@ -75,7 +88,11 @@ async def resolve_invite_entity(
             store.set_chat_id(chat.channel_key(), chat_id)
         return existing
 
-    if not invite_join_enabled():
+    if not invite_join_allowed():
+        if session_role() == "hot":
+            raise ValueError(
+                "invite join blocked on hot session; use TELEGRAM_SESSION_ROLE=cold"
+            )
         raise ValueError(
             "invite preview only; discover should persist chat_id or set TELEGRAM_INVITE_JOIN=1"
         )
@@ -114,7 +131,7 @@ async def try_join_invite_seed(
     """Join invite-only cross-mention seed when ICP passes and join policy allows."""
     if getattr(checked, "chat", None) is not None:
         return checked.chat
-    if not invite_join_enabled():
+    if not invite_join_allowed():
         return None
     if not invite_preview_icp_relevant(checked):
         LOG.info(

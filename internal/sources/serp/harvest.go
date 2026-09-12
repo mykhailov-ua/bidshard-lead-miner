@@ -18,7 +18,7 @@ func (c *Crawler) HarvestTelegramCatalog(ctx context.Context) error {
 		slog.Warn("telegram catalog icp load failed, using embedded fallback", "path", icpPath, "error", err)
 		icp.SerpDorks = fallbackTelegramCatalogDorks()
 	}
-	dorks := serpHarvestTelegramDorks(icp.SerpDorks)
+	dorks := serpHarvestTelegramDorks(icp.TelegramHarvestDorks())
 	if len(dorks) == 0 {
 		dorks = fallbackTelegramCatalogDorks()
 	}

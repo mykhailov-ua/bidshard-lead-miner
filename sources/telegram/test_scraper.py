@@ -8,7 +8,12 @@ from unittest.mock import AsyncMock, patch
 
 from sources.telegram.config import ChatConfig, load_config
 from sources.telegram.cursor import CursorStore
-from sources.telegram.scraper import emit_line, fetch_reply_context, process_scrape_message
+from sources.telegram.scraper import (
+    emit_line,
+    fetch_reply_context,
+    process_scrape_message,
+    resolve_chat_entity,
+)
 
 
 class ConfigTest(unittest.TestCase):
@@ -141,6 +146,21 @@ class ScraperMessageTest(unittest.IsolatedAsyncioTestCase):
         ctx = await fetch_reply_context(client, "entity", 77)
         self.assertEqual(ctx, "")
         client.get_messages.assert_awaited_once()
+
+
+class ResolveChatEntityTest(unittest.IsolatedAsyncioTestCase):
+    async def test_uses_cached_chat_id_without_username_resolve(self) -> None:
+        chat = ChatConfig(name="aff", username="aff_chat", geo="eu")
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "crawler.db"
+            store = CursorStore(db)
+            store.upsert_channel(chat, "test")
+            store.set_chat_id(chat.channel_key(), -100999888)
+            client = SimpleNamespace(get_entity=AsyncMock())
+            entity = await resolve_chat_entity(client, chat, store)
+            self.assertEqual(entity, -100999888)
+            client.get_entity.assert_not_called()
+            store.close()
 
 
 if __name__ == "__main__":

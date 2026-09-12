@@ -64,6 +64,9 @@ class PrefilterTest(unittest.TestCase):
             "vip_signals", ["VIP signal course mentorship paid tips only"]
         )
         self.assertTrue(reject)
+        reject, reason = channel_discover_reject("maximaffiliate", [])
+        self.assertTrue(reject)
+        self.assertEqual(reason, "h2_cis_arbitrage")
 
     def test_job_tutorial_noise_rejected(self) -> None:
         self.assertFalse(

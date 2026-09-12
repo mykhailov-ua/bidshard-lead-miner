@@ -54,6 +54,7 @@ func ScoreWithBoosts(reg *Registry, text *LeadText, source string, stack []strin
 	if validate.HasCryptoGrayBuyerSignal(combined) {
 		score += validate.CryptoGrayScoreBoost
 	}
+	score = BidShardPainBoost(score, combined)
 	if opts.TimeDecay {
 		score = ApplyTimeDecay(score, opts.PostedAt, time.Now().UTC())
 	}

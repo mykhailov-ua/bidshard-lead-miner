@@ -10,6 +10,9 @@ backups/
 
 # Runtime / local data
 bin/
+# Root MTProto pool (authorized SQLite; never commit)
+my_session*.session
+/*.session
 data/*.session
 data/crawler.db
 data/telethon.session

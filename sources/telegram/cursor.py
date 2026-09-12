@@ -105,6 +105,13 @@ class CursorStore:
             ("channel_search_count", "ALTER TABLE telegram_channels ADD COLUMN channel_search_count INTEGER NOT NULL DEFAULT 0"),
             ("emitted_last_run", "ALTER TABLE telegram_channels ADD COLUMN emitted_last_run INTEGER NOT NULL DEFAULT 0"),
             ("last_flood_wait_sec", "ALTER TABLE telegram_channels ADD COLUMN last_flood_wait_sec INTEGER NOT NULL DEFAULT 0"),
+            ("role", "ALTER TABLE telegram_channels ADD COLUMN role TEXT NOT NULL DEFAULT 'buyer_supergroup'"),
+            ("lease_worker_id", "ALTER TABLE telegram_channels ADD COLUMN lease_worker_id TEXT"),
+            ("lease_until", "ALTER TABLE telegram_channels ADD COLUMN lease_until TEXT"),
+            (
+                "lease_heartbeat_at",
+                "ALTER TABLE telegram_channels ADD COLUMN lease_heartbeat_at TEXT",
+            ),
         ):
             cols = {
                 r[1] for r in self._conn.execute("PRAGMA table_info(telegram_channels)")
@@ -148,10 +155,10 @@ class CursorStore:
         self._conn.execute(
             """
             INSERT INTO telegram_channels (
-                channel_key, username, invite_hash, chat_id, title, source, geo, enabled,
+                channel_key, username, invite_hash, chat_id, title, source, geo, role, enabled,
                 discovered_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT(channel_key) DO UPDATE SET
                 username = excluded.username,
                 invite_hash = excluded.invite_hash,
@@ -162,6 +169,7 @@ class CursorStore:
                     ELSE excluded.source
                 END,
                 geo = excluded.geo,
+                role = excluded.role,
                 enabled = 1,
                 updated_at = CURRENT_TIMESTAMP
             """,
@@ -173,6 +181,7 @@ class CursorStore:
                 chat.name or username or invite_hash or key,
                 source,
                 chat.geo or "global",
+                chat.normalized_role(),
             ),
         )
         self._conn.commit()
@@ -202,6 +211,18 @@ class CursorStore:
         )
         self._conn.commit()
 
+    def get_chat_id(self, channel_key: str) -> int | None:
+        row = self._conn.execute(
+            "SELECT chat_id FROM telegram_channels WHERE channel_key = ?",
+            (channel_key,),
+        ).fetchone()
+        if not row or row[0] is None:
+            return None
+        try:
+            return int(row[0])
+        except (TypeError, ValueError):
+            return None
+
     def set_chat_id(self, channel_key: str, chat_id: int) -> None:
         self._conn.execute(
             """
@@ -214,7 +235,14 @@ class CursorStore:
         self._conn.commit()
 
     def _row_to_chat(
-        self, key: str, username: str | None, invite_hash: str | None, chat_id: int | None, title: str, geo: str
+        self,
+        key: str,
+        username: str | None,
+        invite_hash: str | None,
+        chat_id: int | None,
+        title: str,
+        geo: str,
+        role: str | None = None,
     ) -> ChatConfig:
         return ChatConfig(
             name=str(title or username or invite_hash or key),
@@ -223,12 +251,13 @@ class CursorStore:
             geo=str(geo or "global"),
             enabled=True,
             chat_id=int(chat_id) if chat_id is not None else None,
+            role=str(role or "buyer_supergroup"),
         )
 
     def list_enabled_chats(self) -> list[ChatConfig]:
         rows = self._conn.execute(
             """
-            SELECT channel_key, username, invite_hash, chat_id, title, geo
+            SELECT channel_key, username, invite_hash, chat_id, title, geo, role
             FROM telegram_channels
             WHERE enabled = 1
             ORDER BY updated_at DESC
@@ -239,7 +268,7 @@ class CursorStore:
     def list_due_chats(self) -> list[ChatConfig]:
         rows = self._conn.execute(
             """
-            SELECT channel_key, username, invite_hash, chat_id, title, geo
+            SELECT channel_key, username, invite_hash, chat_id, title, geo, role
             FROM telegram_channels
             WHERE enabled = 1
               AND (
@@ -404,7 +433,7 @@ class CursorStore:
     ) -> list[ChatConfig]:
         rows = self._conn.execute(
             """
-            SELECT channel_key, username, invite_hash, chat_id, title, geo
+            SELECT channel_key, username, invite_hash, chat_id, title, geo, role
             FROM telegram_channels
             WHERE enabled = 1
               AND (username IS NOT NULL OR chat_id IS NOT NULL OR invite_hash IS NOT NULL)
@@ -555,6 +584,158 @@ class CursorStore:
             (int(user_id), bio or ""),
         )
         self._conn.commit()
+
+    def _expire_stale_leases(self, stale_sec: int) -> int:
+        cur = self._conn.execute(
+            """
+            UPDATE telegram_channels
+            SET lease_worker_id = NULL,
+                lease_until = NULL,
+                lease_heartbeat_at = NULL
+            WHERE lease_worker_id IS NOT NULL
+              AND (
+                lease_until IS NULL
+                OR datetime(lease_until) < datetime('now')
+                OR lease_heartbeat_at IS NULL
+                OR datetime(lease_heartbeat_at) < datetime('now', printf('-%d seconds', ?))
+              )
+            """,
+            (max(1, int(stale_sec)),),
+        )
+        return int(cur.rowcount or 0)
+
+    def expire_stale_leases(self, stale_sec: int) -> int:
+        count = self._expire_stale_leases(stale_sec)
+        self._conn.commit()
+        return count
+
+    def claim_due_chats(
+        self,
+        worker_id: str,
+        limit: int,
+        ttl_sec: int,
+        stale_sec: int,
+    ) -> list[ChatConfig]:
+        """P2: atomically claim due channels for this worker."""
+        worker_id = (worker_id or "").strip()
+        if not worker_id or limit <= 0:
+            return []
+        ttl_sec = max(30, int(ttl_sec))
+        stale_sec = max(30, int(stale_sec))
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            self._expire_stale_leases(stale_sec)
+            rows = self._conn.execute(
+                """
+                SELECT channel_key, username, invite_hash, chat_id, title, geo, role
+                FROM telegram_channels
+                WHERE enabled = 1
+                  AND (
+                    last_scraped_at IS NULL
+                    OR datetime(last_scraped_at) <= datetime(
+                        'now', printf('-%d days', scrape_interval_days)
+                    )
+                  )
+                  AND (
+                    lease_worker_id IS NULL
+                    OR lease_worker_id = ?
+                    OR datetime(lease_until) < datetime('now')
+                    OR lease_heartbeat_at IS NULL
+                    OR datetime(lease_heartbeat_at) < datetime(
+                        'now', printf('-%d seconds', ?)
+                    )
+                  )
+                ORDER BY
+                  CASE WHEN pain_hits_30d > 0 THEN 0 ELSE 1 END,
+                  pain_hits_30d DESC,
+                  updated_at DESC
+                LIMIT ?
+                """,
+                (worker_id, stale_sec, max(limit * 3, limit)),
+            ).fetchall()
+            claimed: list[ChatConfig] = []
+            for row in rows:
+                if len(claimed) >= limit:
+                    break
+                channel_key = row[0]
+                updated = self._conn.execute(
+                    """
+                    UPDATE telegram_channels
+                    SET lease_worker_id = ?,
+                        lease_until = datetime('now', printf('+%d seconds', ?)),
+                        lease_heartbeat_at = CURRENT_TIMESTAMP
+                    WHERE channel_key = ?
+                      AND enabled = 1
+                      AND (
+                        lease_worker_id IS NULL
+                        OR lease_worker_id = ?
+                        OR datetime(lease_until) < datetime('now')
+                        OR lease_heartbeat_at IS NULL
+                        OR datetime(lease_heartbeat_at) < datetime(
+                            'now', printf('-%d seconds', ?)
+                        )
+                      )
+                    """,
+                    (worker_id, ttl_sec, channel_key, worker_id, stale_sec),
+                ).rowcount
+                if updated:
+                    claimed.append(self._row_to_chat(*row))
+            self._conn.commit()
+            return claimed
+        except Exception:
+            self._conn.rollback()
+            raise
+
+    def heartbeat_lease(self, channel_key: str, worker_id: str, ttl_sec: int) -> bool:
+        ttl_sec = max(30, int(ttl_sec))
+        cur = self._conn.execute(
+            """
+            UPDATE telegram_channels
+            SET lease_until = datetime('now', printf('+%d seconds', ?)),
+                lease_heartbeat_at = CURRENT_TIMESTAMP
+            WHERE channel_key = ?
+              AND lease_worker_id = ?
+            """,
+            (ttl_sec, channel_key, worker_id),
+        )
+        self._conn.commit()
+        return int(cur.rowcount or 0) > 0
+
+    def release_lease(
+        self,
+        channel_key: str,
+        worker_id: str,
+        *,
+        flood_wait_sec: int = 0,
+    ) -> None:
+        if flood_wait_sec > 0:
+            self.mark_scraped(channel_key, flood_wait_sec)
+        self._conn.execute(
+            """
+            UPDATE telegram_channels
+            SET lease_worker_id = NULL,
+                lease_until = NULL,
+                lease_heartbeat_at = NULL
+            WHERE channel_key = ?
+              AND lease_worker_id = ?
+            """,
+            (channel_key, worker_id),
+        )
+        self._conn.commit()
+
+    def release_worker_leases(self, worker_id: str) -> int:
+        cur = self._conn.execute(
+            """
+            UPDATE telegram_channels
+            SET lease_worker_id = NULL,
+                lease_until = NULL,
+                lease_heartbeat_at = NULL
+            WHERE lease_worker_id = ?
+            """,
+            (worker_id,),
+        )
+        self._conn.commit()
+        return int(cur.rowcount or 0)
 
     def close(self) -> None:
         self._conn.close()

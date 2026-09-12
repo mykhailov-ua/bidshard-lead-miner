@@ -14,6 +14,19 @@ var sellerAuthorCyrillic = []string{
 
 // SellerAuthorProfile is true when username or channel bio looks like a seller storefront.
 func SellerAuthorProfile(username, channelAbout, title string) (bool, string) {
+	return sellerAuthorProfile(username, channelAbout, title)
+}
+
+// SellerAuthorProfileForChannel applies H5 vendor_support policy: channel branding may
+// contain support/agency tokens; only message author username is checked for seller storefront.
+func SellerAuthorProfileForChannel(username, channelAbout, title, channelRole string) (bool, string) {
+	if strings.EqualFold(strings.TrimSpace(channelRole), "vendor_support") {
+		return sellerAuthorProfile(username, "", "")
+	}
+	return sellerAuthorProfile(username, channelAbout, title)
+}
+
+func sellerAuthorProfile(username, channelAbout, title string) (bool, string) {
 	combined := strings.TrimSpace(username + " " + channelAbout + " " + title)
 	if combined == "" {
 		return false, ""
@@ -40,6 +53,20 @@ func hasSellerAuthorToken(lower string) bool {
 		}
 	}
 	return false
+}
+
+// VendorSupportBuyerBoost reports high-spend buyer voice in vendor support chats (H5).
+func VendorSupportBuyerBoost(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	if lower == "" {
+		return false
+	}
+	hasSpend := strings.Contains(lower, "$50k") || strings.Contains(lower, "50k spend") ||
+		strings.Contains(lower, "agency spend") || strings.Contains(lower, "$30k")
+	hasPay := strings.Contains(lower, "usdt") || strings.Contains(lower, "trc20")
+	hasPain := strings.Contains(lower, "postback") || strings.Contains(lower, "redirect") ||
+		strings.Contains(lower, "tracker") || strings.Contains(lower, "keitaro")
+	return hasSpend && hasPay && hasPain
 }
 
 var technicalAuthorSignals = []string{

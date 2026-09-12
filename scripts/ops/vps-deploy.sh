@@ -29,8 +29,14 @@ fi
 services="${VPS_SERVICES:-mongo parser crm-bot}"
 log "remote up (${services})"
 vps_remote_up "$services"
-if [[ "${VPS_SKIP_TELEGRAM_REALTIME:-}" != "1" ]]; then
-	log "telegram realtime profile"
+log "telegram cron-only (stop realtime)"
+vps_remote_telegram_realtime_stop
+if [[ "${VPS_INSTALL_TELEGRAM_CRON:-1}" == "1" ]]; then
+	log "install telegram pain cron"
+	bash "$ROOT/scripts/ops/vps-install-telegram-cron.sh"
+fi
+if [[ "${VPS_ENABLE_TELEGRAM_REALTIME:-}" == "1" ]]; then
+	log "WARN VPS_ENABLE_TELEGRAM_REALTIME=1 (deprecated)"
 	vps_remote_telegram_realtime
 fi
 log "ok"

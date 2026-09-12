@@ -16,6 +16,17 @@ class CursorStoreTest(unittest.TestCase):
             self.assertEqual(store.get_last_message_id("chat_a"), 42)
             store.close()
 
+    def test_get_chat_id_roundtrip(self) -> None:
+        chat = ChatConfig(name="jobs", username="job_board", geo="global")
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "crawler.db"
+            store = CursorStore(db)
+            store.upsert_channel(chat, "test")
+            self.assertIsNone(store.get_chat_id(chat.channel_key()))
+            store.set_chat_id(chat.channel_key(), -100123456)
+            self.assertEqual(store.get_chat_id(chat.channel_key()), -100123456)
+            store.close()
+
     def test_set_channel_enabled(self) -> None:
         chat = ChatConfig(name="jobs", username="job_board", geo="global")
         with tempfile.TemporaryDirectory() as tmp:

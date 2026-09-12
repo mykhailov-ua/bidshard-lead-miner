@@ -18,3 +18,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  

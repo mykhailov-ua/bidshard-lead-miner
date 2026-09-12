@@ -3,7 +3,8 @@ from __future__ import annotations
 import os
 import re
 
-from .geo_heuristic import is_ru_infrastructure_hard_stop
+from .h1_geo_block import h1_should_drop
+from .h2_pool import reject_h2_cis_pool
 
 # Keep in sync with internal/filter/instant_drop.go instantDropPhrases.
 INSTANT_DROP_PHRASES = (
@@ -187,10 +188,17 @@ TRACKER_PAIN_HINTS = (
     "binom",
     "redtrack",
     "postback",
+    "постбек",
     "tracker",
+    "трекер",
+    "трекере",
     "alternative",
     "clickid",
     "cloak",
+    "adspect",
+    "hideclick",
+    "shave",
+    "scrub",
     "s2s",
 )
 
@@ -463,12 +471,29 @@ def is_agency_outreach_noise(text: str) -> bool:
     return not has_buyer_question_signal(text)
 
 
-def should_emit_message(text: str) -> bool:
+def should_emit_message(
+    text: str,
+    username: str = "",
+    channel_about: str = "",
+    channel_role: str = "",
+) -> bool:
     if not prefilter_enabled():
         return True
-    if is_ru_infrastructure_hard_stop(text):
+    if h1_should_drop(text, username, channel_about=channel_about)[0]:
         return False
-    if is_instant_drop_message(text):
+    from .h8_payment import reject_crypto_payout_only, reject_h8_payment_vertical
+
+    if reject_h8_payment_vertical(text)[0]:
+        return False
+    if reject_crypto_payout_only(text)[0]:
+        return False
+    role = (channel_role or "").strip().lower()
+    if role == "vendor_support":
+        from .vendor_support import vendor_support_emit_allowed
+
+        if not vendor_support_emit_allowed(text, channel_role=role):
+            return False
+    elif is_instant_drop_message(text):
         return False
     if is_spam_message(text):
         return False
@@ -502,6 +527,10 @@ def channel_discover_reject(username: str, texts: list[str] | None = None) -> tu
     """Reject discovered channels before registry/chats. Mirrors Go TelegramDiscoverReject."""
     if not prefilter_enabled():
         return False, ""
+    reject, reason = reject_h2_cis_pool(username, texts)
+    if reject:
+        return True, reason
+    blob_parts: list[str] = []
     user = username.strip().lstrip("@").lower()
     parts = [user] if user else []
     if texts:
@@ -509,9 +538,12 @@ def channel_discover_reject(username: str, texts: list[str] | None = None) -> tu
             body = str(text).strip()
             if body:
                 parts.append(body.lower())
+                blob_parts.append(body)
     blob = " ".join(parts).strip()
     if not blob:
         return True, "empty"
+    if h1_should_drop(blob, username)[0]:
+        return True, "h1_geo_block"
     if user:
         if user in CHANNEL_DISCOVER_BLOCK_HANDLES:
             return True, "block_handle"

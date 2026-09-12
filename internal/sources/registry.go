@@ -11,6 +11,7 @@ import (
 	"github.com/bidshard/parser/internal/sources/discord"
 	"github.com/bidshard/parser/internal/sources/forum"
 	"github.com/bidshard/parser/internal/sources/github"
+	"github.com/bidshard/parser/internal/sources/infraosint"
 	"github.com/bidshard/parser/internal/sources/jobboard"
 	"github.com/bidshard/parser/internal/sources/lander"
 	"github.com/bidshard/parser/internal/sources/reddit"
@@ -118,6 +119,8 @@ func buildOne(cfg config.Config, name string) (Source, bool) {
 			return nil, false
 		}
 		return wrapTgweb(crawler), true
+	case "infraosint":
+		return wrapInfraOSINT(infraosint.NewCrawler(cfg.InfraClustersPath)), true
 	default:
 		return nil, false
 	}
@@ -334,6 +337,24 @@ func (s *tgwebSource) Name() string {
 }
 
 func (s *tgwebSource) Collect(ctx context.Context, emit EmitFunc) error {
+	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
+		return emit(ctx, item)
+	})
+}
+
+type infraOSINTSource struct {
+	inner *infraosint.Crawler
+}
+
+func wrapInfraOSINT(inner *infraosint.Crawler) Source {
+	return &infraOSINTSource{inner: inner}
+}
+
+func (s *infraOSINTSource) Name() string {
+	return s.inner.Name()
+}
+
+func (s *infraOSINTSource) Collect(ctx context.Context, emit EmitFunc) error {
 	return s.inner.Collect(ctx, func(ctx context.Context, item model.RawItem) error {
 		return emit(ctx, item)
 	})

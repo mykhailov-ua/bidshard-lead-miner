@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# P0 stack: sync, BidShard ICP env, mongo+parser+crm-bot, telegram realtime, config check.
+# P0 stack: sync, BidShard ICP env, mongo+parser+crm-bot, cron telegram scrape (no realtime).
 #
 # Usage:
 #   make vps-deploy-p0
@@ -53,11 +53,19 @@ done
 log "docker compose up (mongo parser crm-bot)"
 vps_remote_up "mongo parser crm-bot"
 
-log "telegram realtime profile"
-vps_remote_telegram_realtime
+log "telegram cron-only (stop realtime)"
+vps_remote_telegram_realtime_stop
+
+if [[ -f "$ROOT/sessions.pool.json" ]]; then
+	log "sync session pool"
+	bash "$ROOT/scripts/ops/vps-sync-session-pool.sh"
+fi
+
+log "install telegram pain cron"
+bash "$ROOT/scripts/ops/vps-install-telegram-cron.sh"
 
 log "status"
-vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose ps && docker compose -f docker-compose.telegram-realtime.yaml ps 2>/dev/null || true"
+vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose ps && crontab -l 2>/dev/null | grep telegram-pain-cron || true"
 
-log "ok P0 deploy complete"
+log "ok P0 deploy complete (cron-only)"
 log "If CRM/alert bots silent: set config/env/.env.crm-telegram.local and .env.telegram-alert.local locally, re-run make vps-deploy-p0"

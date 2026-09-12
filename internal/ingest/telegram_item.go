@@ -20,6 +20,7 @@ type telegramItem struct {
 	ReplyToMessageID int64  `json:"reply_to_message_id" msgpack:"reply_to_message_id"`
 	ReplyContext     string `json:"reply_context" msgpack:"reply_context"`
 	ChatType         string `json:"chat_type" msgpack:"chat_type"`
+	ChannelRole      string `json:"channel_role" msgpack:"channel_role"`
 	ChannelAbout     string `json:"channel_about" msgpack:"channel_about"`
 }
 
@@ -53,6 +54,7 @@ func (item telegramItem) toRawItem() model.RawItem {
 		ReplyToMessageID: item.ReplyToMessageID,
 		ReplyContext:     item.ReplyContext,
 		ChatType:         item.ChatType,
+		ChannelRole:      item.ChannelRole,
 		ChannelAbout:     item.ChannelAbout,
 		SenderBio:        item.SenderBio,
 	}

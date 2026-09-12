@@ -19,6 +19,7 @@ type RawItem struct {
 	ReplyToMessageID int64
 	ReplyContext     string
 	ChatType         string
+	ChannelRole      string
 	ChannelAbout     string
 	SenderBio        string
 	CrawlHTML        string

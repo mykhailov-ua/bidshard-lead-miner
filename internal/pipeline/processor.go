@@ -139,11 +139,30 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		return out
 	}
 
-	if res := geo.Filter(text, task.Item.Contact, task.Item.ContactTelegram()); !res.OK {
+	if res := geo.FilterH1(
+		text,
+		task.Item.Username,
+		task.Item.ChannelAbout,
+		task.Item.Contact,
+		task.Item.ContactTelegram(),
+	); !res.OK {
 		out.RejectedGeo = true
 		out.RejectReason = "geo"
 		slog.Debug("geo reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", res.Reason)
 		p.captureJunk(ctx, task, coldpath.ReasonGeoReject, res.Reason, 0, nil)
+		return out
+	}
+
+	if drop, reason := filter.RejectH8PaymentVertical(text, task.Item.Title); drop {
+		out.RejectReason = "payment"
+		slog.Debug("h8 payment vertical reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
+		p.captureJunk(ctx, task, coldpath.ReasonContextDrop, reason, 0, nil)
+		return out
+	}
+	if drop, reason := filter.RejectCryptoPayoutOnly(text); drop {
+		out.RejectReason = "payment"
+		slog.Debug("h8 crypto payout only reject", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
+		p.captureJunk(ctx, task, coldpath.ReasonContextDrop, reason, 0, nil)
 		return out
 	}
 
@@ -199,7 +218,9 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		return out
 	}
 
-	if drop, reason := filter.SellerAuthorProfile(task.Item.Username, task.Item.ChannelAbout, task.Item.Title); drop {
+	if drop, reason := filter.SellerAuthorProfileForChannel(
+		task.Item.Username, task.Item.ChannelAbout, task.Item.Title, task.Item.ChannelRole,
+	); drop {
 		out.RejectReason = "author_seller"
 		slog.Debug("seller author skip", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
 		p.captureJunk(ctx, task, coldpath.ReasonContextDrop, reason, 0, nil)
@@ -1132,6 +1153,11 @@ func splitEmail(email string) []string {
 }
 
 func leadHashID(task Task, contacts []extract.Contact) string {
+	if filter.IsTelegramSource(task.Item.Source) && task.Item.MessageID > 0 {
+		if id := sink.TelegramMessageHashID(task.Item.Source, task.Item.MessageID); id != "" {
+			return id
+		}
+	}
 	// Scope dedup by site domain so the same email on two affiliate sites stays distinct.
 	if filter.IsTgWebSource(task.Item.Source) {
 		if domain := tgweb.SiteDomainFromSource(task.Item.Source); domain != "" {

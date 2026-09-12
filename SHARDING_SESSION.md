@@ -2,7 +2,9 @@
 
 Plan for scaling MTProto **without realtime** (cron scrape + pain alerts + batch export/discover) across multiple Telegram accounts.
 
-Related: [docs/MILESTONE.md](docs/MILESTONE.md) (M2/M4/M5), [docs/ICP.md](docs/ICP.md), [docs/POST_MORTEM.md](docs/POST_MORTEM.md), [config/sources.telegram.yaml](config/sources.telegram.yaml).
+Related: [docs/MILESTONE.md](docs/MILESTONE.md) (M2/M4/M5), [docs/ICP.md](docs/ICP.md), [docs/OUTREACH.md](docs/OUTREACH.md), [docs/POST_MORTEM.md](docs/POST_MORTEM.md), [config/sources.telegram.yaml](config/sources.telegram.yaml).
+
+Hypotheses **H1-H14** below are experiments to run and pass/fail; status table at the bottom.
 
 ---
 
@@ -273,6 +275,166 @@ python3 -m unittest sources.telegram.test_geo_heuristic sources.telegram.test_pr
 
 ---
 
+### H10 - Pain taxonomy -> BidShard tier (product-led discovery)
+
+**Hypothesis:** Parser should classify **pain bucket** and **tier hint** (Starter/Pro/Scale/Enterprise), not only generic "tracker pain". Sales outreach maps 1:1 to BidShard features.
+
+**Four buckets (extend vocab in `keywords.json` + Python pain):**
+
+| pain_bucket | BidShard tier hint | Chat triggers (add to lexicon) | Pitch angle (for card, not auto-DM) |
+|-------------|-------------------|--------------------------------|-------------------------------------|
+| `cloak_stack_cost` | Starter ($129) / Pro ($399) | hideclick overprice, adspect, cloak it, click limit on cloak, "what cloak for keitaro" | Built-in filter endpoint on VPS; decoy 202; one USDT invoice vs tracker + external cloak APIs |
+| `shave_discrepancy` | Pro ($399) | network shaves leads, tracker vs network deposit count, prove shave, postback log blind spot | Postback Trail: every hop + raw gateway response; export bundle with click hashes |
+| `infra_scale` | Scale ($749) / Network ($1,399) | keitaro 32gb ram, 502 on pour, mysql cpu 100% on report, slow click-to-land, redirect 1.5s kills fb cr | Go ingest + ClickHouse analytics; same $40 VPS, higher spike tolerance, ms redirects |
+| `abuse_ddos` | Enterprise ($2,999) | competitors bot link, hoster blocked channel abuse, ddos on tracking domain | eBPF/XDP edge drop before TCP stack (qualify volume before Enterprise pitch) |
+
+**Already in repo:** `hideclick`, `shaving`, `scrubbing`, `502`, `mysql`, `clickhouse`, `ebpf` in `data/keywords.json`; M11 in `crypto_icp.go`. **Missing:** `adspect`, `cloak it`, RU volume (`200к кликов`), standalone shave without tracker keyword, DDoS/click-fraud competitor patterns.
+
+**Classifier output (target shape):**
+
+```json
+{
+  "pain_bucket": "infra_scale",
+  "tier_hint": "scale",
+  "tier_confidence": "med",
+  "pitch_key": "clickhouse_ingest"
+}
+```
+
+**Rules:**
+
+- `tier_hint` is **suggestion**, not auto-quote. Low spend + generic "recommend tracker" -> cap at Starter/Pro.
+- `abuse_ddos` -> Enterprise only with volume/hosting context (not one angry message).
+- Shave messages mentioning `1win` / `mostbet` conflict with **H1** geo drop - decide: drop geo vs keep shave intel (tag `cis_grey`).
+
+**Test gate:** 20 hand-labeled TG messages -> bucket + tier match human label >= 70%. False Enterprise tier on newbie questions = fail.
+
+---
+
+### H11 - M3 alert gate: expand second leg (do not replace Go scoring)
+
+**Hypothesis:** Missed alerts come from **narrow M3 second leg**, not from lack of weighted scoring in Go.
+
+**Two pipelines (do not conflate):**
+
+| Path | Gate | Output |
+|------|------|--------|
+| Python cron -> `passes_pain_emit_gate` | M3: tracker leg AND (operational OR commercial intent) | Pain alert TG channel |
+| Go ingest -> `processor` | `keywords.json` + `ApplySpendGate` + `CompetitorPainBoost` + displacement | Mongo + CRM webhook |
+
+Go path is **already weighted** (`internal/scoring/engine.go`). M3 is **alert-only**.
+
+**M3 already passes (commercial intent leg):** "посоветуйте трекер", "alternative to keitaro", "какой трекер взять" (`sources/telegram/pain.py`).
+
+**Real M3 gaps to fix:**
+
+| Message | Why missed today |
+|---------|------------------|
+| "PP shaves leads, how to prove" | No tracker/postback keyword in `TRACKER_PAIN_HINTS` |
+| "Adspect too expensive for FB" | Cloak vendor without keitaro leg |
+| "200k clicks/day, admin 2 min" | No operational hint without "slow"/502 |
+| "в трекере 100, в партнерке 75" | Cyrillic `трекер` not in hints (Latin `tracker` only) |
+
+**Proposed M3 extension (not full 60-point scorer):**
+
+- Add second-leg signals: `shave`, `scrub`, `discrepancy`, cloak vendors (`adspect`, `hideclick` price), volume RU/EN (`\d+\s*k\s*click`, `200к кликов`).
+- Add Cyrillic tracker tokens: `трекер`, `трекере`, `постбек`.
+- Optional: if `pain_bucket` from H10 is set with `tier_confidence >= med`, pass M3 even without operational verb.
+
+**Do not:** Rip out M3 AND entirely for alerts without measuring false-positive rate on seller spam.
+
+**Test gate:**
+
+```bash
+python3 -m unittest sources.telegram.test_alert_dispatcher sources.telegram.test_pain -q
+```
+
+Fixture set: 10 should-alert + 10 should-drop (seller broadcast, job noise).
+
+---
+
+### H12 - Unified sales card (alert + CRM bot)
+
+**Hypothesis:** Conversion to 10-day trial rises when alert/CRM card is a **closer script**, not JSON-ish metadata.
+
+**Current:** `internal/crm/telegrambot/lead_card.go` renders Score, Source, Geo, Keywords, snippet. No tier, bucket, pitch, or deep link.
+
+**Target card shape:**
+
+```text
+[HOT] POTENTIAL CLIENT [Scale / Pro]
+Contact: @traffic_lead_pavel
+Chat: @arbitraj_ua_chat
+Pain: click fraud / MySQL spike / cloak overprice
+Message: "keitaro on 200k clicks/day hangs server, admin 2 min load"
+BidShard angle: ClickHouse ingest + silent reject (~$600/mo saved vs tracker+cloak stack)
+Open: t.me/traffic_lead_pavel
+hash: <id>
+```
+
+**Implementation sketch:**
+
+1. `ClassifyBidShardPain(text) -> {bucket, tier_hint, confidence, pitch_line}` shared Go + Python.
+2. `FormatLeadNotifyHTML` + `dispatch_pain_alert` use same formatter.
+3. **Two tone layers:** card = factual + suggested angle; DM template from [docs/OUTREACH.md](docs/OUTREACH.md) stays professional (no auto-aggressive copy).
+4. Savings line (`~$600/mo`) only when text mentions competitor prices or volume - else omit (no invented math).
+
+**Test gate:** Sales review of 10 generated cards -> "would DM" rate >= 50% vs current format blind test.
+
+---
+
+### H13 - Source mix: TG-first, not TG-only
+
+**Hypothesis:** Dropping forum/SERP entirely loses WW technical posts (nginx logs, long threads); TG-only is ops-simpler but lower recall on Scale/Enterprise ICP.
+
+**Keep (hot/warm):**
+
+| Source | Role |
+|--------|------|
+| Telegram cron pain | 70% effort; primary buyer voice |
+| Forum (afflift-style pain threads) | Long technical posts -> `infra_scale` bucket |
+| `buyer-discover` SERP | Seeds for yaml triage only |
+| `history-export` | Manual outreach queue (M5) |
+
+**Cron-only / deprioritize:**
+
+| Source | Role |
+|--------|------|
+| Broad Reddit | 429 + newbie noise ([POST_MORTEM](docs/POST_MORTEM.md)) |
+| `webpain` open web | Low precision unless narrowed |
+| `supply` ads.txt 24/7 | Intel only |
+| Realtime | Off (H9) |
+
+**Test gate:** 30-day compare: leads with `pain_bucket=infra_scale` from forum vs TG counts. If forum < 5% of quality leads, consider dropping.
+
+---
+
+### H14 - Go scoring weights aligned with H10 buckets
+
+**Hypothesis:** Keyword boosts should reinforce tier hints without duplicating M3 logic on every ingest.
+
+**Existing weights (do not duplicate blindly):**
+
+- `ApplySpendGate`: +15 spend, cap without spend/competitor
+- `CompetitorPainBoost`: voluum/keitaro/binom mention
+- `DetectDisplacementTier`: +12 warm / +22 hot migration language
+- `CryptoGrayScoreBoost`: +18 (M11)
+
+**Proposed additive boosts (test in `keywords.json` or bucket classifier):**
+
+| Signal | Boost | Notes |
+|--------|-------|-------|
+| Competitor stack mention | +20 | Already partial via keywords |
+| Spend / volume (`$50k`, `200k clicks`) | +30 | Extend RU volume patterns |
+| Alternative / migration question | +40 | Overlaps `has_commercial_pain_intent` |
+| Infra operational pain (502, mysql lock) | +40 | Overlaps operational hints |
+
+**Threshold experiment:** alert/accept priority when `score >= 60` **and** `pain_bucket` set - compare to current High/Medium from registry.
+
+**Test gate:** Replay last 100 accepted leads with new boosts - no >20% rank inversion on manually ranked top 10.
+
+---
+
 ## Implementation phases (sharding)
 
 ### P0 - chat_id cache (single session, do first)
@@ -351,9 +513,10 @@ Never run `history-export-inplace.sh` against a session that cron scrape is usin
 ## Three ingest roads (hypothesis map)
 
 ```text
-HOT (buyer voice)     -> cron TG + forum/reddit pain -> processor -> CRM
+HOT (buyer voice)     -> cron TG + forum pain -> processor -> CRM card (H12)
 WARM (discover)       -> SERP + buyer-discover -> yaml triage -> cron
 INTEL (no auto CRM)   -> Shodan batch (H6) + supply/tgweb white pages -> manual outreach
+CLASSIFY              -> H10 pain_bucket + tier_hint on alert and CRM (H11/H14)
 ```
 
 ---
@@ -364,10 +527,18 @@ INTEL (no auto CRM)   -> Shodan batch (H6) + supply/tgweb white pages -> manual 
 |------|--------|
 | H1 geo/bookmaker | `internal/geo/filter.go`, `internal/filter/` (new cis_grey), `sources/telegram/geo_heuristic.py`, `sources/telegram/prefilter.py`, `sources/telegram/alert_dispatcher.py` |
 | H2 discover | `config/discover.icp.json`, `config/sources.telegram.yaml`, `sources/telegram/discover.py` |
-| H5 vendor_support | `internal/filter/author_profile.go`, `sources/telegram/config.py`, yaml `channel_class` |
-| H6 infra OSINT | new `scripts/ops/infra-shodan-export.sh`, `data/runtime/infra_clusters.json` (gitignored) |
+| H3 PWA pain | `internal/filter/pwa_pain.go`, `sources/telegram/pwa_pain.py`, `pwa_dorks` in discover.icp.json |
+| H4 hosting incident | `internal/filter/hosting_incident.go`, `sources/telegram/hosting_incident.py`, `hosting_dorks` |
+| H5 vendor_support | `internal/filter/author_profile.go`, `channel_role` in NDJSON/cursor, `vendor_support.py` |
+| H6 infra OSINT | `scripts/ops/infra-shodan-export.sh`, `internal/sources/infraosint/`, `parser discover infra-clusters` |
+| H7 OTC manual | `docs/H7_OTC_OSINT.md`, `scripts/ops/otc-osint-manual.sh` (no auto scrape) |
+| H10 pain taxonomy | new `internal/classify/bidshard_pain.go`, `sources/telegram/pain_taxonomy.py`, `data/keywords.json` |
+| H11 M3 second leg | `sources/telegram/pain.py`, `sources/telegram/prefilter.py` |
+| H12 sales card | `internal/crm/telegrambot/lead_card.go`, `sources/telegram/alert_dispatcher.py`, `docs/OUTREACH.md` |
+| H14 scoring boosts | `data/keywords.json`, `internal/scoring/engine.go` |
 | P0 resolve cache | `sources/telegram/scraper.py`, `sources/telegram/cursor.py` |
 | P1 shard | `sources/telegram/scraper.py`, `sources/telegram/config.py` |
+| P2 lease pool | `sources/telegram/cursor.py`, `sources/telegram/lease.py`, `scripts/ops/telegram-scrape-lease.sh` |
 | P3 dedup | `internal/sink/leadid.go`, `internal/pipeline/processor.go` |
 | Cron ops | `scripts/ops/` (pain cron wrapper), disable realtime in compose on VPS |
 | Tests | `sources/telegram/test_geo_heuristic.py`, `internal/filter/*_test.go` |
@@ -380,12 +551,22 @@ INTEL (no auto CRM)   -> Shodan batch (H6) + supply/tgweb white pages -> manual 
 # P0: no ResolveUsername when chat_id in store
 python3 -m unittest sources.telegram.test_scraper -q
 
+# P2: lease claim disjoint + stale reclaim
+python3 -m unittest sources.telegram.test_lease -q
+
 # H1: geo + bookmaker gates
 go test ./internal/geo/... ./internal/filter/... ./internal/pipeline/...
 python3 -m unittest sources.telegram.test_geo_heuristic sources.telegram.test_prefilter -q
 
 # H9: cron soak (no realtime container)
 bash scripts/ops/vps-p0-telegram-soak.sh   # adapt for cron-only
+
+# H10-H11: pain taxonomy + M3 fixtures
+python3 -m unittest sources.telegram.test_alert_dispatcher sources.telegram.test_pain -q
+go test ./internal/scoring/... ./internal/crm/telegrambot/...
+
+# H12: lead card golden tests (when implemented)
+go test ./internal/crm/telegrambot/... -run LeadCard
 
 # Dedup P3
 go test ./internal/pipeline/... ./internal/sink/...
@@ -407,6 +588,10 @@ M2 soak: 48h cron-only; track `pain_alerts`, `parser_stats_accepted_total`, Floo
 | Scrape OTC / closed desks without invite | Access + legal noise |
 | Skip P0 and only add shards | Each account still resolves 40 handles on boot |
 | `instant_drop` on buyer in vendor support | H5 needs channel_class policy |
+| Auto Enterprise tier on one DDoS message | H10 needs volume qualification |
+| Invented savings on CRM card | H12 requires price/volume in source text |
+| Replace M3 with 60-pt scorer in alerts only | H11 - extend second leg; Go already weighted |
+| Kill forum before H13 measurement | Lose Scale/infra_scale recall |
 
 ---
 
@@ -421,6 +606,10 @@ M2 soak: 48h cron-only; track `pain_alerts`, `parser_stats_accepted_total`, Floo
 | PWA/hosting buyer voice | **H3 + H5** yaml + vendor_support |
 | Outbound domain list | **H6** intel branch |
 | Realtime vs cron | **H9** - cron wins unless proven otherwise |
+| Alert misses "recommend tracker" / shave | **H11** M3 second leg |
+| CRM card not actionable | **H12** unified formatter |
+| Wrong product tier in outreach | **H10** bucket classifier |
+| Forum vs TG ROI | **H13** 30-day compare |
 
 ---
 
@@ -428,9 +617,11 @@ M2 soak: 48h cron-only; track `pain_alerts`, `parser_stats_accepted_total`, Floo
 
 1. Shared `crawler.db` on NFS vs one SQLite per host (lease needs single writer).
 2. Cold session: append NDJSON vs shared ingest path.
-3. Join policy: cold session queue only for new discovered chats.
+3. Join policy: implemented (`TELEGRAM_SESSION_ROLE=cold` required for `TELEGRAM_INVITE_JOIN`).
 4. H6: Shodan API key budget and review cadence (weekly manual triage).
 5. Minimum `pain_alerts/week` to call H2 funnel "green".
+6. H1 vs H10: drop CIS shave messages (`1win`) or tag and keep for manual review?
+7. H12: card language EN only vs mirror post locale (RU/EN)?
 
 ---
 
@@ -439,18 +630,24 @@ M2 soak: 48h cron-only; track `pain_alerts`, `parser_stats_accepted_total`, Floo
 | Item | Status |
 |------|--------|
 | **Realtime production** | **Off / not pursuing** |
-| H1 geo + CIS bookmaker gate | Not implemented |
-| H2 WW/UA chat pivot | Partial (discover seeds; yaml still CIS-heavy) |
-| H3 PWA provider chats | Not started (needs invites + dorks) |
-| H4 bulletproof hosting TG | Not started |
-| H5 vendor_support policy | Not implemented |
-| H6 Shodan/Censys intel | Not implemented |
-| H7 OTC desks | Manual only |
-| H8 M11 payment table | Partial (`crypto_icp.go`) |
-| H9 cron vs realtime | **Hypothesis** - test on VPS |
-| P0 chat_id cache | Not implemented |
-| P1 static shard | Not implemented |
-| P2 lease pool | Not implemented |
-| P3 message dedup | Not implemented |
+| H1 geo + CIS bookmaker gate | Implemented (`geo.FilterH1`, `h1_geo_block.py`) |
+| H2 WW/UA chat pivot | Implemented (auto pool from registry, tg catalog meta harvest, h2_pool gate) |
+| H3 PWA provider chats | Implemented (`pwa_pain.go/py`, `pwa_dorks` in discover.icp.json) |
+| H4 bulletproof hosting TG | Implemented (`hosting_incident.go/py`, `hosting_dorks`) |
+| H5 vendor_support policy | Implemented (`channel_role`, `SellerAuthorProfileForChannel`, vendor emit gate) |
+| H6 Shodan/Censys intel | Implemented (`infra-shodan-export.sh`, `infraosint` source, `discover infra-clusters`) |
+| H7 OTC desks | Manual only (`docs/H7_OTC_OSINT.md`, `otc-osint-manual.sh`; no auto scrape) |
+| H8 M11 payment table | Implemented (`h8_payment.go/py`, FOP/TOV/grivna + crypto-only gate) |
+| H9 cron vs realtime | **Hypothesis** - `telegram-pain-cron.sh` + `vps-h9-cron-soak.sh` on VPS |
+| H10 pain taxonomy -> tier | Implemented (`internal/classify/bidshard_pain.go`, `pain_taxonomy.py`) |
+| H11 M3 second leg expansion | Implemented (`pain.py`, `prefilter.py` Cyrillic/shave/volume) |
+| H12 unified sales card | Implemented (`lead_card.go`, `alert_dispatcher.py` H10 fields) |
+| H13 TG-first source mix | Implemented (`source_mix.go`, `tg-first-collect.sh`, default source profile) |
+| H14 scoring bucket boosts | Implemented (`BidShardPainBoost` in `internal/scoring/bidshard_pain.go`) |
+| P0 chat_id cache | Implemented (`cursor.get_chat_id`, `resolve_chat_entity`, persist on scrape) |
+| P1 static shard | Implemented (`shard.py`, `TELEGRAM_SHARD*`, `telegram-scrape-shard.sh`) |
+| P2 lease pool | Implemented (`cursor.claim_due_chats`, `lease.py`, `telegram-scrape-lease.sh`) |
+| P3 message dedup | Implemented (`TelegramMessageHashID`, processor telegram path) |
+| Cold-session join policy | Implemented (`join_policy.invite_join_allowed`, `TELEGRAM_SESSION_ROLE`) |
 
-Last updated: 2026-09-12.
+Last updated: 2026-09-12 (H8/H13 wiring, cold join policy, cron ops scripts).

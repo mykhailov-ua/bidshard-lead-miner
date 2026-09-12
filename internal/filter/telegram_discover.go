@@ -36,6 +36,9 @@ var telegramDiscoverPositiveHints = []string{
 // TelegramDiscoverReject reports whether a discovered channel should be dropped before registry/chats.
 // Username and optional title/query/snippet texts are scanned for block patterns and buyer signals.
 func TelegramDiscoverReject(username string, texts ...string) (reject bool, reason string) {
+	if reject, reason := RejectH2CISPool(username, texts...); reject {
+		return true, reason
+	}
 	user := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(username), "@"))
 	parts := make([]string, 0, 1+len(texts))
 	if user != "" {

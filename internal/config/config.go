@@ -41,6 +41,8 @@ type Config struct {
 	ForumSeedPath             string
 	ForumRegistryPath         string
 	JobboardRegistryPath      string
+	InfraClustersPath         string
+	ShodanAPIKey              string
 	EmployerRegistryPath      string
 	EmployerReverseMaxPerRun  int
 	EmployerReverseRescanDays int
@@ -230,6 +232,7 @@ type Config struct {
 	BGTelegramEnabled                 bool
 	BGSerpTelegramInterval            time.Duration
 	SerpTelegramDorkMax               int // PARSER_SERP_TELEGRAM_DORK_MAX; 0 = unlimited
+	SerpTGCatalogCrawlMax             int // PARSER_SERP_TG_CATALOG_CRAWL_MAX pages per run
 	BGTelegramDiscoverInterval        time.Duration
 	BGTelegramScrapeInterval          time.Duration
 	BGTelegramWebInterval             time.Duration
@@ -316,6 +319,8 @@ func Load() (Config, error) {
 		ForumSeedPath:                     env("FORUM_SEED_PATH", "data/seeds/forum_threads.csv"),
 		ForumRegistryPath:                 env("FORUM_REGISTRY_PATH", "data/runtime/discovered_forum_threads.json"),
 		JobboardRegistryPath:              env("JOBBOARD_REGISTRY_PATH", "data/runtime/discovered_job_urls.json"),
+		InfraClustersPath:                 env("INFRA_CLUSTERS_PATH", "data/runtime/infra_clusters.json"),
+		ShodanAPIKey:                      env("SHODAN_API_KEY", ""),
 		EmployerRegistryPath:              env("EMPLOYER_REGISTRY_PATH", "data/runtime/discovered_employers.json"),
 		EmployerReverseMaxPerRun:          envInt("EMPLOYER_REVERSE_MAX_PER_RUN", 15),
 		EmployerReverseRescanDays:         envInt("EMPLOYER_REVERSE_RESCAN_DAYS", 7),
@@ -458,6 +463,7 @@ func Load() (Config, error) {
 		BGTelegramEnabled:                 envBool("PARSER_BG_TELEGRAM", true),
 		BGSerpTelegramInterval:            time.Duration(envInt("PARSER_BG_SERP_TELEGRAM_MIN", 60)) * time.Minute,
 		SerpTelegramDorkMax:               envInt("PARSER_SERP_TELEGRAM_DORK_MAX", 24),
+		SerpTGCatalogCrawlMax:             envInt("PARSER_SERP_TG_CATALOG_CRAWL_MAX", 25),
 		BGTelegramDiscoverInterval:        time.Duration(envInt("PARSER_BG_TELEGRAM_DISCOVER_MIN", 360)) * time.Minute,
 		BGTelegramScrapeInterval:          time.Duration(envInt("PARSER_BG_TELEGRAM_SCRAPE_MIN", 30)) * time.Minute,
 		BGTelegramWebInterval:             time.Duration(envInt("PARSER_BG_TELEGRAM_WEB_MIN", 120)) * time.Minute,

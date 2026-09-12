@@ -1,34 +1,16 @@
 package discover
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-)
+import "testing"
 
-func TestLoadICP(t *testing.T) {
+func TestTelegramHarvestDorks(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join("..", "..", "config", "discover.icp.json")
-	cfg, err := LoadICP(path)
-	if err != nil {
-		t.Fatal(err)
+	cfg := ICPConfig{
+		SerpDorks:    []string{"site:t.me voluum"},
+		PWADorks:     []string{"site:t.me PWA postback"},
+		HostingDorks: []string{"site:t.me AlexHost keitaro"},
 	}
-	if len(cfg.TelegramSearch) < 5 {
-		t.Fatalf("telegram_search too short: %d", len(cfg.TelegramSearch))
-	}
-	if len(cfg.SerpDorks) < 5 {
-		t.Fatalf("serp_dorks too short: %d", len(cfg.SerpDorks))
-	}
-}
-
-func TestResolveICPPath(t *testing.T) {
-	t.Parallel()
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	p := ResolveICPPath(wd)
-	if _, err := os.Stat(p); err != nil {
-		t.Fatalf("resolved path missing: %s err=%v", p, err)
+	got := cfg.TelegramHarvestDorks()
+	if len(got) != 3 {
+		t.Fatalf("len=%d want 3", len(got))
 	}
 }

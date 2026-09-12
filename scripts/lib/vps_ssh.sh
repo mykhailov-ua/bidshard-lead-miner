@@ -89,6 +89,8 @@ vps_rsync_push() {
 		--exclude 'data/export/' \
 		--exclude 'bin/' \
 		--exclude '.venv/' \
+		--exclude 'my_session*.session' \
+		--exclude '*.session' \
 		--exclude '.cursor/' \
 		--exclude 'backups/' \
 		-e "$(vps_rsync_ssh)" \
@@ -120,12 +122,22 @@ vps_remote_up() {
 		docker compose ps"
 }
 
+vps_remote_telegram_realtime_stop() {
+	vps_ssh "set -euo pipefail; cd '${VPS_REMOTE_DIR}'
+		docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime stop parser-telegram-realtime 2>/dev/null || true
+		docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime rm -f parser-telegram-realtime 2>/dev/null || true
+		printf 'vps: parser-telegram-realtime stopped (cron-only)\n'"
+}
+
+# Deprecated: production uses cron scrape (telegram-pain-cron.sh). Opt-in only.
 vps_remote_telegram_realtime() {
+	if [[ "${VPS_ENABLE_TELEGRAM_REALTIME:-}" != "1" ]]; then
+		vps_remote_telegram_realtime_stop
+		return 0
+	fi
 	vps_ssh "set -euo pipefail; cd '${VPS_REMOTE_DIR}'
 		if ! grep -qE '^TELEGRAM_API_ID=[0-9]+' .env 2>/dev/null || ! grep -qE '^TELEGRAM_API_HASH=.+$' .env 2>/dev/null; then
 			echo 'vps: skip parser-telegram-realtime (set TELEGRAM_API_ID + TELEGRAM_API_HASH in .env)'
-			docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime stop parser-telegram-realtime 2>/dev/null || true
-			docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime rm -f parser-telegram-realtime 2>/dev/null || true
 			exit 0
 		fi
 		docker compose build parser

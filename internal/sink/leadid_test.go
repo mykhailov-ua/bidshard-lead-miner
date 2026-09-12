@@ -69,6 +69,22 @@ func TestLeadHashIDOrderIndependent(t *testing.T) {
 	}
 }
 
+func TestTelegramMessageHashID(t *testing.T) {
+	t.Parallel()
+	a := TelegramMessageHashID("telegram:@aff_chat", 42)
+	b := TelegramMessageHashID("telegram:@aff_chat", 43)
+	c := TelegramMessageHashID("telegram:@aff_chat", 42)
+	if a == "" || b == "" {
+		t.Fatal("expected non-empty telegram message hash")
+	}
+	if a == b {
+		t.Fatal("different message_id should differ")
+	}
+	if a != c {
+		t.Fatal("same source+message_id should match")
+	}
+}
+
 func TestLeadHashIDWithScopeDiffersBySite(t *testing.T) {
 	t.Parallel()
 

@@ -139,3 +139,19 @@ func applySERPHeaders(req *http.Request) {
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 }
+
+func (c *Crawler) fetchPageHTML(ctx context.Context, pageURL string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL, nil)
+	if err != nil {
+		return "", err
+	}
+	applySERPHeaders(req)
+	body, status, err := httpclient.DoBytes(c.client, req, 2<<20)
+	if err != nil {
+		return "", err
+	}
+	if status != http.StatusOK {
+		return "", fmt.Errorf("http %d", status)
+	}
+	return string(body), nil
+}

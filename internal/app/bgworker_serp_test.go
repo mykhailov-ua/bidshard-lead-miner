@@ -27,12 +27,13 @@ func TestSerpHarvestBGJobOrder(t *testing.T) {
 
 	jobboardIdx := indexBGJob(jobs, "serp_jobboard_urls")
 	employerIdx := indexBGJob(jobs, "serp_employer_reverse")
+	metaIdx := indexBGJob(jobs, "serp_tg_catalog_meta")
 	telegramIdx := indexBGJob(jobs, "serp_telegram_catalog")
-	if jobboardIdx < 0 || employerIdx < 0 || telegramIdx < 0 {
+	if jobboardIdx < 0 || employerIdx < 0 || metaIdx < 0 || telegramIdx < 0 {
 		t.Fatalf("missing serp bg jobs")
 	}
-	if jobboardIdx >= employerIdx || employerIdx >= telegramIdx {
-		t.Fatalf("jobboard must register before employer reverse and telegram catalog")
+	if jobboardIdx >= employerIdx || employerIdx >= metaIdx || metaIdx >= telegramIdx {
+		t.Fatalf("jobboard must register before employer reverse, tg catalog meta, and telegram catalog")
 	}
 }
 

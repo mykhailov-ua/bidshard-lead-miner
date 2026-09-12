@@ -43,10 +43,10 @@ run_parser_discover() {
 printf 'buyer-discover: jobboard SERP + employer reverse (P1 employer->TG chain)\n'
 run_parser_discover jobboard
 
-printf 'buyer-discover: forum + telegram SERP catalog\n'
+printf 'buyer-discover: SERP harvest (jobboard, forum, tg catalog meta, t.me dorks)\n'
 run_parser_discover serp
 
-printf 'buyer-discover: triage telegram channel registry\n'
+printf 'buyer-discover: triage telegram channel registry + pool sync\n'
 bash "$ROOT/scripts/ops/triage-telegram-registry.sh"
 
 printf 'buyer-discover: CF crawl sources=%s\n' "$SCAN_SOURCES"

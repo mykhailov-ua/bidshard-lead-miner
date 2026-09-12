@@ -49,6 +49,9 @@ func IsIntelOnlySource(source string, landerOutreach bool) bool {
 	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(source)), "lander:") {
 		return true
 	}
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(source)), "infraosint:") {
+		return true
+	}
 	return TelegramIntelOnlyChannel(source)
 }
 

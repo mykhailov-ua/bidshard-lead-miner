@@ -20,6 +20,7 @@ from .discussion import (
     linked_discussion_id,
     scrape_discussion_messages,
 )
+from .pool_sync import sync_registry_pool
 from .discover import (
     chats_for_scrape,
     merge_chat_lists,
@@ -108,7 +109,12 @@ def emit_line(
     sender_bio: str = "",
 ) -> bool:
     # Drop spam/empty before NDJSON; Go pipeline never sees filtered messages.
-    if not should_emit_message(text):
+    if not should_emit_message(
+        text,
+        username,
+        channel_about=channel_about,
+        channel_role=chat.normalized_role(),
+    ):
         return False
     if chat.username:
         source = f"telegram:@{chat.username}"
@@ -138,6 +144,9 @@ def emit_line(
         payload["chat_type"] = chat_type
     if channel_about:
         payload["channel_about"] = channel_about
+    role = chat.normalized_role()
+    if role and role != "buyer_supergroup":
+        payload["channel_role"] = role
     emit_payload(out, payload)
     return True
 
@@ -193,11 +202,22 @@ def entity_chat_type(entity: Any) -> str:
     return ""
 
 
+def _persist_entity_chat_id(store: CursorStore, channel_key: str, entity: Any) -> None:
+    chat_id = int(getattr(entity, "id", 0) or 0)
+    if chat_id:
+        store.set_chat_id(channel_key, chat_id)
+
+
 async def resolve_chat_entity(client: Any, chat: ChatConfig, store: CursorStore) -> Any:
     if chat.chat_id is not None:
         return chat.chat_id
+    cached = store.get_chat_id(chat.channel_key())
+    if cached is not None:
+        return cached
     if chat.invite_hash:
-        return await resolve_invite_entity(client, chat, store)
+        entity = await resolve_invite_entity(client, chat, store)
+        _persist_entity_chat_id(store, chat.channel_key(), entity)
+        return entity
     if chat.username:
         return chat.username
     raise ValueError("chat has no username, invite_hash, or chat_id")
@@ -405,24 +425,25 @@ async def scrape_chat(
     cfg: ScraperConfig,
     out: TextIO,
     bio_enricher: UserBioEnricher | None = None,
-) -> int:
+) -> tuple[int, int]:
     chat_key = chat.channel_key()
     try:
         entity = await resolve_chat_entity(client, chat, store)
     except Exception as exc:
         LOG.warning("skip chat=%s: %s", chat_key, exc)
-        return 0
+        return 0, 0
 
     about_text = await fetch_channel_about(client, entity)
 
     full_entity = entity
     try:
         full_entity = await client.get_entity(entity)
+        _persist_entity_chat_id(store, chat_key, full_entity)
     except Exception:
         pass
     if channel_geo_reject(channel_geo_texts(chat.name, about_text, full_entity)):
         LOG.info("skip chat geo heuristic chat=%s", chat_key)
-        return 0
+        return 0, 0
     chat_kind = entity_chat_type(full_entity)
 
     last_id = store.get_last_message_id(chat_key)
@@ -482,19 +503,20 @@ async def scrape_chat(
         )
     except Exception as exc:
         if is_flood_wait(exc):
+            flood_sec = int(getattr(exc, "seconds", 0) or 0)
             LOG.warning(
                 "FloodWait chat=%s seconds=%s abort chat",
                 chat_key,
-                getattr(exc, "seconds", 0),
+                flood_sec,
             )
-            return emitted
+            return emitted, flood_sec
         LOG.warning(
             "skip chat=%s entity=%s: %s (check username/chat_id in config/sources.telegram.yaml)",
             chat_key,
             entity,
             exc,
         )
-        return emitted
+        return emitted, 0
 
     if max_seen > last_id:
         store.set_last_message_id(chat_key, max_seen)
@@ -531,7 +553,7 @@ async def scrape_chat(
         client, chat, full_entity, store, cfg, out, about_text, chat_key, bio_enricher
     )
 
-    return emitted
+    return emitted, 0
 
 
 def env_truthy(name: str) -> bool:
@@ -769,7 +791,15 @@ async def login(cfg: ScraperConfig) -> int:
 
 
 def chats_for_scrape_due(manual: list[ChatConfig], store: CursorStore) -> list[ChatConfig]:
-    return merge_chat_lists(manual, store.list_due_chats())
+    from .lease import lease_enabled, lease_settings
+    from .shard import filter_chats_for_shard
+
+    if lease_enabled():
+        wid, ttl, max_claim, stale = lease_settings()
+        claimed = store.claim_due_chats(wid, max_claim, ttl, stale)
+        return filter_chats_for_shard(claimed)
+    merged = merge_chat_lists(manual, store.list_due_chats())
+    return filter_chats_for_shard(merged)
 
 
 async def export_registry(cfg: ScraperConfig) -> int:
@@ -807,6 +837,7 @@ async def discover_only(cfg: ScraperConfig) -> int:
             total = await run_discover(client, cfg.chats, cfg.discover, store)
             if cfg.discover.serp_channels_path:
                 export_channels_json(store, cfg.discover.serp_channels_path)
+            sync_registry_pool(cfg, store)
         finally:
             await client.disconnect()
             store.close()
@@ -827,6 +858,7 @@ async def scrape(cfg: ScraperConfig, out: TextIO) -> int:
     with session_exclusive_lock(session_path):
         store = CursorStore(cfg.cursor_db)
         sync_manual_curation(cfg.chats, store)
+        sync_registry_pool(cfg, store)
         client = build_telegram_client(cfg, api_id, api_hash)
         await connect_telegram_client(client)
         if not await client.is_user_authorized():
@@ -845,16 +877,42 @@ async def scrape(cfg: ScraperConfig, out: TextIO) -> int:
             return 1
 
         bio_enricher = UserBioEnricher(store, user_enrich_limit())
+        from .lease import lease_enabled, lease_settings
+
+        lease_worker = ""
+        lease_ttl = 0
+        if lease_enabled():
+            lease_worker, lease_ttl, _, _ = lease_settings()
+            LOG.info("lease scrape worker=%s chats=%d", lease_worker, len(chats))
         total = 0
         try:
             total += await run_global_search(client, cfg, store, out)
             for chat in chats:
-                total += await scrape_chat(client, chat, store, cfg, out, bio_enricher)
+                chat_key = chat.channel_key()
+                flood_sec = 0
+                if lease_enabled():
+                    store.heartbeat_lease(chat_key, lease_worker, lease_ttl)
+                try:
+                    emitted, flood_sec = await scrape_chat(
+                        client, chat, store, cfg, out, bio_enricher
+                    )
+                    total += emitted
+                finally:
+                    if lease_enabled():
+                        store.release_lease(
+                            chat_key,
+                            lease_worker,
+                            flood_wait_sec=flood_sec,
+                        )
                 await asyncio.sleep(cfg.poll_delay_sec)
             top = store.top_channels_by_pain(10)
             if top:
                 LOG.info("telegram channel stats top_pain=%s", json.dumps(top[:5]))
         finally:
+            if lease_enabled() and lease_worker:
+                released = store.release_worker_leases(lease_worker)
+                if released:
+                    LOG.info("lease cleanup released=%d worker=%s", released, lease_worker)
             await client.disconnect()
             store.close()
 

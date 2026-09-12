@@ -20,6 +20,7 @@ class ChatConfig:
     geo: str = "global"
     enabled: bool = True
     chat_id: int | None = None
+    shard: int | None = None
     # buyer_supergroup | vendor_support | supply | intel_only (M4 curation)
     role: str = "buyer_supergroup"
 
@@ -84,6 +85,13 @@ def _parse_chat_role(raw: object) -> str:
 
 
 @dataclass
+class PoolConfig:
+    auto_from_registry: bool = True
+    max_active: int = 80
+    denylist: list[str] = field(default_factory=list)
+
+
+@dataclass
 class ScraperConfig:
     chats: list[ChatConfig]
     session: str
@@ -91,6 +99,7 @@ class ScraperConfig:
     poll_delay_sec: float
     message_limit: int
     discover: DiscoverConfig
+    pool: PoolConfig = field(default_factory=PoolConfig)
     channel_search: ChannelSearchConfig = field(default_factory=ChannelSearchConfig)
     global_search: GlobalSearchConfig = field(default_factory=GlobalSearchConfig)
 
@@ -104,6 +113,8 @@ def load_config(path: str | Path) -> ScraperConfig:
             continue
         chat_id = entry.get("chat_id")
         parsed_chat_id = int(chat_id) if chat_id is not None else None
+        shard_raw = entry.get("shard")
+        parsed_shard = int(shard_raw) if shard_raw is not None else None
         chats.append(
             ChatConfig(
                 name=str(entry.get("name", entry.get("username", "chat"))),
@@ -112,7 +123,8 @@ def load_config(path: str | Path) -> ScraperConfig:
                 geo=geo,
                 enabled=bool(entry.get("enabled", True)),
                 chat_id=parsed_chat_id,
-                role=_parse_chat_role(entry.get("role")),
+                shard=parsed_shard,
+                role=_parse_chat_role(entry.get("role") or entry.get("channel_class")),
             )
         )
 
@@ -202,6 +214,18 @@ def load_config(path: str | Path) -> ScraperConfig:
         messages_per_query=int(global_raw.get("messages_per_query", 20)),
     )
 
+    pool_raw = data.get("pool", {}) or {}
+    denylist = [
+        str(u).strip().lstrip("@").lower()
+        for u in pool_raw.get("denylist", []) or []
+        if str(u).strip()
+    ]
+    pool = PoolConfig(
+        auto_from_registry=bool(pool_raw.get("auto_from_registry", True)),
+        max_active=int(pool_raw.get("max_active", 80)),
+        denylist=denylist,
+    )
+
     return ScraperConfig(
         chats=chats,
         session=str(data.get("session", "data/runtime/telethon.session")),
@@ -209,6 +233,7 @@ def load_config(path: str | Path) -> ScraperConfig:
         poll_delay_sec=float(data.get("poll_delay_sec", 2)),
         message_limit=int(data.get("message_limit", 500)),
         discover=discover,
+        pool=pool,
         channel_search=channel_search,
         global_search=global_search,
     )

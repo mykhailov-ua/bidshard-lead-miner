@@ -132,6 +132,15 @@ async def discover_via_search(
                 continue
             if channel_geo_reject([title, query]):
                 continue
+            reject, reason = channel_discover_reject(username, [title, query])
+            if reject:
+                LOG.debug(
+                    "search skip username=%s reason=%s query=%s",
+                    username,
+                    reason,
+                    query,
+                )
+                continue
             cfg = ChatConfig(
                 name=title,
                 username=username,

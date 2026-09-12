@@ -15,6 +15,7 @@ var serpHarvestBGJobOrder = []string{
 	"serp_jobboard_urls",
 	"serp_forum_threads",
 	"serp_employer_reverse",
+	"serp_tg_catalog_meta",
 	"serp_telegram_catalog",
 	"serp_web_pain_catalog",
 }
@@ -52,6 +53,20 @@ func serpHarvestBackgroundJobs(cfg config.Config) []bgworker.Job {
 			Run: func(ctx context.Context) error {
 				return serp.RunBGHarvest(ctx, cfg, "serp_employer_reverse", func(ctx context.Context) error {
 					return serp.NewCrawler(cfg, nil).HarvestEmployerReverse(ctx, serp.EmployerReverseConfigFrom(cfg))
+				})
+			},
+		},
+		{
+			Name:          "serp_tg_catalog_meta",
+			Interval:      cfg.BGSerpTelegramInterval,
+			SkipIfRunning: true,
+			Run: func(ctx context.Context) error {
+				return serp.RunBGHarvest(ctx, cfg, "serp_tg_catalog_meta", func(ctx context.Context) error {
+					crawler := serp.NewCrawler(cfg, nil)
+					if err := crawler.HarvestTGCatalogSources(ctx); err != nil {
+						return err
+					}
+					return crawler.CrawlTGCatalogPages(ctx, cfg.SerpTGCatalogCrawlMax)
 				})
 			},
 		},

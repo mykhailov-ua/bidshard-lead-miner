@@ -61,6 +61,9 @@ func HasTrackerPainMessage(text string) bool {
 	if HasCryptoGrayBuyerSignal(text) {
 		return true
 	}
+	if hasPWAPainSignal(text) || hasHostingIncidentPain(text) {
+		return true
+	}
 	lower := strings.ToLower(strings.TrimSpace(text))
 	if lower == "" {
 		return false

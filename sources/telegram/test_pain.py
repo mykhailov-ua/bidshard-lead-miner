@@ -20,6 +20,14 @@ class PainTest(unittest.TestCase):
         self.assertTrue(has_crypto_gray_icp_signal(text))
         self.assertTrue(message_has_tracker_pain(text))
 
+    def test_h11_m3_gaps(self) -> None:
+        self.assertTrue(message_has_tracker_pain("PP shaves leads, how to prove"))
+        self.assertTrue(message_has_tracker_pain("Adspect too expensive for FB"))
+        self.assertTrue(
+            message_has_tracker_pain("keitaro on 200k clicks/day hangs server, admin 2 min load")
+        )
+        self.assertTrue(message_has_tracker_pain("в трекере 100, в партнерке 75 депозитов"))
+
     def test_channel_broadcast_skip(self) -> None:
         self.assertTrue(
             is_channel_broadcast_alert_skip("channel", 0, "daily casino tips follow us")

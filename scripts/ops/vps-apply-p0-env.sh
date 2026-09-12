@@ -31,8 +31,8 @@ set_env() {
 set_env PARSER_SEED_PROFILE budget
 # Hot poll: webpain + reviews only. No serp/reddit/forum/github (SEO noise, 429, 403).
 # SERP discovery: PARSER_BG_WORKER jobs serp_forum_threads + serp_telegram_catalog.
-# Buyer pain: parser-telegram-realtime + TELEGRAM_ALERT_*.
-set_env PARSER_SOURCE 'webpain,reviews'
+# Buyer pain: cron telegram scrape (telegram-pain-cron.sh) + TELEGRAM_ALERT_*.
+set_env PARSER_SOURCE 'forum,serp,jobboard,tgweb,webpain,reviews'
 set_env PARSER_GITHUB_ENABLED false
 set_env PARSER_SOURCE_CONCURRENCY 0
 set_env PARSER_WORKERS 8
@@ -44,14 +44,13 @@ set_env PARSER_EXPORT_JSON /app/data/export/leads.jsonl
 set_env PARSER_EXPORT_JSON_HOST data/export/leads.jsonl
 set_env TELEGRAM_PREFILTER true
 set_env TELEGRAM_GEO_HEURISTIC true
-# Main parser poll loop only; realtime listener runs in parser-telegram-realtime container.
+# Cron-only MTProto (no parser-telegram-realtime container).
 set_env TELEGRAM_REALTIME 0
-# M2: backfill last N messages per chat on realtime container start (keep low to avoid FloodWait).
-set_env TELEGRAM_REALTIME_BACKFILL 200
-set_env TELEGRAM_REALTIME_ROLE_FILTER buyer_supergroup
-# M2: UDS + MessagePack IPC (Go ingest listens; Python sidecar writes).
-set_env TELETHON_IPC_SOCKET data/runtime/telethon.sock
-set_env TELETHON_IPC_FORMAT msgpack
+set_env TELEGRAM_REALTIME_BACKFILL 0
+set_env TELEGRAM_SESSION_ROLE hot
+set_env TELEGRAM_LEASE_ENABLED 1
+set_env TELEGRAM_LEASE_TTL_SEC 300
+set_env TELEGRAM_LEASE_MAX_CHATS 15
 set_env TELEGRAM_HISTORY_CHUNK_SIZE 100
 set_env TELEGRAM_HISTORY_CHUNK_DELAY_MIN 1.5
 set_env TELEGRAM_HISTORY_CHUNK_DELAY_MAX 3.5
@@ -72,7 +71,7 @@ set_env CRM_TELEGRAM_LEAD_NOTIFY_MIN_SCORE_NON_TELEGRAM 70
 set_env PARSER_ACCEPT_MIN_SCORE 70
 set_env PARSER_TELEGRAM_ACCEPT_MIN_SCORE 50
 set_env PARSER_BG_WORKER true
-# Main parser must not run telegram_discover/scrape while parser-telegram-realtime holds MTProto session.
+# Telegram scrape runs via VPS cron (telegram-pain-cron.sh), not parser bgworker.
 set_env PARSER_BG_TELEGRAM false
 set_env PARSER_BG_SERP_TELEGRAM_MIN 60
 set_env PARSER_SERP_TELEGRAM_DORK_MAX 24

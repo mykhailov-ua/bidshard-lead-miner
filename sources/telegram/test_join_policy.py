@@ -95,7 +95,11 @@ class JoinPolicyTest(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store = CursorStore(Path(tmp) / "crawler.db")
             try:
-                with patch.dict(os.environ, {"TELEGRAM_INVITE_JOIN": "1"}, clear=False):
+                with patch.dict(
+                    os.environ,
+                    {"TELEGRAM_INVITE_JOIN": "1", "TELEGRAM_SESSION_ROLE": "cold"},
+                    clear=False,
+                ):
                     entity = await resolve_invite_entity(fake_client, chat, store)
             finally:
                 store.close()
@@ -123,8 +127,36 @@ class JoinPolicyTest(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store = CursorStore(Path(tmp) / "crawler.db")
             try:
-                with patch.dict(os.environ, {"TELEGRAM_INVITE_JOIN": "1"}, clear=False):
+                with patch.dict(
+                    os.environ,
+                    {"TELEGRAM_INVITE_JOIN": "1", "TELEGRAM_SESSION_ROLE": "cold"},
+                    clear=False,
+                ):
                     with self.assertRaises(ValueError):
+                        await resolve_invite_entity(fake_client, chat, store)
+            finally:
+                store.close()
+
+    async def test_hot_session_blocks_invite_join(self) -> None:
+        from telethon.tl.functions.messages import CheckChatInviteRequest
+
+        chat = ChatConfig(name="aff chat", invite_hash="hothash", geo="global")
+        checked = SimpleNamespace(title="Igaming affiliate media buying tracker")
+
+        async def fake_client(req: object) -> object:
+            if isinstance(req, CheckChatInviteRequest):
+                return checked
+            raise AssertionError("unexpected request")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = CursorStore(Path(tmp) / "crawler.db")
+            try:
+                with patch.dict(
+                    os.environ,
+                    {"TELEGRAM_INVITE_JOIN": "1", "TELEGRAM_SESSION_ROLE": "hot"},
+                    clear=False,
+                ):
+                    with self.assertRaisesRegex(ValueError, "hot session"):
                         await resolve_invite_entity(fake_client, chat, store)
             finally:
                 store.close()
@@ -147,7 +179,11 @@ class JoinPolicyTest(unittest.IsolatedAsyncioTestCase):
             try:
                 with patch.dict(
                     os.environ,
-                    {"TELEGRAM_INVITE_JOIN": "1", "TELEGRAM_INVITE_JOIN_LIMIT": "2"},
+                    {
+                        "TELEGRAM_INVITE_JOIN": "1",
+                        "TELEGRAM_INVITE_JOIN_LIMIT": "2",
+                        "TELEGRAM_SESSION_ROLE": "cold",
+                    },
                     clear=False,
                 ):
                     with self.assertRaises(ValueError):

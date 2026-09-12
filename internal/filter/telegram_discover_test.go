@@ -21,6 +21,8 @@ func TestTelegramDiscoverReject(t *testing.T) {
 		{"buyermedia", []string{"media buying community"}, false, ""},
 		{"vip_signals", []string{"VIP signal course mentorship paid tips only"}, true, "spam_channel"},
 		{"keitaro_chat", []string{"affiliate tracker discussion"}, false, ""},
+		{"maximaffiliate", nil, true, "h2_cis_arbitrage"},
+		{"zuevaff", nil, true, "h2_cis_arbitrage"},
 		{"", []string{"weekly news digest"}, true, "intel_only"},
 	}
 	for _, tc := range cases {
