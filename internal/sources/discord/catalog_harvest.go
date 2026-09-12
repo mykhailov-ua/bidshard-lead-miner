@@ -6,10 +6,15 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/bidshard/parser/internal/httpclient"
 )
+
+var disboardJoinRe = regexp.MustCompile(`/server/join/([a-zA-Z0-9-]{2,64})`)
 
 var catalogQueries = []string{
 	"voluum affiliate",
@@ -22,12 +27,17 @@ var catalogQueries = []string{
 	"self hosted tracker",
 }
 
+const defaultSeedInvitesPath = "config/discord_seed_invites.txt"
+
 // HarvestCatalogInvites scrapes public listing sites (disboard) without SERP.
 func HarvestCatalogInvites(ctx context.Context, registryPath string, client *http.Client) (int, error) {
 	if client == nil {
 		client = httpclient.Shared(20 * time.Second)
 	}
-	var added int
+	added, err := HarvestSeedInvites(registryPath, os.Getenv("DISCORD_SEED_INVITES_PATH"))
+	if err != nil {
+		return added, err
+	}
 	for _, q := range catalogQueries {
 		select {
 		case <-ctx.Done():
@@ -45,6 +55,39 @@ func HarvestCatalogInvites(ctx context.Context, registryPath string, client *htt
 	return added, nil
 }
 
+// HarvestSeedInvites loads curated public invite codes from config file.
+func HarvestSeedInvites(registryPath, seedPath string) (int, error) {
+	if seedPath == "" {
+		seedPath = defaultSeedInvitesPath
+	}
+	raw, err := os.ReadFile(seedPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	var codes []string
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		code := strings.ToLower(line)
+		if ValidInviteCode(code) {
+			codes = append(codes, code)
+		}
+	}
+	if len(codes) == 0 {
+		return 0, nil
+	}
+	hints := map[string]string{}
+	for _, code := range codes {
+		hints[code] = "seed"
+	}
+	return AppendInvites(registryPath, "seed", "config", codes, hints)
+}
+
 func harvestDisboardSearch(ctx context.Context, client *http.Client, registryPath, query string) (int, error) {
 	u := "https://disboard.org/search?keyword=" + url.QueryEscape(query)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
@@ -60,7 +103,16 @@ func harvestDisboardSearch(ctx context.Context, client *http.Client, registryPat
 		return 0, fmt.Errorf("disboard http %d", status)
 	}
 	text := string(body)
-	codes := ExtractInviteCodes(text)
+	seen := map[string]struct{}{}
+	var codes []string
+	for _, code := range ExtractInviteCodes(text) {
+		code = strings.ToLower(code)
+		if _, ok := seen[code]; ok {
+			continue
+		}
+		seen[code] = struct{}{}
+		codes = append(codes, code)
+	}
 	if len(codes) == 0 {
 		return 0, nil
 	}

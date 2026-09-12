@@ -47,7 +47,7 @@ func DiscoverChannels(ctx context.Context, cfg config.Config) error {
 		default:
 		}
 		code := strings.ToLower(strings.TrimSpace(inv.InviteCode))
-		if code == "" {
+		if !ValidInviteCode(code) {
 			continue
 		}
 		hint := strings.TrimSpace(inv.GuildHint)
@@ -66,10 +66,28 @@ func DiscoverChannels(ctx context.Context, cfg config.Config) error {
 				guildName = preview.Guild.Name
 			}
 		}
-		if guildID == "" {
+		if guildID == "" && preview.Channel == nil {
 			continue
 		}
-		if !GuildLooksICP(guildName, hint+" "+inv.Query) && !InviteEntryLooksICP(inv) {
+		if guildID != "" && !GuildLooksICP(guildName, hint+" "+inv.Query) && !InviteEntryLooksICP(inv) {
+			continue
+		}
+		if preview.Channel != nil {
+			chID := strings.TrimSpace(preview.Channel.ID)
+			if chID != "" && (preview.Channel.Type == 0 || preview.Channel.Type == 5) {
+				batch = append(batch, ChannelEntry{
+					ChannelID:   chID,
+					GuildID:     guildID,
+					GuildName:   guildName,
+					ChannelName: preview.Channel.Name,
+					InviteCode:  code,
+					Source:      "invite_preview",
+					Enabled:     true,
+					At:          time.Now().UTC().Format(time.RFC3339),
+				})
+			}
+		}
+		if guildID == "" {
 			continue
 		}
 		if _, ok := seenGuild[guildID]; ok {
@@ -78,7 +96,7 @@ func DiscoverChannels(ctx context.Context, cfg config.Config) error {
 
 		if cfg.DiscordJoinEnabled && joins < joinLimit {
 			if _, err := api.AcceptInvite(ctx, code); err != nil {
-				slog.Debug("discord invite join skipped", "code", code, "guild", guildName, "error", err)
+				slog.Info("discord invite join skipped", "code", code, "guild", guildName, "error", err)
 			} else {
 				joins++
 				slog.Info("discord guild joined", "code", code, "guild", guildName)

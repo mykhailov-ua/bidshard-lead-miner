@@ -65,6 +65,27 @@ func SaveRegistry(path string, f InviteFile) error {
 	return os.Rename(tmp, path)
 }
 
+func ValidInviteCode(code string) bool {
+	code = strings.ToLower(strings.TrimSpace(code))
+	if len(code) < 2 || len(code) > 64 {
+		return false
+	}
+	// Disboard mis-parses snowflake ids as invite codes.
+	if len(code) >= 15 {
+		allDigit := true
+		for _, r := range code {
+			if r < '0' || r > '9' {
+				allDigit = false
+				break
+			}
+		}
+		if allDigit {
+			return false
+		}
+	}
+	return true
+}
+
 func ExtractInviteCodes(text string) []string {
 	seen := map[string]struct{}{}
 	var out []string
@@ -73,7 +94,7 @@ func ExtractInviteCodes(text string) []string {
 			continue
 		}
 		code := strings.ToLower(strings.TrimSpace(m[1]))
-		if code == "" {
+		if !ValidInviteCode(code) {
 			continue
 		}
 		if _, ok := seen[code]; ok {

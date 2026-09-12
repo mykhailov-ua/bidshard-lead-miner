@@ -59,10 +59,11 @@ func ChannelLooksReadable(name string, channelType int) bool {
 		}
 	}
 	// General chat buckets on ICP guilds.
-	for _, tok := range []string{"general", "chat", "discussion", "support", "help", "off-topic", "offtopic", "main"} {
+	for _, tok := range []string{"general", "chat", "discussion", "support", "help", "off-topic", "offtopic", "main", "affiliate", "marketing", "media", "tracker", "igaming"} {
 		if strings.Contains(lower, tok) {
 			return true
 		}
 	}
-	return false
+	// Unknown name on joined guild: allow if not rules-like.
+	return !strings.Contains(lower, "rule") && !strings.Contains(lower, "welcome")
 }
