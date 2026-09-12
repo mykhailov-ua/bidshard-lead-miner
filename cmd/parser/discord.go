@@ -19,7 +19,8 @@ func newDiscordCmd() *cobra.Command {
 }
 
 func newDiscordDiscoverCmd() *cobra.Command {
-	return &cobra.Command{
+	fast := false
+	cmd := &cobra.Command{
 		Use:   "discover",
 		Short: "Harvest public invites from catalogs and register readable channels",
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -28,9 +29,14 @@ func newDiscordDiscoverCmd() *cobra.Command {
 				return err
 			}
 			ctx := cmd.Context()
-			crawler := serp.NewCrawler(cfg, nil)
-			if err := crawler.HarvestDiscordInvites(ctx, cfg.DiscordRegistryPath); err != nil {
-				return fmt.Errorf("discord invite harvest: %w", err)
+			if _, err := discord.HarvestCatalogInvites(ctx, cfg.DiscordRegistryPath, nil); err != nil {
+				return fmt.Errorf("discord catalog harvest: %w", err)
+			}
+			if !fast {
+				crawler := serp.NewCrawler(cfg, nil)
+				if err := crawler.HarvestDiscordInvites(ctx, cfg.DiscordRegistryPath); err != nil {
+					return fmt.Errorf("discord serp harvest: %w", err)
+				}
 			}
 			if err := discord.DiscoverChannels(ctx, cfg); err != nil {
 				return fmt.Errorf("discord channel discover: %w", err)
@@ -38,4 +44,6 @@ func newDiscordDiscoverCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&fast, "fast", false, "skip slow SERP harvest (disboard catalog only)")
+	return cmd
 }

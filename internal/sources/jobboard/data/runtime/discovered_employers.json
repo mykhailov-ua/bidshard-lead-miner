@@ -1,0 +1,17 @@
+{
+  "employers": [
+    {
+      "name": "TapOK",
+      "slug": "tapok",
+      "normalized": "tapok",
+      "hosts": [
+        "jobs.dou.ua"
+      ],
+      "urls": [
+        "https://jobs.dou.ua/companies/tapok/vacancies/118950"
+      ],
+      "source": "test",
+      "at": "2026-09-11T18:57:19Z"
+    }
+  ]
+}

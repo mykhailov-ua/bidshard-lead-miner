@@ -1,0 +1,26 @@
+{
+  "sources": [
+    {
+      "domain": "voluum.com",
+      "types": [
+        "lander",
+        "supply",
+        "tgweb"
+      ],
+      "discovered_by": "ads_txt",
+      "last_seen": "2026-09-12T10:18:36Z",
+      "source": "supply"
+    },
+    {
+      "domain": "igaming-team.com",
+      "types": [
+        "lander",
+        "supply",
+        "tgweb"
+      ],
+      "discovered_by": "ads_txt",
+      "last_seen": "2026-09-12T10:18:36Z",
+      "source": "supply"
+    }
+  ]
+}
