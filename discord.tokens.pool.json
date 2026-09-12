@@ -9,6 +9,16 @@
       "id": 1,
       "file": "discord_token_1.txt",
       "label": "discord-bot-1"
+    },
+    {
+      "id": 2,
+      "file": "discord_token_2.txt",
+      "label": "discord-bot-2"
+    },
+    {
+      "id": 3,
+      "file": "discord_token_3.txt",
+      "label": "discord-bot-3"
     }
   ]
 }
