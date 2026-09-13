@@ -14,16 +14,17 @@ fi
 source "$ROOT/scripts/lib/vps_ssh.sh"
 vps_load_config "$ROOT"
 
-REMOTE_CRED="${VPS_REMOTE_DIR}/var/home-egress.credentials"
+REMOTE_UPLOAD="${VPS_REMOTE_DIR}/var/home-egress.credentials.upload"
+REMOTE_STORE="${VPS_REMOTE_DIR}/var/home-egress.credentials"
 # shellcheck disable=SC2086
-rsync -az -e "ssh $(vps_ssh_opts)" "$CRED" "$(vps_ssh_target):${REMOTE_CRED}"
+rsync -az -e "ssh $(vps_ssh_opts)" "$CRED" "$(vps_ssh_target):${REMOTE_UPLOAD}"
 
 vps_ssh "set -euo pipefail
 cd '${VPS_REMOTE_DIR}'
 test -f .env
 set -a
 # shellcheck disable=SC1090
-source '${REMOTE_CRED}'
+source '${REMOTE_UPLOAD}'
 set +a
 grep -v '^PARSER_PROXY_LIST=' .env | grep -v '^PARSER_PROXY_LIST_FILE=' > .env.tmp
 printf 'PARSER_PROXY_LIST=%s\n' \"\${PARSER_PROXY_LIST}\" >> .env.tmp
@@ -34,8 +35,8 @@ if [[ -n \"\${PARSER_PROXY_SOURCES:-}\" ]]; then
 fi
 mv .env.tmp .env
 chmod 600 .env
-cp '${REMOTE_CRED}' var/home-egress.credentials
-chmod 600 var/home-egress.credentials
+mv '${REMOTE_UPLOAD}' '${REMOTE_STORE}'
+chmod 600 '${REMOTE_STORE}'
 docker compose restart parser
 "
 
