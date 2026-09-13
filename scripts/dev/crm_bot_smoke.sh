@@ -10,7 +10,7 @@ go test -count=1 -run TestCRMBotWebhookSmoke ./internal/crm/app/
 echo "== build bin/crm-bot =="
 make build-crm-bot
 
-echo "== crm-bot live smoke (HTTP + api CLI) =="
+echo "== crm-bot live smoke (HTTP webhook) =="
 
 wait_mongo() {
 	local i
@@ -85,11 +85,11 @@ if [[ "$HTTP_CODE" != "202" ]]; then
 	exit 1
 fi
 
-"$ROOT/bin/crm-bot" api stats >/tmp/crm_smoke_api.txt
-if ! grep -q 'leads total:' /tmp/crm_smoke_api.txt; then
-	echo "ERROR: crm-bot api stats failed:" >&2
-	cat /tmp/crm_smoke_api.txt >&2
+STATS_CODE="$(curl -sS -o /tmp/crm_smoke_api.txt -w '%{http_code}' \
+	"http://127.0.0.1:${WEBHOOK_PORT}/v1/admin/stats")"
+if [[ "$STATS_CODE" != "200" ]]; then
+	echo "ERROR: admin stats status=$STATS_CODE body=$(cat /tmp/crm_smoke_api.txt)" >&2
 	exit 1
 fi
 
-echo "OK: crm-bot live smoke passed (webhook 202, api stats)"
+echo "OK: crm-bot live smoke passed (webhook 202, admin stats)"

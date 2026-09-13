@@ -59,11 +59,12 @@ Sidecar reads `config/sources.telegram.yaml`; channel registry is canonical in `
 | --- | --- | --- |
 | `TELEGRAM_CHANNEL_SEARCH_LIMIT` | 3 | in-channel `iter_messages(search=...)` queries per channel per day |
 | `TELEGRAM_DISCUSSION_SCRAPE` | 0 | scrape linked discussion groups (high FloodWait) |
-| `TELEGRAM_GLOBAL_SEARCH` | 0 | optional SearchGlobal pain queries at scrape start |
+| `TELEGRAM_GLOBAL_SEARCH` | 1 | SearchGlobal pain queries at scrape start (yaml `global_search.enabled` too) |
 | `TELEGRAM_GLOBAL_SEARCH_LIMIT` | 3 | max global search queries per UTC hour |
 | `TELEGRAM_GLOBAL_SEARCH_DAILY_LIMIT` | 3 | max global search queries per UTC day |
 | `TELEGRAM_GLOBAL_SEARCH_UTC_HOURS` | 2-6 | UTC hour window for global search (comma or range) |
-| `TELEGRAM_INVITE_JOIN` | 0 | allow `ImportChatInvite` on scrape when not already joined |
+| `TELEGRAM_INVITE_JOIN` | 1 | allow `ImportChatInvite` on scrape when not already joined |
+| `TELEGRAM_INVITE_JOIN_HOT` | 1 | allow joins on hot cron session |
 | `TELEGRAM_INVITE_JOIN_LIMIT` | 3 | max invite joins per day when join enabled |
 | `TELEGRAM_REALTIME` | 0 | long-running `NewMessage` listener (`parser telegram realtime`) |
 
@@ -145,6 +146,8 @@ Env overrides: `DOMAINS=...`, `TGWEB_CRAWL_MODE=host` for `go run` instead of do
 | Hard CF + JS | residential | `true` (host only) | not Docker MVP |
 
 Headless in default Alpine Docker image is not supported. Use `make docker-headless-build` and `docker-compose.headless.yaml` (Playwright + Chromium), or on the host run `make venv`, then `playwright install chromium` (pip package is already in `.venv`).
+
+**Playwright + proxy (required reading):** [HEADLESS.md](../HEADLESS.md) section 12 (Chrome profile); [CRAWL_EGRESS_ANTIFRAUD.md](CRAWL_EGRESS_ANTIFRAUD.md) (residential egress, two-layer HTTP+Playwright, Cloudflare/bot-risk ceiling). Default VPS: `PARSER_LANDER_HEADLESS=false`; prefer `PARSER_LANDER_HEADLESS_DEFER=true` + `scripts/ops/headless-crawl-cron.sh`; residential in `PARSER_PROXY_LIST` for `tgweb-crawl-residential` / `cf-crawl-cron`.
 
 ### tgweb troubleshooting
 

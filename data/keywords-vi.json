@@ -1,0 +1,19 @@
+{
+  "keywords": [
+    {"id": "kw-vi-1", "phrase": "thay the voluum", "weight": 24, "tag": "intent"},
+    {"id": "kw-vi-2", "phrase": "thay the keitaro", "weight": 24, "tag": "intent"},
+    {"id": "kw-vi-3", "phrase": "postback khong hoat dong", "weight": 24, "tag": "pain"},
+    {"id": "kw-vi-4", "phrase": "tracker qua dat", "weight": 22, "tag": "pain"},
+    {"id": "kw-vi-5", "phrase": "thanh toan usdt", "weight": 28, "tag": "hot-lead"},
+    {"id": "kw-vi-6", "phrase": "usdt trc20 payout", "weight": 28, "tag": "hot-lead"},
+    {"id": "kw-vi-7", "phrase": "media buyer vietnam", "weight": 18, "tag": "vertical"},
+    {"id": "kw-vi-8", "phrase": "affiliate marketing vietnam", "weight": 16, "tag": "vertical"},
+    {"id": "kw-vi-9", "phrase": "arbitrage traffic", "weight": 20, "tag": "intent"},
+    {"id": "kw-vi-10", "phrase": "click id khong tim thay", "weight": 22, "tag": "pain"},
+    {"id": "kw-vi-11", "phrase": "chuyen tracker", "weight": 22, "tag": "intent"},
+    {"id": "kw-vi-12", "phrase": "self hosted tracker", "weight": 18, "tag": "intent"},
+    {"id": "kw-vi-13", "phrase": "chuyen doi khong duoc ghi", "weight": 20, "tag": "pain"},
+    {"id": "kw-vi-14", "phrase": "phi dang ky tracker", "weight": 18, "tag": "pain"},
+    {"id": "kw-vi-15", "phrase": "doi media buying", "weight": 16, "tag": "intent"}
+  ]
+}

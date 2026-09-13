@@ -13,7 +13,7 @@
 #
 # Docs: README.md, docs/OPS.md, docs/CREDENTIALS.md, docs/DEPLOY.md
 
-.PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight vps-deploy vps-deploy-p0 vps-sync vps-sync-proxy vps-sync-telegram-secrets vps-sync-telethon-session vps-sync-session-pool vps-install-telegram-cron session-pool-link vps-telegram-login vps-telegram-login-qr vps-history-export vps-reddit-offline-archive vps-buyer-discover reddit-offline-archive vps-export lip-install-shell install-lead-tail lead-tail deploy-preflight ci ci-deploy-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke acceptance-soak warm-path-status docker-headless-build bpf-release-gate bpf-leak-gate tgweb-bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-domains-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop buyer-discover
+.PHONY: build build-crm-bot crm-bot-smoke crm-caddy-up crm-caddy-down test lint fmt run setup venv test-py test-telegram docker-build docker-up docker-run-once backup restore proxy-check preflight-tgweb vps-preflight vps-deploy vps-deploy-p0 vps-sync vps-sync-proxy vps-sync-telegram-secrets vps-sync-telethon-session vps-sync-session-pool vps-install-telegram-cron session-pool-link vps-telegram-login vps-telegram-login-qr vps-history-export vps-reddit-offline-archive vps-buyer-discover reddit-offline-archive vps-export lip-install-shell lead-logs deploy-preflight ci ci-deploy-preflight tgweb-green-accept tgweb-discover-loop forum-live-check prod-source-smoke acceptance-soak warm-path-status docker-headless-build bpf-release-gate bpf-leak-gate tgweb-bpf-leak-gate tgweb-seed tgweb-discover tgweb-prune tgweb-domains-prune tgweb-crawl tgweb-crawl-bpf tgweb-crawl-residential docker-tgweb-crawl vps-proxy-check vps-proxy-docker vps-proxy-down bpf-dev bpf-session-start bpf-session-stop buyer-discover
 
 VENV := .venv
 VENV_PY := $(VENV)/bin/python
@@ -186,12 +186,6 @@ vps-export:
 
 lip-install-shell:
 	bash ./scripts/ops/lip install-shell
-
-install-lead-tail: build-crm-bot
-	bash ./scripts/ops/install-lead-tail.sh
-
-lead-tail:
-	bash ./scripts/ops/lead-tail
 
 lead-logs:
 	bash ./scripts/ops/lead-logs

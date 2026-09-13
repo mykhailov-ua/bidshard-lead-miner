@@ -143,9 +143,19 @@ func (c *Crawler) fetchMessages(ctx context.Context, channelID string) ([]messag
 		if err != nil {
 			return nil, err
 		}
-		req.Header.Set("Authorization", "Bot "+token)
-
-		body, status, err := httpclient.DoBytes(c.client, req, 2<<20)
+		var body []byte
+		var status int
+		for _, auth := range []string{"Bot " + token, token} {
+			req2 := req.Clone(ctx)
+			req2.Header.Set("Authorization", auth)
+			body, status, err = httpclient.DoBytes(c.client, req2, 2<<20)
+			if err != nil {
+				break
+			}
+			if status != http.StatusUnauthorized {
+				break
+			}
+		}
 		if err != nil {
 			lastErr = err
 			c.pool.Rotate()

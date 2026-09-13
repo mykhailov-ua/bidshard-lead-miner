@@ -23,7 +23,7 @@ func (c *Crawler) HarvestTelegramCatalog(ctx context.Context) error {
 		dorks = fallbackTelegramCatalogDorks()
 	}
 	dorks = dorkdisable.FilterActiveDorks(c.disabledDorksPath, dorks)
-	dorks = limitSerpDorks(dorks, c.telegramDorkMax)
+	dorks = selectSerpDorks(dorks, c.dorkOffset, c.dorkBatch, c.telegramDorkMax)
 
 	var added int
 	for _, dork := range dorks {
@@ -70,6 +70,24 @@ func limitSerpDorks(dorks []string, max int) []string {
 		return dorks
 	}
 	return dorks[:max]
+}
+
+// selectSerpDorks rotates then caps the dork list for one harvest run.
+func selectSerpDorks(dorks []string, offset, batch, max int) []string {
+	if len(dorks) == 0 {
+		return dorks
+	}
+	if offset != 0 {
+		offset = offset % len(dorks)
+		if offset > 0 {
+			dorks = append(append([]string{}, dorks[offset:]...), dorks[:offset]...)
+		}
+	}
+	cap := max
+	if batch > 0 {
+		cap = batch
+	}
+	return limitSerpDorks(dorks, cap)
 }
 
 func fallbackTelegramCatalogDorks() []string {

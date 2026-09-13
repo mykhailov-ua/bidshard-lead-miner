@@ -28,6 +28,12 @@ class PainTest(unittest.TestCase):
         )
         self.assertTrue(message_has_tracker_pain("в трекере 100, в партнерке 75 депозитов"))
 
+    def test_cis_profanity_requires_tracker_context(self) -> None:
+        self.assertTrue(message_has_tracker_pain("блять постбек опять не доходит"))
+        self.assertTrue(message_has_tracker_pain("keitaro заебал уже третий раз"))
+        self.assertTrue(message_has_tracker_pain("йобаний voluum знову впав"))
+        self.assertFalse(message_has_tracker_pain("блять как дела ребят"))
+
     def test_channel_broadcast_skip(self) -> None:
         self.assertTrue(
             is_channel_broadcast_alert_skip("channel", 0, "daily casino tips follow us")

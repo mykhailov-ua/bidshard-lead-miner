@@ -58,6 +58,9 @@ func RejectNonBuyerContext(source, text, title string) (bool, string) {
 		return true, "github source code paste"
 	}
 	if matchesAnyPattern(combined, jobContextRe) && !HasCommercialPainIntent(combined) && !HasBuyerQuestionPattern(combined) {
+		if ForumTeamHiringBypassContextDrop(source, text, title) {
+			return false, ""
+		}
 		return true, "job or recruiting context"
 	}
 	if matchesAnyPattern(combined, tutorialContextRe) && !HasCommercialPainIntent(combined) {

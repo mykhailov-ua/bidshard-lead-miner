@@ -19,6 +19,7 @@ import (
 	"github.com/bidshard/parser/internal/geo"
 	"github.com/bidshard/parser/internal/metrics"
 	"github.com/bidshard/parser/internal/model"
+	"github.com/bidshard/parser/internal/ops"
 	"github.com/bidshard/parser/internal/scoring"
 	"github.com/bidshard/parser/internal/seedfeedback"
 	"github.com/bidshard/parser/internal/sink"
@@ -91,6 +92,7 @@ type Processor struct {
 	PilotTagEnabled        bool
 	LeadStatusEnabled      bool
 	GeminiDefer            bool
+	OpsSettings            *ops.SettingsStore
 	WarmPath               *warmpath.Capturer
 	EntityRecorder         entity.Recorder
 	EntitySightings        bool
@@ -125,6 +127,8 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	if bio := strings.TrimSpace(task.Item.SenderBio); bio != "" {
 		text = text + "\nuser_bio: " + bio
 	}
+	coldTeam := isTelegramColdTeam(task.Item)
+	forumTeam := filter.ForumTeamHiringBypassContextDrop(task.Item.Source, text, task.Item.Title)
 	replyThreadBuyer := filter.IsTelegramSource(task.Item.Source) &&
 		filter.TelegramReplyThreadBuyer(task.Item.ReplyToMessageID, task.Item.ReplyContext, text, task.Item.Username)
 	out := ProcessOutcome{}
@@ -136,6 +140,13 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 
 	if strings.HasPrefix(task.Item.Source, "fixture:") {
 		slog.Debug("fixture skip", "round_id", task.RoundID, "source", task.Item.Source)
+		return out
+	}
+
+	if filter.IsTelegramSource(task.Item.Source) && isTelegramCPASupply(task.Item) {
+		out.RejectReason = "intel_only"
+		slog.Debug("telegram cpa supply intel", "round_id", task.RoundID, "source", task.Item.Source)
+		p.captureJunk(ctx, task, coldpath.ReasonIntentReject, "cpa_network_supply", 0, nil)
 		return out
 	}
 
@@ -211,11 +222,22 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		}
 	}
 
-	if drop, reason := filter.RejectNonBuyerContext(task.Item.Source, text, task.Item.Title); drop {
-		out.RejectReason = "context"
-		slog.Debug("context drop", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
-		p.captureJunk(ctx, task, coldpath.ReasonContextDrop, reason, 0, nil)
-		return out
+	if filter.IsDiscordSource(task.Item.Source) {
+		if drop, reason := filter.DiscordInvoiceNoise(text); drop {
+			out.RejectReason = "context"
+			slog.Debug("discord invoice noise", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
+			p.captureJunk(ctx, task, coldpath.ReasonContextDrop, reason, 0, nil)
+			return out
+		}
+	}
+
+	if !coldTeam && !forumTeam {
+		if drop, reason := filter.RejectNonBuyerContext(task.Item.Source, text, task.Item.Title); drop {
+			out.RejectReason = "context"
+			slog.Debug("context drop", "round_id", task.RoundID, "source", task.Item.Source, "reason", reason)
+			p.captureJunk(ctx, task, coldpath.ReasonContextDrop, reason, 0, nil)
+			return out
+		}
 	}
 
 	if drop, reason := filter.SellerAuthorProfileForChannel(
@@ -244,7 +266,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		}
 	}
 
-	if filter.IsTelegramSource(task.Item.Source) {
+	if filter.IsTelegramSource(task.Item.Source) && !coldTeam {
 		if filter.TelegramChannelBroadcastReject(task.Item.Source, task.Item.ChatType, task.Item.ReplyToMessageID, text) {
 			out.RejectReason = "telegram_spam"
 			slog.Debug("telegram channel broadcast", "round_id", task.RoundID, "source", task.Item.Source)
@@ -299,7 +321,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		prescanOK = true
 		logTgWebInfo(task, "tgweb aggressive prescan pass")
 	}
-	if p.PrescanEnabled && p.Prescan != nil {
+	if p.PrescanEnabled && p.Prescan != nil && p.llmScoringEnabled(ctx) {
 		if !prescanOK {
 			if verdict, err := p.Prescan.EvaluatePain(ctx, text); err != nil {
 				slog.Debug("embed prescan pain failed", "round_id", task.RoundID, "source", task.Item.Source, "error", err)
@@ -326,6 +348,14 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		prescanOK = true
 		slog.Debug("telegram reply thread prescan pass", "round_id", task.RoundID, "source", task.Item.Source)
 	}
+	if p.Registry != nil && !prescanOK && coldTeam {
+		prescanOK = true
+		slog.Debug("telegram cold team prescan pass", "round_id", task.RoundID, "source", task.Item.Source)
+	}
+	if p.Registry != nil && !prescanOK && forumTeam {
+		prescanOK = true
+		slog.Debug("forum team hiring prescan pass", "round_id", task.RoundID, "source", task.Item.Source)
+	}
 	if p.Registry != nil && !prescanOK {
 		out.RejectReason = "low_priority"
 		logTgWebReject(task, "keyword prescan miss", nil)
@@ -350,6 +380,9 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	}
 
 	if filter.IsTelegramSource(task.Item.Source) {
+		if coldTeam {
+			contacts.Contacts = telegramColdTeamContacts(task.Item, contacts.Contacts)
+		}
 		if filter.TelegramInviteWithoutBuyerIntent(task.Item.Source, text) {
 			out.RejectReason = "telegram_spam"
 			slog.Debug("telegram invite broadcast", "round_id", task.RoundID, "source", task.Item.Source)
@@ -368,7 +401,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			p.captureJunk(ctx, task, coldpath.ReasonTelegramSpam, "channel self broadcast", 0, nil)
 			return out
 		}
-		if !replyThreadBuyer && !filter.TelegramRequiresBuyerSignal(text) {
+		if !replyThreadBuyer && !coldTeam && !filter.TelegramRequiresBuyerSignal(text) {
 			out.RejectReason = "telegram_no_buyer_voice"
 			slog.Debug("telegram buyer voice reject", "round_id", task.RoundID, "source", task.Item.Source)
 			p.captureJunk(ctx, task, coldpath.ReasonKeywordPrescan, "telegram: no buyer voice", 0, nil)
@@ -405,7 +438,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		p.captureJunk(ctx, task, coldpath.ReasonContactReject, "serp: forum snippet without author", 0, nil)
 		return out
 	}
-	if filter.IsForumSource(task.Item.Source) && !filter.ForumHasForumUserContact(contacts.Contacts) {
+	if filter.IsForumSource(task.Item.Source) && !forumTeam && !filter.ForumHasForumUserContact(contacts.Contacts) {
 		out.RejectReason = "forum_no_user_contact"
 		slog.Debug("forum user contact reject", "round_id", task.RoundID, "source", task.Item.Source)
 		p.captureJunk(ctx, task, coldpath.ReasonContactReject, "forum: no forum_user handle", 0, nil)
@@ -501,12 +534,18 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		stack = enrich.MergeStack(stack, enrich.CompetitorStackFromResult(enrichResult.Stack))
 	}
 
-	leadText := &scoring.LeadText{Context: text, Title: task.Item.Title}
-	priority := scoring.ScoreWithBoosts(p.Registry, leadText, task.Item.Source, stack, p.SourceRep, scoring.ScoreOpts{
-		PostedAt:        task.Item.PostedAt,
-		TimeDecay:       p.TimeDecayEnabled,
-		StructuredStack: structuredStack,
-	})
+	var leadText *scoring.LeadText
+	var priority scoring.Priority
+	if coldTeam || forumTeam {
+		leadText, priority = scoreTeamHiringLead(p.Registry, task.Item.Title, text)
+	} else {
+		leadText = &scoring.LeadText{Context: text, Title: task.Item.Title}
+		priority = scoring.ScoreWithBoosts(p.Registry, leadText, task.Item.Source, stack, p.SourceRep, scoring.ScoreOpts{
+			PostedAt:        task.Item.PostedAt,
+			TimeDecay:       p.TimeDecayEnabled,
+			StructuredStack: structuredStack,
+		})
+	}
 	if priority == scoring.PriorityLow && p.TgWebPrescanMode.Aggressive() && filter.IsTgWebSource(task.Item.Source) && tgweb.HasSiteLPRContact(task.Item.Source, contacts.Contacts) {
 		// Lift site LPR leads only when text has tracker pain, not generic affiliate HTML.
 		if validate.HasStrictPainContext(text) {
@@ -531,6 +570,13 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			leadText.Score = min
 			priority = scoring.PriorityFromScore(p.Registry, leadText.Score)
 			slog.Debug("telegram reply thread score floor", "round_id", task.RoundID, "source", task.Item.Source, "score", leadText.Score)
+		}
+	}
+	if priority == scoring.PriorityLow && (coldTeam || forumTeam) {
+		if min := mediumMinFromReg(p.Registry); leadText.Score < min {
+			leadText.Score = min
+			priority = scoring.PriorityFromScore(p.Registry, leadText.Score)
+			slog.Debug("team hiring score floor", "round_id", task.RoundID, "source", task.Item.Source, "score", leadText.Score)
 		}
 	}
 	if priority != scoring.PriorityLow {
@@ -603,7 +649,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		p.Seen.Mark(hashID)
 	}
 
-	if p.LeadClusterEnabled && p.LeadCluster != nil && scoring.MeetsMinPriority(priority, scoring.PriorityHigh) {
+	if p.llmScoringEnabled(ctx) && p.LeadClusterEnabled && p.LeadCluster != nil && scoring.MeetsMinPriority(priority, scoring.PriorityHigh) {
 		if dup, clusterOf, err := p.LeadCluster.CheckDuplicate(ctx, hashID, text); err != nil {
 			slog.Warn("lead cluster check failed", "round_id", task.RoundID, "hash_id", hashID, "error", err)
 		} else if dup {
@@ -617,7 +663,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	}
 
 	var geoResult gemini.GeoResult
-	if p.GeoEnabled && p.Geo != nil && scoring.MeetsMinPriority(priority, scoring.PriorityMedium) {
+	if p.llmScoringEnabled(ctx) && p.GeoEnabled && p.Geo != nil && scoring.MeetsMinPriority(priority, scoring.PriorityMedium) {
 		contactStrs := extract.FormatAll(contacts.Contacts)
 		blocked := p.GeoBlockCountries
 		if len(blocked) == 0 {
@@ -638,7 +684,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	}
 
 	var icpResult gemini.ICPResult
-	if p.icpClassifierEnabled(task.Item.Source) && scoring.MeetsMinPriority(priority, scoring.PriorityMedium) {
+	if p.icpClassifierEnabled(ctx, task.Item.Source) && scoring.MeetsMinPriority(priority, scoring.PriorityMedium) {
 		if res, err := p.ICP.ClassifyICP(ctx, text); err != nil {
 			slog.Warn("icp classify failed", "round_id", task.RoundID, "error", err)
 		} else {
@@ -664,7 +710,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		}
 	}
 
-	if p.IntentEnabled && p.Intent != nil && filter.SourceRequiresIntentGate(task.Item.Source, task.Item.ChatType) && scoring.MeetsMinPriority(priority, scoring.PriorityMedium) {
+	if p.llmScoringEnabled(ctx) && p.IntentEnabled && p.Intent != nil && filter.SourceRequiresIntentGate(task.Item.Source, task.Item.ChatType) && scoring.MeetsMinPriority(priority, scoring.PriorityMedium) {
 		if res, err := p.Intent.ClassifyIntent(ctx, text); err != nil {
 			slog.Warn("intent classify failed", "round_id", task.RoundID, "error", err)
 		} else if !res.Accept(p.IntentMinConfidence) {
@@ -696,6 +742,9 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	companyName := geoResult.CompanyName
 	if companyName == "" && strings.HasPrefix(strings.ToLower(task.Item.Source), "jobboard:") {
 		companyName = strings.TrimSpace(task.Item.Username)
+	}
+	if companyName == "" && coldTeam {
+		companyName = strings.TrimSpace(task.Item.CompanyHint)
 	}
 	lead := model.Lead{
 		TS:               time.Now().UTC(),
@@ -730,6 +779,12 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	if tag := scoring.DisplacementTag(leadText.DisplacementTier); tag != "" {
 		lead.Tags = append(lead.Tags, tag)
 	}
+	if coldTeam {
+		lead.Tags = append(lead.Tags, "cold_team", "pilot-nurture")
+	}
+	if forumTeam {
+		lead.Tags = append(lead.Tags, scoring.TagForumTeamHiring, "pilot-nurture")
+	}
 
 	if p.PilotTagEnabled && !p.GeminiDefer {
 		p.applyPilotAndOutreach(ctx, &lead, priority, text, stack, icpResult, contacts.Contacts)
@@ -743,7 +798,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 			lead.Tags = append(lead.Tags, tag)
 		}
 	}
-	if !p.GeminiDefer {
+	if !p.GeminiDefer && p.llmScoringEnabled(ctx) {
 		p.applyEnrichSynth(ctx, &lead, priority, text, task.Item.Source, enrichResult, geoResult, icpResult)
 	}
 	applyOutreachQueue(&lead)
@@ -751,12 +806,18 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		lead.Status = "new"
 	}
 	if p.GeminiDefer {
-		lead.AnalysisStatus = "pending"
+		if p.llmScoringEnabled(ctx) {
+			lead.AnalysisStatus = "pending"
+		} else {
+			lead.AnalysisStatus = "raw"
+		}
 	}
 	if strings.HasPrefix(strings.ToLower(lead.Source), "ads_txt:") {
 		// Rule tag only; does not change accept gates or entity keys (those use SupplyDomainFromSource).
 		lead.Tags = entity.AppendUniqueTag(lead.Tags, scoring.TagPublisherSurface)
 	}
+	adsTxtPublisherContactTriage(&lead, text, contacts.Contacts)
+	applySourceFamilyTags(&lead)
 
 	entityResult := p.recordEntitySighting(ctx, p.entitySightingInput(task, contacts.Contacts, hashID, leadText.Matched, stack, text, leadText.Score, entity.ResolveInput{
 		CompanyName:  lead.CompanyName,
@@ -833,7 +894,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 		}
 		metrics.RecordLeadWritten()
 	}
-	if p.LeadClusterEnabled && p.LeadCluster != nil && scoring.MeetsMinPriority(priority, scoring.PriorityHigh) {
+	if p.llmScoringEnabled(ctx) && p.LeadClusterEnabled && p.LeadCluster != nil && scoring.MeetsMinPriority(priority, scoring.PriorityHigh) {
 		if err := p.LeadCluster.Record(ctx, hashID, text); err != nil {
 			slog.Debug("lead cluster record failed", "round_id", task.RoundID, "hash_id", hashID, "error", err)
 		}
@@ -841,7 +902,7 @@ func (p *Processor) Process(ctx context.Context, task Task) ProcessOutcome {
 	if p.Seen != nil {
 		p.Seen.Mark(hashID)
 	}
-	if p.GeminiDefer && p.WarmPath != nil {
+	if p.GeminiDefer && p.WarmPath != nil && p.llmScoringEnabled(ctx) {
 		// Queue for warm-path Gemini after Mongo upsert; lead already stored with analysis_status=pending.
 		p.WarmPath.TryCapture(warmpath.Event{
 			HashID:           hashID,
@@ -937,7 +998,7 @@ func (p *Processor) applyPilotAndOutreach(
 	icpResult gemini.ICPResult,
 	contacts []extract.Contact,
 ) {
-	if p.EngageEnabled && p.Engage != nil && priority == scoring.PriorityHigh {
+	if p.llmScoringEnabled(ctx) && p.EngageEnabled && p.Engage != nil && priority == scoring.PriorityHigh {
 		res, err := p.Engage.ClassifyEngagement(ctx, gemini.EngagementInput{
 			Text:         text,
 			Stack:        stack,
@@ -1167,8 +1228,15 @@ func leadHashID(task Task, contacts []extract.Contact) string {
 	return sink.LeadHashIDFromExtract(contacts)
 }
 
-func (p *Processor) icpClassifierEnabled(source string) bool {
-	if p.ICP == nil {
+func (p *Processor) llmScoringEnabled(ctx context.Context) bool {
+	if p == nil || p.OpsSettings == nil {
+		return true
+	}
+	return p.OpsSettings.LLMScoringEnabled(ctx)
+}
+
+func (p *Processor) icpClassifierEnabled(ctx context.Context, source string) bool {
+	if !p.llmScoringEnabled(ctx) || p.ICP == nil {
 		return false
 	}
 	if p.ICPEnabled {
@@ -1185,6 +1253,9 @@ func (p *Processor) entitySightingInput(task Task, contacts []extract.Contact, h
 	resolve = entity.EnrichForumIdentity(resolve, task.Item.Username, task.Item.Title, task.Item.ForumUserID)
 	if resolve.CompanyName == "" && strings.HasPrefix(strings.ToLower(task.Item.Source), "jobboard:") {
 		resolve.CompanyName = strings.TrimSpace(task.Item.Username)
+	}
+	if resolve.CompanyName == "" && isTelegramColdTeam(task.Item) {
+		resolve.CompanyName = strings.TrimSpace(task.Item.CompanyHint)
 	}
 	resolve.Contacts = contacts
 	return entity.SightingInput{

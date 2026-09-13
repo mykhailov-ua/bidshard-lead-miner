@@ -24,6 +24,15 @@ var defaultForumHosts = []string{
 	"wjunction.com",
 	"forobeta.com",
 	"iamaffiliate.com",
+	// P1 expansion (LEADS.md section 9): buyer pain + CIS intel; qualify hard on CIS accepts.
+	"wickedfire.com",
+	"webmasterworld.com",
+	"topgold.forum",
+	"fb-killa.pro",
+	"gfbforum.live",
+	"cpamafia.pro",
+	"addset.ru",
+	"offshorecorptalk.com",
 }
 
 var (

@@ -19,6 +19,7 @@ import (
 	"github.com/bidshard/parser/internal/httpclient"
 	"github.com/bidshard/parser/internal/ingest"
 	"github.com/bidshard/parser/internal/metrics"
+	"github.com/bidshard/parser/internal/ops"
 	"github.com/bidshard/parser/internal/output"
 	"github.com/bidshard/parser/internal/pipeline"
 	"github.com/bidshard/parser/internal/proxybudget"
@@ -289,6 +290,14 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 	var entityClassifyCapturer *warmpath.EntityClassifyCapturer
 	var leadPatcher sink.LeadAnalysisPatcher
 	var deferCRMWebhook bool
+	var opsSettings *ops.SettingsStore
+	if deps.mongoClient != nil {
+		if st, err := ops.ConnectSettings(ctx, deps.mongoClient, cfg.MongoDB, cfg.CRMSettingsCollection); err != nil {
+			slog.Warn("ops settings connect failed", "error", err)
+		} else {
+			opsSettings = st
+		}
+	}
 
 	geminiDefer := cfg.ParserGeminiDefer && geminiClient != nil && deps.mongoClient != nil && gemini.LLMConfigured(cfg)
 	// ParserGeminiDefer matrix when true:
@@ -446,12 +455,14 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 
 	if inner != nil {
 		storeInner := inner
-		if crmWebhook != nil && !deferCRMWebhook {
-			storeInner = sink.AttachWebhook(inner, crmWebhook)
-			slog.Info("crm webhook enabled", "url", "set", "after_analysis", false)
-		} else if deferCRMWebhook {
-			// Same WebhookClient instance is passed to warmpath; hot-path Upsert must not notify.
-			slog.Info("crm webhook deferred until warm path analysis done")
+		if crmWebhook != nil {
+			if deferCRMWebhook {
+				storeInner = sink.AttachDeferAwareWebhook(inner, crmWebhook, true, opsSettings)
+				slog.Info("crm webhook defer-aware", "after_analysis", true)
+			} else {
+				storeInner = sink.AttachWebhook(inner, crmWebhook)
+				slog.Info("crm webhook enabled", "url", "set", "after_analysis", false)
+			}
 		}
 		deps.bulkStore = sink.NewBulkStore(storeInner, 50, 2*time.Second)
 	} else {
@@ -523,6 +534,7 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		PilotTagEnabled:        cfg.ParserPilotTag,
 		LeadStatusEnabled:      cfg.ParserLeadStatusEnabled,
 		GeminiDefer:            geminiDefer,
+		OpsSettings:            opsSettings,
 		WarmPath:               warmCapturer,
 		EntityClassify:         entityClassifyCapturer,
 		EntityClassifyEnabled:  cfg.ParserEntityGeminiEnabled && entityClassifyCapturer != nil,

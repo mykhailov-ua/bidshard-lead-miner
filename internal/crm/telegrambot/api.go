@@ -49,11 +49,6 @@ type Chat struct {
 	ID int64 `json:"id"`
 }
 
-type updatesResponse struct {
-	OK     bool     `json:"ok"`
-	Result []Update `json:"result"`
-}
-
 func (c *Client) GetUpdates(ctx context.Context, offset int64, timeoutSec int) ([]Update, error) {
 	q := url.Values{}
 	if offset > 0 {
@@ -68,18 +63,36 @@ func (c *Client) GetUpdates(ctx context.Context, offset int64, timeoutSec int) (
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("telegram getUpdates transport: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	var out updatesResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, err
+	body, err := readBodyLimited(resp.Body, 1<<20)
+	if err != nil {
+		return nil, fmt.Errorf("telegram getUpdates read body: %w", err)
 	}
-	if !out.OK {
-		return nil, fmt.Errorf("telegram getUpdates not ok")
+	env, err := decodeEnvelope(body)
+	if err != nil {
+		return nil, fmt.Errorf("telegram getUpdates %w (http=%d)", err, resp.StatusCode)
 	}
-	return out.Result, nil
+	if ae := apiErrorFromEnvelope("getUpdates", resp.StatusCode, env); ae != nil {
+		return nil, ae
+	}
+	if resp.StatusCode/100 != 2 {
+		return nil, &APIError{
+			Method:      "getUpdates",
+			HTTPStatus:  resp.StatusCode,
+			Description: truncateForLog(string(body), 200),
+		}
+	}
+
+	var updates []Update
+	if len(env.Result) > 0 && string(env.Result) != "null" {
+		if err := json.Unmarshal(env.Result, &updates); err != nil {
+			return nil, fmt.Errorf("telegram getUpdates decode result: %w", err)
+		}
+	}
+	return updates, nil
 }
 
 func (c *Client) SendMessage(ctx context.Context, chatID int64, text string) error {
@@ -87,7 +100,7 @@ func (c *Client) SendMessage(ctx context.Context, chatID int64, text string) err
 		"chat_id": chatID,
 		"text":    text,
 	}
-	return c.postJSON(ctx, "/sendMessage", body)
+	return c.postJSON(ctx, "sendMessage", body)
 }
 
 func (c *Client) SendHTMLMessage(ctx context.Context, chatID int64, text string) error {
@@ -97,7 +110,7 @@ func (c *Client) SendHTMLMessage(ctx context.Context, chatID int64, text string)
 		"parse_mode":               "HTML",
 		"disable_web_page_preview": true,
 	}
-	return c.postJSON(ctx, "/sendMessage", body)
+	return c.postJSON(ctx, "sendMessage", body)
 }
 
 func (c *Client) SendDocument(ctx context.Context, chatID int64, path string, caption string) error {
@@ -132,12 +145,31 @@ func (c *Client) SendDocument(ctx context.Context, chatID int64, path string, ca
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("telegram sendDocument transport: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	raw, err := readBodyLimited(resp.Body, 1<<20)
+	if err != nil {
+		return fmt.Errorf("telegram sendDocument read body: %w", err)
+	}
+	env, err := decodeEnvelope(raw)
+	if err != nil {
+		return &APIError{
+			Method:      "sendDocument",
+			HTTPStatus:  resp.StatusCode,
+			Description: truncateForLog(string(raw), 200),
+		}
+	}
+	if ae := apiErrorFromEnvelope("sendDocument", resp.StatusCode, env); ae != nil {
+		return ae
+	}
 	if resp.StatusCode/100 != 2 {
-		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("sendDocument http %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+		return &APIError{
+			Method:      "sendDocument",
+			HTTPStatus:  resp.StatusCode,
+			Description: truncateForLog(string(raw), 200),
+		}
 	}
 	return nil
 }
@@ -147,7 +179,7 @@ func (c *Client) postJSON(ctx context.Context, method string, body map[string]in
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiURL+method, bytes.NewReader(raw))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiURL+"/"+method, bytes.NewReader(raw))
 	if err != nil {
 		return err
 	}
@@ -155,12 +187,56 @@ func (c *Client) postJSON(ctx context.Context, method string, body map[string]in
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("telegram %s transport: %w", method, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	respBody, err := readBodyLimited(resp.Body, 1<<20)
+	if err != nil {
+		return fmt.Errorf("telegram %s read body: %w", method, err)
+	}
+	env, err := decodeEnvelope(respBody)
+	if err != nil {
+		return &APIError{
+			Method:      method,
+			HTTPStatus:  resp.StatusCode,
+			Description: truncateForLog(string(respBody), 200),
+		}
+	}
+	if ae := apiErrorFromEnvelope(method, resp.StatusCode, env); ae != nil {
+		return ae
+	}
 	if resp.StatusCode/100 != 2 {
-		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("telegram %s http %d: %s", method, resp.StatusCode, strings.TrimSpace(string(b)))
+		return &APIError{
+			Method:      method,
+			HTTPStatus:  resp.StatusCode,
+			Description: truncateForLog(string(respBody), 200),
+		}
 	}
 	return nil
+}
+
+// RetryAfterSec returns Telegram retry_after when error_code is 429.
+func RetryAfterSec(err error) int {
+	ae, ok := AsAPIError(err)
+	if !ok || ae.ErrorCode != 429 {
+		return 0
+	}
+	// Description is often "Too Many Requests: retry after 12"
+	lower := strings.ToLower(ae.Description)
+	const needle = "retry after "
+	if i := strings.Index(lower, needle); i >= 0 {
+		rest := strings.TrimSpace(lower[i+len(needle):])
+		var sec int
+		for _, ch := range rest {
+			if ch < '0' || ch > '9' {
+				break
+			}
+			sec = sec*10 + int(ch-'0')
+		}
+		if sec > 0 {
+			return sec
+		}
+	}
+	return 5
 }

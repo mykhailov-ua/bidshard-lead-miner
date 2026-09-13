@@ -16,22 +16,14 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "crm-bot",
 	Short: "BidShard CRM sidecar for lead-intent-processor",
-	Long: `HTTP sidecar for CRM leads in Mongo.
+	Long: `HTTP sidecar for CRM leads in Mongo + Telegram export/notify bot.
 
 Quick start (server):
   crm-bot config check
   crm-bot run
 
-Remote admin (laptop -> VPS):
-  export CRM_API_URL=https://crm.example.com
-  export CRM_API_USER=sales
-  export CRM_API_PASSWORD=...
-  crm-bot api list --status new
-
-Direct Mongo admin on VPS:
-  crm-bot db stats
-
-Parser webhook: POST /v1/leads with Bearer CRM_WEBHOOK_SECRET.`,
+Parser webhook: POST /v1/leads with Bearer CRM_WEBHOOK_SECRET.
+Ops: Telegram bot (/stats, /list, /export) and SSH + Mongo on VPS.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
@@ -45,11 +37,8 @@ func init() {
 	rootCmd.AddCommand(
 		newRunCmd(),
 		newConfigCmd(),
-		newAPICmd(),
-		newDBCmd(),
-		newEntityCmd(),
-		newTailCmd(),
 		newVersionCmd(),
+		newSyncOSINTCmd(),
 	)
 }
 

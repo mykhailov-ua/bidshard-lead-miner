@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Local CLI for VPS ops: deploy, logs, stats, export pull.
+# Local helper for VPS ops: deploy, logs, export pull.
 #
 # Usage:
 #   ./scripts/ops/lip deploy
 #   ./scripts/ops/lip logs -f
-#   ./scripts/ops/lip stats
 #   ./scripts/ops/lip export
 #   ./scripts/ops/lip ssh
 #   ./scripts/ops/lip install-shell
@@ -23,14 +22,13 @@ Commands:
   deploy [--sync-only]     rsync repo to VPS and docker compose up
   logs [-f] [--tail N] [--service S]  docker logs (default parser, tail 50)
   ps                       docker compose ps on VPS
-  stats                    crm-bot db stats (Mongo lead counts)
   export [path]            pull data/export/leads.jsonl from VPS
-  tail                     stream new accepted leads from VPS JSONL export
   check                    remote parser config check
   backup                   remote make backup
   ssh [cmd...]             SSH to VPS (shell if no cmd)
   install-shell            append lip aliases to ~/.zshrc
-  install-lead-tail        symlink lead-tail into ~/.local/bin
+
+Lead inbox: CRM Telegram bot (/stats, /list, /export) on VPS.
 
 Config: config/env/.env.vps-deploy.local (see .env.vps-deploy.example)
 EOF
@@ -63,23 +61,12 @@ cmd_ps() {
 	vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose ps"
 }
 
-cmd_stats() {
-	vps_load_config "$ROOT"
-	vps_ssh "cd '${VPS_REMOTE_DIR}' && docker compose run --rm parser crm-bot db stats"
-}
-
 cmd_export() {
 	local dest="${1:-$ROOT/data/export/vps-leads.jsonl}"
 	vps_load_config "$ROOT"
 	vps_rsync_pull_export "$ROOT" "$dest"
 	printf 'lip export: %s\n' "$dest"
 	wc -l "$dest" 2>/dev/null || true
-}
-
-cmd_tail() {
-	# shellcheck disable=SC1091
-	source "$ROOT/scripts/lib/lead_tail.sh"
-	lead_tail_from_vps "$ROOT" "$@"
 }
 
 cmd_check() {
@@ -108,15 +95,10 @@ cmd_install_shell() {
 	if [[ -f "$rc" ]] && grep -Fq "lip-aliases.sh" "$rc" 2>/dev/null; then
 		printf 'lip install-shell: already in %s\n' "$rc"
 	else
-		printf '\n# lead-intent-processor VPS CLI\n%s\n' "$line" >>"$rc"
+		printf '\n# lead-intent-processor VPS helper\n%s\n' "$line" >>"$rc"
 		printf 'lip install-shell: appended to %s\n' "$rc"
 	fi
-	bash "$ROOT/scripts/ops/install-lead-tail.sh"
-	printf 'lip install-shell: run: source %s && lead-tail\n' "$rc"
-}
-
-cmd_install_lead_tail() {
-	bash "$ROOT/scripts/ops/install-lead-tail.sh"
+	printf 'lip install-shell: run: source %s\n' "$rc"
 }
 
 main() {
@@ -126,14 +108,11 @@ main() {
 	deploy) cmd_deploy "$@" ;;
 	logs) cmd_logs "$@" ;;
 	ps) cmd_ps ;;
-	stats) cmd_stats ;;
 	export) cmd_export "$@" ;;
-	tail) cmd_tail "$@" ;;
 	check) cmd_check ;;
 	backup) cmd_backup ;;
 	ssh) cmd_ssh "$@" ;;
 	install-shell) cmd_install_shell ;;
-	install-lead-tail) cmd_install_lead_tail ;;
 	"" | -h | --help) usage ;;
 	*)
 		printf 'lip: unknown command %s\n' "$cmd" >&2

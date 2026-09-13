@@ -1,11 +1,38 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
 from .icp import load_icp_queries
+
+
+def slice_discover_queries(queries: list[str]) -> list[str]:
+    """Optional batch window for MTProto Contacts.Search (cron-friendly)."""
+    batch_raw = os.environ.get("TELEGRAM_DISCOVER_QUERY_BATCH", "").strip()
+    if not batch_raw:
+        return queries
+    try:
+        batch = max(1, int(batch_raw))
+    except ValueError:
+        return queries
+    offset = 0
+    offset_raw = os.environ.get("TELEGRAM_DISCOVER_QUERY_OFFSET", "").strip()
+    if offset_raw:
+        try:
+            offset = int(offset_raw)
+        except ValueError:
+            offset = 0
+    if not queries:
+        return queries
+    offset = offset % len(queries)
+    rotated = queries[offset:] + queries[:offset]
+    if batch >= len(rotated):
+        return rotated
+    return rotated[:batch]
+
 
 CHAT_ROLES = frozenset(
     {"buyer_supergroup", "vendor_support", "supply", "intel_only", "buyer"}
@@ -172,6 +199,7 @@ def load_config(path: str | Path) -> ScraperConfig:
     )
     if discover.enabled and not discover.queries and icp_telegram:
         discover.queries = icp_telegram
+    discover.queries = slice_discover_queries(discover.queries)
 
     search_raw = data.get("channel_search", {}) or {}
     search_terms = [
@@ -226,9 +254,14 @@ def load_config(path: str | Path) -> ScraperConfig:
         denylist=denylist,
     )
 
+    session = str(data.get("session", "data/runtime/telethon.session"))
+    session_env = os.environ.get("TELEGRAM_SESSION", "").strip()
+    if session_env:
+        session = session_env
+
     return ScraperConfig(
         chats=chats,
-        session=str(data.get("session", "data/runtime/telethon.session")),
+        session=session,
         cursor_db=str(data.get("cursor_db", "data/runtime/crawler.db")),
         poll_delay_sec=float(data.get("poll_delay_sec", 2)),
         message_limit=int(data.get("message_limit", 500)),

@@ -85,6 +85,29 @@ func FormatLeadNotifyHTML(doc sink.LeadDoc) string {
 	return strings.Join(lines, "\n")
 }
 
+// FormatLeadListLine is a one-line HTML summary for /list in the export bot.
+func FormatLeadListLine(doc sink.LeadDoc) string {
+	snip := strings.Join(strings.Fields(doc.Snippet), " ")
+	if len(snip) > 72 {
+		snip = snip[:69] + "..."
+	}
+	if snip == "" {
+		snip = "-"
+	}
+	hash := doc.HashID
+	if len(hash) > 10 {
+		hash = hash[:10]
+	}
+	return fmt.Sprintf(
+		"<b>%d</b> %s | %s | <code>%s</code> | %s",
+		doc.Score,
+		html.EscapeString(doc.Priority),
+		html.EscapeString(doc.Source),
+		html.EscapeString(hash),
+		html.EscapeString(snip),
+	)
+}
+
 func formatLeadContact(contacts []sink.StoredContact) string {
 	if len(contacts) == 0 {
 		return "-"

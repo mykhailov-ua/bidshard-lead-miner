@@ -13,6 +13,33 @@ from .prefilter import channel_discover_reject
 
 LOG = logging.getLogger("telegram.pool_sync")
 
+# Lower sort key = higher priority when max_active caps the pool.
+_SOURCE_PRIORITY = {
+    "manual": 0,
+    "cross_mention": 1,
+    "scrape_cross_mention": 1,
+    "scrape_cross_mention_forward": 1,
+    "profile_link": 2,
+    "scrape_cross_mention_invite": 2,
+    "discover": 3,
+    "registry_sync": 4,
+}
+
+
+def _registry_entry_priority(entry: dict[str, Any]) -> tuple[int, str]:
+    source = str(entry.get("source", "")).strip().lower()
+    query = str(entry.get("query", "")).strip().lower()
+    tier = _SOURCE_PRIORITY.get(source, 5)
+    if "cross_mention" in query:
+        tier = min(tier, 1)
+    if query.startswith("search:") or "employer" in query:
+        tier = min(tier, 3)
+    return (tier, query)
+
+
+def _sort_registry_channels(channels: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(channels, key=_registry_entry_priority)
+
 
 def _denylist_set(handles: list[str] | None) -> set[str]:
     out: set[str] = set()
@@ -42,7 +69,7 @@ def sync_registry_to_store(
         return {"imported": 0, "skipped": 0, "disabled": 0, "total": 0}
 
     deny = _denylist_set(denylist)
-    channels = data.get("channels", [])
+    channels = _sort_registry_channels(list(data.get("channels", [])))
     imported = 0
     skipped = 0
 
@@ -67,7 +94,10 @@ def sync_registry_to_store(
             enabled=True,
             role=infer_channel_role(username, title, query),
         )
-        store.upsert_channel(chat, "registry_sync")
+        sync_source = str(entry.get("source", "registry_sync") or "registry_sync").strip()
+        if sync_source not in _SOURCE_PRIORITY and sync_source != "manual":
+            sync_source = "registry_sync"
+        store.upsert_channel(chat, sync_source)
         imported += 1
         if max_active > 0 and imported >= max_active:
             break

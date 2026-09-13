@@ -28,6 +28,7 @@ func (c *Crawler) HarvestForumThreads(ctx context.Context, registryPath string) 
 		dorks = fallbackForumDorks()
 	}
 	dorks = dorkdisable.FilterActiveDorks(c.disabledDorksPath, dorks)
+	dorks = selectSerpDorks(dorks, c.dorkOffset, c.dorkBatch, c.telegramDorkMax)
 
 	var added int
 	for _, dork := range dorks {

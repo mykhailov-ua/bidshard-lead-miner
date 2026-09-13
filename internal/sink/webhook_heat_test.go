@@ -31,7 +31,7 @@ func TestWebhookHeatGateColdDisabled(t *testing.T) {
 	}
 }
 
-func TestWebhookClientSkipsBelowHeatMin(t *testing.T) {
+func TestWebhookClientPostsRegardlessOfHeatMin(t *testing.T) {
 	var mu sync.Mutex
 	posted := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,14 +45,6 @@ func TestWebhookClientSkipsBelowHeatMin(t *testing.T) {
 	client := NewWebhookClient(srv.URL, "", time.Second).WithHeatMin(entity.HeatTierHot)
 
 	client.NotifyLead(model.Lead{HashID: "a", HeatTier: entity.HeatTierWarm})
-	time.Sleep(100 * time.Millisecond)
-	mu.Lock()
-	if posted != 0 {
-		t.Fatalf("posted=%d want 0", posted)
-	}
-	mu.Unlock()
-
-	client.NotifyLead(model.Lead{HashID: "b", HeatTier: entity.HeatTierHot})
 	deadline := time.Now().Add(2 * time.Second)
 	for {
 		mu.Lock()
@@ -62,7 +54,7 @@ func TestWebhookClientSkipsBelowHeatMin(t *testing.T) {
 			return
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("posted=%d want 1", n)
+			t.Fatalf("posted=%d want 1 (warm tier must still reach crm-bot)", n)
 		}
 		time.Sleep(20 * time.Millisecond)
 	}

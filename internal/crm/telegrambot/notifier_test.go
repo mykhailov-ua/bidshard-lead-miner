@@ -4,7 +4,7 @@ import "testing"
 
 func TestLeadNotifierNotifyMinScore(t *testing.T) {
 	t.Parallel()
-	n := &LeadNotifier{minScore: 50, minScoreNonTelegram: 70}
+	n := &LeadNotifier{minScore: 50, minScoreNonTelegram: 70, notifyHeatMin: "hot"}
 	if got := n.notifyMinScore("telegram:@voluum"); got != 50 {
 		t.Fatalf("telegram min score: got %d want 50", got)
 	}

@@ -26,7 +26,7 @@ LOG = logging.getLogger("telegram.global_search")
 
 
 def global_search_enabled() -> bool:
-    return os.environ.get("TELEGRAM_GLOBAL_SEARCH", "").strip().lower() in (
+    return os.environ.get("TELEGRAM_GLOBAL_SEARCH", "1").strip().lower() in (
         "1",
         "true",
         "yes",
@@ -34,7 +34,7 @@ def global_search_enabled() -> bool:
 
 
 def global_search_hourly_limit() -> int:
-    raw = os.environ.get("TELEGRAM_GLOBAL_SEARCH_LIMIT", "3").strip()
+    raw = os.environ.get("TELEGRAM_GLOBAL_SEARCH_LIMIT", "6").strip()
     try:
         return max(0, int(raw))
     except ValueError:
@@ -42,7 +42,7 @@ def global_search_hourly_limit() -> int:
 
 
 def global_search_daily_limit() -> int:
-    raw = os.environ.get("TELEGRAM_GLOBAL_SEARCH_DAILY_LIMIT", "3").strip()
+    raw = os.environ.get("TELEGRAM_GLOBAL_SEARCH_DAILY_LIMIT", "24").strip()
     try:
         return max(0, int(raw))
     except ValueError:
@@ -71,7 +71,7 @@ def parse_utc_hours_window(raw: str) -> frozenset[int]:
 
 
 def global_search_utc_hours_raw() -> str:
-    return os.environ.get("TELEGRAM_GLOBAL_SEARCH_UTC_HOURS", "2-6").strip()
+    return os.environ.get("TELEGRAM_GLOBAL_SEARCH_UTC_HOURS", "0-23").strip()
 
 
 def in_global_search_window(now: datetime | None = None) -> bool:
@@ -98,6 +98,8 @@ async def run_global_search(
     out: TextIO,
 ) -> int:
     if not global_search_enabled():
+        return 0
+    if not cfg.global_search.enabled:
         return 0
     if not in_global_search_window():
         LOG.info("global_search_skipped_window")

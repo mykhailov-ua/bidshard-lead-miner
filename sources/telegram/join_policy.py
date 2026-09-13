@@ -25,9 +25,15 @@ def session_role() -> str:
 
 
 def invite_join_enabled() -> bool:
-    if session_role() == "hot":
-        return False
-    return os.environ.get("TELEGRAM_INVITE_JOIN", "").strip().lower() in (
+    return os.environ.get("TELEGRAM_INVITE_JOIN", "1").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
+def invite_join_hot_allowed() -> bool:
+    return os.environ.get("TELEGRAM_INVITE_JOIN_HOT", "1").strip().lower() in (
         "1",
         "true",
         "yes",
@@ -35,10 +41,11 @@ def invite_join_enabled() -> bool:
 
 
 def invite_join_allowed() -> bool:
-    """Cold session only: hot scrape workers must not mass-join (SHARDING_SESSION)."""
-    if session_role() == "hot":
+    if not invite_join_enabled():
         return False
-    return invite_join_enabled()
+    if session_role() == "hot":
+        return invite_join_hot_allowed()
+    return True
 
 
 def invite_join_daily_limit() -> int:
@@ -89,12 +96,8 @@ async def resolve_invite_entity(
         return existing
 
     if not invite_join_allowed():
-        if session_role() == "hot":
-            raise ValueError(
-                "invite join blocked on hot session; use TELEGRAM_SESSION_ROLE=cold"
-            )
         raise ValueError(
-            "invite preview only; discover should persist chat_id or set TELEGRAM_INVITE_JOIN=1"
+            "invite preview only; set TELEGRAM_INVITE_JOIN=1 (and TELEGRAM_INVITE_JOIN_HOT=1 on hot cron)"
         )
     if not invite_preview_icp_relevant(checked):
         LOG.info(

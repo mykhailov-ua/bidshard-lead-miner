@@ -2,6 +2,20 @@ package serp
 
 import "testing"
 
+func TestSelectSerpDorksRotatesAndCaps(t *testing.T) {
+	t.Parallel()
+
+	in := []string{"a", "b", "c", "d", "e"}
+	got := selectSerpDorks(in, 2, 0, 2)
+	if len(got) != 2 || got[0] != "c" || got[1] != "d" {
+		t.Fatalf("rotate+max got=%v", got)
+	}
+	got = selectSerpDorks(in, 0, 3, 0)
+	if len(got) != 3 || got[0] != "a" {
+		t.Fatalf("batch got=%v", got)
+	}
+}
+
 func TestLimitSerpDorks(t *testing.T) {
 	t.Parallel()
 

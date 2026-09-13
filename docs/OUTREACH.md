@@ -1,6 +1,6 @@
 # BidShard outreach playbook
 
-For BizDev following up on leads from `lead-intent-processor` / `lead-tail`.
+For BizDev following up on leads from `lead-intent-processor` (CRM Telegram bot + Mongo on VPS).
 
 Product: [BidShard](https://bidshard.com/) - self-hosted stack (tracker routing, antifraud, reporting) on **your VPS**. Import from Keitaro/Binom. **10-day free pilot**, USDT after.
 
@@ -39,7 +39,7 @@ Example (RU, if post is RU - only for non-geo-blocked contexts):
 
 - `PARSER_CRM_WEBHOOK` -> `crm-bot` on accept + after-analysis.
 - `/export new 50` in CRM Telegram bot for daily review.
-- `lead-tail` on laptop for live accepted leads.
+- CRM Telegram bot: live lead cards (`CRM_TELEGRAM_LEAD_NOTIFY`) and `/list`, `/export`.
 
 ## Historical pain export (M5)
 

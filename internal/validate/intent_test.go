@@ -13,6 +13,8 @@ func TestHasCommercialPainIntent(t *testing.T) {
 		{"как настроить клоаку в binom?", true},
 		{"join our channel for vip signals", false},
 		{"we are hiring a media buyer", false},
+		{"блять постбек опять отвалился", true},
+		{"блять как дела", false},
 	}
 	for _, tc := range cases {
 		if got := HasCommercialPainIntent(tc.text); got != tc.want {

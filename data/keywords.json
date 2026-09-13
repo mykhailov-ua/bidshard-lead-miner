@@ -107,6 +107,282 @@
       "tag": "pain-point"
     },
     {
+      "id": "kw-clickflare-alternative",
+      "phrase": "clickflare alternative",
+      "weight": 45,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-bemob-alternative",
+      "phrase": "bemob alternative",
+      "weight": 45,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-funnelflux-alternative",
+      "phrase": "funnelflux alternative",
+      "weight": 45,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-postback-not-firing",
+      "phrase": "postback not firing",
+      "weight": 35,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-conversion-not-tracking",
+      "phrase": "conversion not tracking",
+      "weight": 35,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-attribution-mismatch",
+      "phrase": "attribution mismatch",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-pixel-not-firing",
+      "phrase": "pixel not firing",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-server-side-tracking-setup",
+      "phrase": "server side tracking setup",
+      "weight": 25,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-s2s-postback-setup",
+      "phrase": "s2s postback setup",
+      "weight": 25,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-mmp-migration",
+      "phrase": "mmp migration",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-everflow-alternative",
+      "phrase": "everflow alternative",
+      "weight": 40,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-ru-posovetuyte-treker",
+      "phrase": "посоветуйте трекер",
+      "weight": 45,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-ru-kakoy-treker-vzyat",
+      "phrase": "какой трекер взять",
+      "weight": 45,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-ru-kakoy-treker-luchshe",
+      "phrase": "какой трекер лучше",
+      "weight": 45,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-ru-alternativa-keitaro",
+      "phrase": "альтернатива keitaro",
+      "weight": 48,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-ru-alternativa-binom",
+      "phrase": "альтернатива binom",
+      "weight": 48,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-ru-alternativa-voluum",
+      "phrase": "альтернатива voluum",
+      "weight": 48,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-ru-alternativa-trekeru",
+      "phrase": "альтернатива трекеру",
+      "weight": 45,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-ru-migraciya-s-keitaro",
+      "phrase": "миграция с keitaro",
+      "weight": 42,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-ru-pereezd-s-binom",
+      "phrase": "переезд с binom",
+      "weight": 42,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-ru-postbek-ne-dohodit",
+      "phrase": "постбек не доходит",
+      "weight": 35,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-postbek-otvalilsya",
+      "phrase": "отвалился постбек",
+      "weight": 35,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-postbek-ne-rabotaet",
+      "phrase": "постбек не работает",
+      "weight": 35,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-ne-trekaet-kliki",
+      "phrase": "не трекает клики",
+      "weight": 32,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-ne-trekaet-konversii",
+      "phrase": "не трекает конверсии",
+      "weight": 32,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-ne-dohodyat-konversii",
+      "phrase": "не доходят конверсии",
+      "weight": 32,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-rashozhdenie-s-pp",
+      "phrase": "расхождение с пп",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-v-trekere-v-pp",
+      "phrase": "в трекере в партнерке",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-treker-upal",
+      "phrase": "трекер упал",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-treker-leg",
+      "phrase": "трекер лег",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-treker-tormozit",
+      "phrase": "трекер тормозит",
+      "weight": 28,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-keitaro-upal",
+      "phrase": "keitaro упал",
+      "weight": 32,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-binom-zavis",
+      "phrase": "binom завис",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-piksel-ne-vidit",
+      "phrase": "пиксель не видит депы",
+      "weight": 28,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-samohost-treker",
+      "phrase": "самохост трекер",
+      "weight": 25,
+      "tag": "high-roller"
+    },
+    {
+      "id": "kw-ru-svoj-treker",
+      "phrase": "свой трекер",
+      "weight": 22,
+      "tag": "high-roller"
+    },
+    {
+      "id": "kw-ru-arbitrazh-trafik",
+      "phrase": "арбитраж трафика",
+      "weight": 20,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-media-baying",
+      "phrase": "медиабаинг",
+      "weight": 18,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-zaebal-keitaro",
+      "phrase": "заебал keitaro",
+      "weight": 28,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-zaebal-treker",
+      "phrase": "заебал трекер",
+      "weight": 28,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-pizdec-postbek",
+      "phrase": "пиздец с постбеком",
+      "weight": 28,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-blya-postbek",
+      "phrase": "блять постбек",
+      "weight": 26,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ru-nahuy-voluum",
+      "phrase": "нахер voluum",
+      "weight": 24,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ua-yobaniy-treker",
+      "phrase": "йобаний трекер",
+      "weight": 28,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ua-pizdec-z-trekerom",
+      "phrase": "піздец з трекером",
+      "weight": 28,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-ua-zaybav-postbek",
+      "phrase": "заїбав постбек",
+      "weight": 28,
+      "tag": "pain-point"
+    },
+    {
       "id": "kw-cloaking-detection",
       "phrase": "cloaking detection",
       "weight": 30,
@@ -3049,6 +3325,60 @@
       "id": "hr-out-of-home",
       "phrase": "out of home advertising",
       "tag": "anti-icp-programmatic"
+    },
+    {
+      "id": "kw-adspect-alternative",
+      "phrase": "adspect alternative",
+      "weight": 45,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-cloaker-alternative",
+      "phrase": "cloaker alternative",
+      "weight": 45,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-tds-alternative",
+      "phrase": "tds alternative",
+      "weight": 40,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-postback-dropped",
+      "phrase": "postback dropped",
+      "weight": 35,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-s2s-timeout",
+      "phrase": "s2s timeout",
+      "weight": 35,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-tracker-fault",
+      "phrase": "tracker fault",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-residential-proxy-down",
+      "phrase": "residential proxy down",
+      "weight": 30,
+      "tag": "pain-point"
+    },
+    {
+      "id": "kw-funnelflux-alternative",
+      "phrase": "funnelflux alternative",
+      "weight": 40,
+      "tag": "hot-lead"
+    },
+    {
+      "id": "kw-peerclick-alternative",
+      "phrase": "peerclick alternative",
+      "weight": 40,
+      "tag": "hot-lead"
     }
   ]
 }

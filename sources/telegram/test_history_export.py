@@ -6,8 +6,10 @@ from sources.telegram.config import ChatConfig
 from sources.telegram.history_export import (
     build_history_export_row,
     classify_pain_near_miss,
+    parse_outreach_fit_filter,
     parse_since_date,
     passes_history_export_filter,
+    passes_outreach_fit_gate,
 )
 
 
@@ -64,6 +66,17 @@ class ParseSinceTest(unittest.TestCase):
     def test_parse_since_date(self) -> None:
         dt = parse_since_date("2025-03-01")
         self.assertEqual(dt, datetime(2025, 3, 1, tzinfo=timezone.utc))
+
+
+class OutreachFitFilterTest(unittest.TestCase):
+    def test_parse_outreach_fit(self) -> None:
+        self.assertEqual(parse_outreach_fit_filter("yes,maybe"), {"yes", "maybe"})
+
+    def test_gate_requires_fit_when_filtered(self) -> None:
+        allowed = {"yes", "maybe"}
+        self.assertTrue(passes_outreach_fit_gate("yes", allowed))
+        self.assertFalse(passes_outreach_fit_gate("", allowed))
+        self.assertFalse(passes_outreach_fit_gate("no", allowed))
 
 
 class NearMissTest(unittest.TestCase):

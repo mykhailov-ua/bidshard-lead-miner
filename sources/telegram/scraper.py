@@ -31,6 +31,12 @@ from .global_search import run_global_search
 from .join_policy import resolve_invite_entity
 from .domains import RegistryEntry, append_domains
 from .pain import message_has_pain
+from .participants import (
+    export_participants_json,
+    harvest_chat_participants,
+    participant_harvest_enabled,
+    participants_export_path,
+)
 from .registry_export import export_channels_json
 from .session_lock import session_exclusive_lock
 from .tglinks import web_domains
@@ -92,7 +98,21 @@ from .history_chunk import iter_messages_chunked
 from .message_text import combined_message_text, message_body_text
 from .prefilter import should_emit_message
 from .telethon_retry import call_with_flood_wait, is_flood_wait
-from .user_enrich import UserBioEnricher, user_enrich_limit
+from .channel_meta import (
+    channel_meta_export_path,
+    export_channel_meta_json,
+    harvest_channel_meta,
+)
+from .message_meta import message_meta_fields
+from .scrape_crossmention import run_scrape_cross_mention
+from .user_enrich import (
+    UserProfileEnricher,
+    profile_summary_for_pipeline,
+    user_enrich_limit,
+    user_enrich_prefilter_only,
+    user_profiles_export_path,
+    export_user_profiles_json,
+)
 
 
 def emit_line(
@@ -107,6 +127,8 @@ def emit_line(
     chat_type: str = "",
     sender_user_id: int = 0,
     sender_bio: str = "",
+    sender_profile: dict[str, Any] | None = None,
+    message_meta: dict[str, Any] | None = None,
 ) -> bool:
     # Drop spam/empty before NDJSON; Go pipeline never sees filtered messages.
     if not should_emit_message(
@@ -136,6 +158,13 @@ def emit_line(
         payload["contact"] = f"telegram:user_id:{sender_user_id}"
     if sender_bio:
         payload["sender_bio"] = sender_bio
+    if sender_profile:
+        payload["sender_profile"] = sender_profile
+        fit = str(sender_profile.get("cold_outreach_fit") or "").strip()
+        if fit:
+            payload["cold_outreach_fit"] = fit
+    if message_meta:
+        payload["message_meta"] = message_meta
     if reply_to_message_id > 0:
         payload["reply_to_message_id"] = reply_to_message_id
     if reply_context:
@@ -147,8 +176,34 @@ def emit_line(
     role = chat.normalized_role()
     if role and role != "buyer_supergroup":
         payload["channel_role"] = role
+    _apply_cold_team_fields(payload, text, chat)
+    _apply_cpa_supply_fields(payload, text)
     emit_payload(out, payload)
     return True
+
+
+def _apply_cold_team_fields(payload: dict[str, Any], text: str, chat: ChatConfig) -> None:
+    from .team_hiring import extract_company_hint, is_telegram_cold_team_post
+
+    if not is_telegram_cold_team_post(text):
+        return
+    payload["lead_type"] = "cold_team"
+    hint = extract_company_hint(text)
+    if hint:
+        payload["company_hint"] = hint
+    if chat.username:
+        payload["source_chat"] = chat.username.lower().lstrip("@")
+
+
+def _apply_cpa_supply_fields(payload: dict[str, Any], text: str) -> None:
+    from .cpa_network_intel import is_cpa_network_supply_promo, is_media_buying_team_hiring
+
+    if payload.get("lead_type"):
+        return
+    if is_media_buying_team_hiring(text):
+        return
+    if is_cpa_network_supply_promo(text):
+        payload["lead_type"] = "cpa_supply"
 
 
 def dry_run(cfg: ScraperConfig, out: TextIO) -> int:
@@ -277,7 +332,7 @@ async def process_scrape_message(
     out: TextIO,
     store: CursorStore,
     chat_key: str,
-    bio_enricher: UserBioEnricher | None = None,
+    bio_enricher: UserProfileEnricher | None = None,
 ) -> bool:
     """Emit one NDJSON row when body passes prefilter. Returns True if emitted."""
     body = combined_message_text(message)
@@ -287,8 +342,22 @@ async def process_scrape_message(
     username = sender_username(sender)
     user_id = sender_user_id(sender)
     sender_bio = ""
-    if bio_enricher is not None and should_emit_message(body):
-        sender_bio = await bio_enricher.enrich(client, sender)
+    sender_profile: dict[str, Any] = {}
+    enrich_sender = bio_enricher is not None and (
+        should_emit_message(
+            body,
+            username,
+            channel_about=about_text,
+            channel_role=chat.normalized_role(),
+        )
+        or not user_enrich_prefilter_only()
+    )
+    if enrich_sender and bio_enricher is not None:
+        sender_bio, sender_profile = await bio_enricher.enrich(client, sender)
+        summary = profile_summary_for_pipeline(sender_profile)
+        if summary:
+            sender_bio = summary
+    message_meta = message_meta_fields(message)
     reply_to = 0
     reply_context = ""
     if message.reply_to and getattr(message.reply_to, "reply_to_msg_id", None):
@@ -307,6 +376,8 @@ async def process_scrape_message(
         chat_type=chat_kind,
         sender_user_id=user_id,
         sender_bio=sender_bio,
+        sender_profile=sender_profile or None,
+        message_meta=message_meta or None,
     ):
         return False
     store.record_emit(chat_key, message_has_pain(body))
@@ -356,7 +427,7 @@ async def scrape_discussion_for_channel(
     out: TextIO,
     about_text: str,
     chat_key: str,
-    bio_enricher: UserBioEnricher | None = None,
+    bio_enricher: UserProfileEnricher | None = None,
 ) -> int:
     if not discussion_scrape_enabled():
         return 0
@@ -424,14 +495,14 @@ async def scrape_chat(
     store: CursorStore,
     cfg: ScraperConfig,
     out: TextIO,
-    bio_enricher: UserBioEnricher | None = None,
-) -> tuple[int, int]:
+    bio_enricher: UserProfileEnricher | None = None,
+) -> tuple[int, int, int]:
     chat_key = chat.channel_key()
     try:
         entity = await resolve_chat_entity(client, chat, store)
     except Exception as exc:
         LOG.warning("skip chat=%s: %s", chat_key, exc)
-        return 0, 0
+        return 0, 0, 0
 
     about_text = await fetch_channel_about(client, entity)
 
@@ -443,7 +514,7 @@ async def scrape_chat(
         pass
     if channel_geo_reject(channel_geo_texts(chat.name, about_text, full_entity)):
         LOG.info("skip chat geo heuristic chat=%s", chat_key)
-        return 0, 0
+        return 0, 0, 0
     chat_kind = entity_chat_type(full_entity)
 
     last_id = store.get_last_message_id(chat_key)
@@ -451,12 +522,14 @@ async def scrape_chat(
     emitted = 0
     texts_for_domains: list[str] = []
     seen_message_ids: set[int] = set()
+    batch_messages: list[Any] = []
 
     async def emit_message(message: Any, *, require_new: bool) -> bool:
         nonlocal emitted, max_seen
         if message.id in seen_message_ids:
             return False
         seen_message_ids.add(message.id)
+        batch_messages.append(message)
         body = combined_message_text(message)
         if not body:
             return False
@@ -509,18 +582,38 @@ async def scrape_chat(
                 chat_key,
                 flood_sec,
             )
-            return emitted, flood_sec
+            return emitted, flood_sec, 0
         LOG.warning(
             "skip chat=%s entity=%s: %s (check username/chat_id in config/sources.telegram.yaml)",
             chat_key,
             entity,
             exc,
         )
-        return emitted, 0
+        return emitted, 0, 0
 
     if max_seen > last_id:
         store.set_last_message_id(chat_key, max_seen)
     store.mark_scraped(chat_key)
+
+    participants_upserted = 0
+    try:
+        participants_upserted = await harvest_chat_participants(
+            client, full_entity, chat, store, chat_kind
+        )
+    except Exception as exc:
+        LOG.warning("participants harvest unexpected chat=%s error=%s", chat_key, exc)
+
+    try:
+        await harvest_channel_meta(client, full_entity, chat, store, chat_kind)
+    except Exception as exc:
+        LOG.warning("channel_meta unexpected chat=%s error=%s", chat_key, exc)
+
+    try:
+        await run_scrape_cross_mention(
+            client, chat, batch_messages, about_text, store, cfg
+        )
+    except Exception as exc:
+        LOG.warning("scrape_cross_mention unexpected chat=%s error=%s", chat_key, exc)
 
     if cfg.discover.domains_path and texts_for_domains:
         # Register web domains from scrape batch; tgweb Go crawler reads the same JSON file.
@@ -549,11 +642,20 @@ async def scrape_chat(
                     added,
                 )
 
-    emitted += await scrape_discussion_for_channel(
-        client, chat, full_entity, store, cfg, out, about_text, chat_key, bio_enricher
+    from .discussion_policy import discussion_allowed_for_chat
+
+    if discussion_allowed_for_chat(chat, store):
+        emitted += await scrape_discussion_for_channel(
+            client, chat, full_entity, store, cfg, out, about_text, chat_key, bio_enricher
+        )
+
+    from .participants_search import search_megagroup_participants
+
+    await search_megagroup_participants(
+        client, full_entity, chat, store, entity_chat_type(full_entity)
     )
 
-    return emitted, 0
+    return emitted, 0, participants_upserted
 
 
 def env_truthy(name: str) -> bool:
@@ -876,7 +978,7 @@ async def scrape(cfg: ScraperConfig, out: TextIO) -> int:
             store.close()
             return 1
 
-        bio_enricher = UserBioEnricher(store, user_enrich_limit())
+        bio_enricher = UserProfileEnricher(store, user_enrich_limit())
         from .lease import lease_enabled, lease_settings
 
         lease_worker = ""
@@ -885,6 +987,7 @@ async def scrape(cfg: ScraperConfig, out: TextIO) -> int:
             lease_worker, lease_ttl, _, _ = lease_settings()
             LOG.info("lease scrape worker=%s chats=%d", lease_worker, len(chats))
         total = 0
+        participants_dirty = False
         try:
             total += await run_global_search(client, cfg, store, out)
             for chat in chats:
@@ -893,10 +996,12 @@ async def scrape(cfg: ScraperConfig, out: TextIO) -> int:
                 if lease_enabled():
                     store.heartbeat_lease(chat_key, lease_worker, lease_ttl)
                 try:
-                    emitted, flood_sec = await scrape_chat(
+                    emitted, flood_sec, part_n = await scrape_chat(
                         client, chat, store, cfg, out, bio_enricher
                     )
                     total += emitted
+                    if part_n > 0:
+                        participants_dirty = True
                 finally:
                     if lease_enabled():
                         store.release_lease(
@@ -908,6 +1013,21 @@ async def scrape(cfg: ScraperConfig, out: TextIO) -> int:
             top = store.top_channels_by_pain(10)
             if top:
                 LOG.info("telegram channel stats top_pain=%s", json.dumps(top[:5]))
+            if participants_dirty and participant_harvest_enabled():
+                n = export_participants_json(store, participants_export_path())
+                LOG.info("telegram participants export path=%s rows=%d", participants_export_path(), n)
+            pn = export_user_profiles_json(store, user_profiles_export_path())
+            cn = export_channel_meta_json(store, channel_meta_export_path())
+            from .channel_meta import export_supply_admins_csv, supply_admins_csv_path
+
+            an = export_supply_admins_csv(store, supply_admins_csv_path())
+            if pn or cn or an:
+                LOG.info(
+                    "telegram intel export profiles=%d channels=%d supply_admins=%d",
+                    pn,
+                    cn,
+                    an,
+                )
         finally:
             if lease_enabled() and lease_worker:
                 released = store.release_worker_leases(lease_worker)

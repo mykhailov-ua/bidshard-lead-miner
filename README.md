@@ -18,7 +18,7 @@ Go parser + Python Telethon sidecar for **BidShard** outbound: find media buyers
 
 **Geo policy:** hard-reject RU/BY (`GEO_BLOCK_COUNTRIES`). LinkedIn is not supported.
 
-**Docs:** [docs/CREDENTIALS.md](docs/CREDENTIALS.md) | [docs/DEPLOY.md](docs/DEPLOY.md) | [docs/OPS.md](docs/OPS.md) | [docs/OUTREACH.md](docs/OUTREACH.md)
+**Docs:** [docs/CREDENTIALS.md](docs/CREDENTIALS.md) | [docs/DEPLOY.md](docs/DEPLOY.md) | [docs/OPS.md](docs/OPS.md) | [docs/OUTREACH.md](docs/OUTREACH.md) | [HEADLESS.md](HEADLESS.md) (browser signals) | [docs/CRAWL_EGRESS_ANTIFRAUD.md](docs/CRAWL_EGRESS_ANTIFRAUD.md) (proxy + Playwright + CF risk)
 
 ---
 

@@ -25,6 +25,8 @@ type Crawler struct {
 	dorks             []string
 	maxResults        int
 	telegramDorkMax   int
+	dorkOffset        int
+	dorkBatch         int
 	baseURL           string
 	disabledDorksPath string
 }
@@ -55,6 +57,8 @@ func NewCrawler(cfg config.Config, client *http.Client) *Crawler {
 		dorks:             dorkdisable.FilterActiveDorks(path, dorks),
 		maxResults:        20,
 		telegramDorkMax:   cfg.SerpTelegramDorkMax,
+		dorkOffset:        cfg.SerpDorkOffset,
+		dorkBatch:         cfg.SerpDorkBatch,
 		baseURL:           "https://html.duckduckgo.com/html/",
 		disabledDorksPath: path,
 	}

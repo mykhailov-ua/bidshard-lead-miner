@@ -42,7 +42,7 @@ Use --dry-run to test without an MTProto session.`,
 }
 
 func newTelegramHistoryExportCmd() *cobra.Command {
-	var since, out, format, roleFilter string
+	var since, out, format, roleFilter, outreachFit string
 	var relax bool
 	cmd := &cobra.Command{
 		Use:   "history-export",
@@ -65,8 +65,9 @@ Shares session lock with scrape/realtime; do not run concurrently.`,
 				Since:      since,
 				Out:        out,
 				Format:     format,
-				RoleFilter: roleFilter,
-				Relax:      relax,
+				RoleFilter:  roleFilter,
+				Relax:       relax,
+				OutreachFit: outreachFit,
 			})
 		},
 	}
@@ -75,6 +76,7 @@ Shares session lock with scrape/realtime; do not run concurrently.`,
 	cmd.Flags().StringVar(&format, "format", "ndjson", "ndjson or csv")
 	cmd.Flags().StringVar(&roleFilter, "role-filter", "buyer_supergroup", "chat role filter")
 	cmd.Flags().BoolVar(&relax, "relax", false, "log near-miss counts (tracker_only vs pain_only)")
+	cmd.Flags().StringVar(&outreachFit, "outreach-fit", "", "filter rows by cached outreach_fit (yes,maybe)")
 	_ = cmd.MarkFlagRequired("since")
 	return cmd
 }

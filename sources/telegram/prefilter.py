@@ -160,6 +160,18 @@ BUYER_QUESTION_HINTS = (
     "what needs to be done",
     "cannot edit the conversion",
     "anyone know how",
+    "посоветуйте трекер",
+    "какой трекер",
+    "альтернатива keitaro",
+    "альтернатива binom",
+    "альтернатива voluum",
+    "постбек не доходит",
+    "отвалился постбек",
+    "не трекает",
+    "не доходят конверсии",
+    "расхождение с пп",
+    "в трекере",
+    "в партнерке",
 )
 
 PAIN_HINTS = (
@@ -167,6 +179,10 @@ PAIN_HINTS = (
     "keitaro",
     "binom",
     "redtrack",
+    "clickflare",
+    "bemob",
+    "conversion not tracking",
+    "postback not firing",
     "postback",
     "tracker",
     "alternative",
@@ -180,6 +196,23 @@ PAIN_HINTS = (
     "clickid",
     "ftd",
     "arbitrage",
+    "кейтаро",
+    "волиум",
+    "бином",
+    "трекер",
+    "трекере",
+    "постбек",
+    "постбэк",
+    "альтернатива",
+    "миграция",
+    "переезд",
+    "арбитраж",
+    "медиабаинг",
+    "партнерк",
+    "партнёрк",
+    "конверси",
+    "кликид",
+    "click_id",
 )
 
 TRACKER_PAIN_HINTS = (
@@ -187,12 +220,24 @@ TRACKER_PAIN_HINTS = (
     "keitaro",
     "binom",
     "redtrack",
+    "clickflare",
+    "bemob",
+    "funnelflux",
+    "everflow",
+    "kochava",
+    "adjust",
+    "appsflyer",
     "postback",
     "постбек",
+    "постбэк",
     "tracker",
     "трекер",
     "трекере",
+    "кейтаро",
+    "волиум",
+    "бином",
     "alternative",
+    "альтернатива",
     "clickid",
     "cloak",
     "adspect",
@@ -493,10 +538,19 @@ def should_emit_message(
 
         if not vendor_support_emit_allowed(text, channel_role=role):
             return False
+    elif role == "supply":
+        from .cpa_network_intel import supply_emit_allowed
+
+        if not supply_emit_allowed(text, channel_role=role):
+            return False
     elif is_instant_drop_message(text):
         return False
     if is_spam_message(text):
         return False
+    from .team_hiring import is_telegram_cold_team_post
+
+    if is_telegram_cold_team_post(text):
+        return bool((username or "").strip().lstrip("@"))
     if is_job_or_tutorial_noise(text):
         return False
     if is_programmatic_noise(text):

@@ -53,7 +53,33 @@ _CSV_FIELDS = (
     "link",
     "text",
     "pain_tag",
+    "outreach_fit",
 )
+
+
+def parse_outreach_fit_filter(raw: str) -> set[str]:
+    """Comma-separated yes,maybe from CLI or TELEGRAM_HISTORY_EXPORT_OUTREACH_FIT."""
+    text = (raw or "").strip().lower()
+    if not text:
+        return set()
+    allowed = {"yes", "maybe", "no"}
+    out = {p.strip() for p in text.split(",") if p.strip() in allowed}
+    return out
+
+
+def outreach_fit_filter_from_env() -> set[str]:
+    return parse_outreach_fit_filter(
+        os.environ.get("TELEGRAM_HISTORY_EXPORT_OUTREACH_FIT", "")
+    )
+
+
+def passes_outreach_fit_gate(fit: str, allowed: set[str]) -> bool:
+    if not allowed:
+        return True
+    fit = (fit or "no").strip().lower()
+    if fit not in allowed:
+        return False
+    return True
 
 
 def parse_since_date(raw: str) -> datetime:
@@ -95,6 +121,7 @@ def build_history_export_row(
         "link": message_link(chat.username, message_id),
         "text": text.strip(),
         "pain_tag": pain_alert_tags(text),
+        "outreach_fit": "",
     }
 
 
@@ -183,6 +210,8 @@ async def export_chat_history(
     csv_writer: csv.DictWriter | None,
     relax: bool = False,
     near_miss: dict[str, int] | None = None,
+    store: CursorStore | None = None,
+    outreach_fit_allowed: set[str] | None = None,
 ) -> int:
     emitted = 0
     scanned = 0
@@ -220,6 +249,13 @@ async def export_chat_history(
                 reply_to_message_id=reply_to,
             ):
                 continue
+            fit = ""
+            if store is not None and user_id > 0:
+                fit = store.get_user_outreach_fit(user_id)
+            if outreach_fit_allowed and not passes_outreach_fit_gate(
+                fit, outreach_fit_allowed
+            ):
+                continue
             row = build_history_export_row(
                 username=username,
                 user_id=user_id,
@@ -228,6 +264,7 @@ async def export_chat_history(
                 chat=chat,
                 message_id=int(message.id),
             )
+            row["outreach_fit"] = fit
             _write_row(out_handle, ndjson_out, csv_writer, row)
             emitted += 1
     except Exception as exc:
@@ -301,6 +338,7 @@ async def run_history_export(
     fmt: str = "ndjson",
     role_filter: str = "buyer_supergroup",
     relax: bool = False,
+    outreach_fit_allowed: set[str] | None = None,
 ) -> int:
     total = 0
     exit_code = 1
@@ -358,6 +396,7 @@ async def run_history_export(
                 fmt,
                 relax,
             )
+            fit_allowed = outreach_fit_allowed or outreach_fit_filter_from_env()
             for entity, chat, about, kind in targets:
                 total += await export_chat_history(
                     client,
@@ -371,6 +410,8 @@ async def run_history_export(
                     csv_writer=csv_writer,
                     relax=relax,
                     near_miss=near_miss,
+                    store=store,
+                    outreach_fit_allowed=fit_allowed,
                 )
             exit_code = 0
             return exit_code
@@ -420,6 +461,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="log near-miss counts (tracker_only vs pain_only) for bizdev tuning",
     )
+    parser.add_argument(
+        "--outreach-fit",
+        default=os.environ.get("TELEGRAM_HISTORY_EXPORT_OUTREACH_FIT", ""),
+        help="comma-separated outreach_fit filter: yes,maybe (M5 bizdev queue)",
+    )
     return parser.parse_args()
 
 
@@ -438,6 +484,7 @@ async def main_async(args: argparse.Namespace) -> int:
         fmt=args.format,
         role_filter=args.role_filter,
         relax=bool(args.relax),
+        outreach_fit_allowed=parse_outreach_fit_filter(args.outreach_fit),
     )
 
 

@@ -4,6 +4,11 @@
 # Pipeline: buyer-discover -> triage -> pool_sync -> cron scrape.
 #
 # Manual work: edit config/discover.icp.json (queries) and pool.denylist only.
+#
+# Channel roles:
+#   buyer_supergroup - buyer communities, HR/recruiting (team OSINT)
+#   supply - CPA network official channels (NOT ICP buyers; scrape for team/hiring/buyer voice)
+#   vendor_support - hosting/PWA vendor chats (buyer pain only)
 
 discover:
   enabled: true
@@ -20,7 +25,7 @@ discover:
 
 pool:
   auto_from_registry: true
-  max_active: 80
+  max_active: 120
   denylist:
     - maximaffiliate
     - zuevaff
@@ -40,6 +45,20 @@ pool:
     - partnerkin_job
     - pumpspy
     - soltrending
+    - hentaigames_yami
+    - ltubeoficial
+    - sophierainlc
+    - anastasiageshev
+    - proxymtproto
+    - blaze_hr
+    - whale_alert_io
+    - standleo_exe
+    - servandosilva
+    - honglian8888
+    - laxmikantpolitypdf
+    - money
+    - kktvinfo
+    - spynow
 
 # Optional manual overrides (seeds or force-disable). Leave empty for full auto pool.
 # H3/H5 examples (enable after invite / public access):
@@ -54,7 +73,87 @@ pool:
 #     geo: eu
 #     role: vendor_support
 #     enabled: false
-chats: []
+chats:
+  # Global buyer / pain communities
+  - name: chat_affiliates
+    username: chat_affiliates
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  - name: aff_secret
+    username: aff_secret
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  - name: mediabuyingandselling
+    username: mediabuyingandselling
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  - name: affiliategroupchat
+    username: affiliategroupchat
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  # HR / recruiting (team OSINT; vacancy posts surface buyer orgs)
+  - name: affy_hr
+    username: affy_hr
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  - name: recruiting_affiliates
+    username: recruiting_affiliates
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  - name: mediabuyers_lenkep
+    username: mediabuyers_lenkep
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  # LATAM
+  - name: affiliate_latam
+    username: affiliate_latam
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  - name: affiliate_latam_en
+    username: affiliate_latam_en
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  # SEA / India
+  - name: affiliate_marketing_india
+    username: affiliate_marketing_india
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  - name: trafficvaultt
+    username: trafficvaultt
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  - name: komunitasaffiliate
+    username: komunitasaffiliate
+    geo: global
+    role: buyer_supergroup
+    enabled: true
+  # CPA network channels (supply = intel source, not sales target)
+  - name: affiliatepartnersafrica
+    username: affiliatepartnersafrica
+    geo: global
+    role: supply
+    enabled: true
+  - name: drcashglobal
+    username: drcashglobal
+    geo: global
+    role: supply
+    enabled: true
+  - name: drcash
+    username: drcash
+    geo: global
+    role: supply
+    enabled: true
 
 session: data/runtime/telethon.session
 cursor_db: data/runtime/crawler.db
@@ -80,9 +179,19 @@ channel_search:
     - 502 bad gateway
     - nginx upstream
     - mysql deadlock
+    - usdt payment tracker
+    - trc20 payout affiliate
+    - pay keitaro usdt
+    - tracker subscription usdt
+    - hiring media buyer
+    - team lead media buyer
+    - media buyer remote
+    - arbitragem tracker
+    - affiliate india tracker
+    - cod media buying
 
 global_search:
-  enabled: false
+  enabled: true
   messages_per_query: 20
   terms:
     - postback failing

@@ -8,6 +8,15 @@ import (
 // TagPublisherSurface marks accepted leads from ads.txt / sellers.json supply crawl (ads_txt: source).
 const TagPublisherSurface = "publisher-surface"
 
+// TagPublisherAdsTxtContact marks ads.txt rows with CONTACT= email for outreach triage.
+const TagPublisherAdsTxtContact = "publisher-ads-txt-contact"
+
+// TagDiscordCommunityIntel marks Discord crawl rows (community OSINT, not invoice buyer).
+const TagDiscordCommunityIntel = "discord-community-intel"
+
+// TagForumTeamHiring marks allowlisted forum recruiting threads (team OSINT).
+const TagForumTeamHiring = "forum-team-hiring"
+
 var (
 	spendRe      = regexp.MustCompile(`(?i)(?:\$\d+k?|\d+\$/day|500/day|budget|high spend|enterprise|1k|5k|10k)`)
 	painRe       = regexp.MustCompile(`(?i)(overburn|click loss|postback fail|missing ftd|billing|expensive|overpriced|broken|bug)`)

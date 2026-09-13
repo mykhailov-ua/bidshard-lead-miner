@@ -1,5 +1,6 @@
 {
   "shard_count": 2,
+  "cron_shared_session": false,
   "sessions": [
     {
       "id": 0,
@@ -20,7 +21,8 @@
       "role": "cold",
       "shard": null,
       "file": "my_session3.session",
-      "runtime": "data/runtime/telethon.session.2"
+      "runtime": "data/runtime/telethon.session.2",
+      "discover_script": "scripts/ops/buyer-discover-fast.sh"
     }
   ]
 }

@@ -33,6 +33,11 @@
     {"id": "kw-es-31", "phrase": "deduplicacion capi", "weight": 18, "tag": "bidshard"},
     {"id": "kw-es-32", "phrase": "migrar desde voluum", "weight": 24, "tag": "intent"},
     {"id": "kw-es-33", "phrase": "afiliado igaming latam", "weight": 16, "tag": "vertical"},
-    {"id": "kw-es-34", "phrase": "postback idempotente", "weight": 18, "tag": "bidshard"}
+    {"id": "kw-es-34", "phrase": "postback idempotente", "weight": 18, "tag": "bidshard"},
+    {"id": "kw-es-35", "phrase": "pago usdt", "weight": 28, "tag": "hot-lead"},
+    {"id": "kw-es-36", "phrase": "payout usdt trc20", "weight": 28, "tag": "hot-lead"},
+    {"id": "kw-es-37", "phrase": "comprador de medios", "weight": 18, "tag": "intent"},
+    {"id": "kw-es-38", "phrase": "arbitraje de trafico", "weight": 20, "tag": "intent"},
+    {"id": "kw-es-39", "phrase": "suscripcion tracker", "weight": 18, "tag": "pain"}
   ]
 }

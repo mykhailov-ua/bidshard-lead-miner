@@ -46,6 +46,18 @@ OPERATIONAL_PAIN_HINTS = (
     "upstream",
     "nginx",
     "отвалился",
+    "пиздец",
+    "піздец",
+    "заебал",
+    "заебали",
+    "заїбав",
+    "блять",
+    "блядь",
+    "нахуй",
+    "нахер",
+    "йобан",
+    "їбан",
+    "сука",
     "expensive",
     "overprice",
     "overpriced",
@@ -75,6 +87,21 @@ _COMMERCIAL_PAIN_RE = [
     re.compile(r"(?i)альтернатива\s+(?:keitaro|binom|voluum|redtrack)"),
     re.compile(r"(?i)не\s+трекает\s+клик"),
     re.compile(r"(?i)отвалился\s+постбек"),
+    re.compile(r"(?i)постб[еэ]к\s+не\s+(?:доходит|работает)"),
+    re.compile(r"(?i)не\s+трека(?:ет|ются)\s+(?:клик|конверс)"),
+    re.compile(r"(?i)не\s+доходят\s+конверси"),
+    re.compile(r"(?i)ищу\s+(?:трекер|альтернатив)"),
+    re.compile(r"(?i)нужен\s+(?:трекер|самохост)"),
+    re.compile(r"(?i)пере(?:езд|ехать)\s+(?:с|на)\s+(?:keitaro|binom|voluum|трекер)"),
+    re.compile(r"(?i)миграци[яю]\s+(?:с|на)\s+(?:keitaro|binom|voluum)"),
+    re.compile(
+        r"(?i)(?:бл[яь][тд]?|пиздец|піздец\w*|за[еї]б\w*|наху[йя]|на\s*хер|йобан\w*|їбан\w*|"
+        r"сука).{0,28}(?:трекер|постбек|постб[еэ]к|keitaro|binom|voluum|redtrack|clickflare|bemob)"
+    ),
+    re.compile(
+        r"(?i)(?:трекер|постбек|постб[еэ]к|keitaro|binom|voluum|redtrack|clickflare|bemob)"
+        r".{0,28}(?:бл[яь][тд]?|пиздец|піздец\w*|за[еї]б\w*|наху[йя]|йобан\w*|їбан\w*)"
+    ),
     re.compile(r"(?i)\b(?:pp|network)\s+shav(?:e|es|ing)\s+leads\b"),
     re.compile(r"(?i)\bhow\s+to\s+prove\b.{0,40}\b(?:shav|scrub|discrep)"),
     re.compile(r"(?i)\bв\s+трекере\s+\d+.{0,40}\bпартнерк"),

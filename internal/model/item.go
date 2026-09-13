@@ -22,6 +22,11 @@ type RawItem struct {
 	ChannelRole      string
 	ChannelAbout     string
 	SenderBio        string
+	LeadType         string
+	CompanyHint      string
+	SourceChat       string
+	DiscoveredVia    string
+	ColdOutreachFit  string
 	CrawlHTML        string
 	PostedAt         time.Time
 }

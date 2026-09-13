@@ -16,6 +16,7 @@ import (
 	"github.com/bidshard/parser/internal/crm/telegrambot"
 	"github.com/bidshard/parser/internal/crm/webhook"
 	"github.com/bidshard/parser/internal/gemini"
+	"github.com/bidshard/parser/internal/ops"
 	"github.com/bidshard/parser/internal/sink"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -36,10 +37,16 @@ func NewRuntime(ctx context.Context, cfg config.Config) (*Runtime, error) {
 		return nil, fmt.Errorf("mongo connect: %w", err)
 	}
 
+	settingsStore, err := ops.ConnectSettings(ctx, client, cfg.MongoDB, cfg.SettingsCollection)
+	if err != nil {
+		return nil, fmt.Errorf("crm settings: %w", err)
+	}
+
 	leadStore := store.New(client, store.Options{
 		DBName:                    cfg.MongoDB,
 		LeadsCollection:           cfg.MongoCollection,
 		EntityCollection:          cfg.EntityCollection,
+		SettingsCollection:        cfg.SettingsCollection,
 		SourceStatsCollection:     cfg.SourceStatsCollection,
 		KeywordStatsCollection:    cfg.KeywordStatsCollection,
 		CrmBoostCollection:        cfg.CrmBoostCollection,
@@ -52,6 +59,7 @@ func NewRuntime(ctx context.Context, cfg config.Config) (*Runtime, error) {
 		ExportMaxRows:             int64(cfg.ExportMaxRows),
 		SearchMaxRows:             int64(cfg.SearchMaxRows),
 	})
+	leadStore.BindSettings(settingsStore)
 
 	var explainer *explain.Service
 	if pcfg, err := parsercfg.Load(); err == nil && pcfg.GeminiAPIKey != "" {
@@ -70,6 +78,7 @@ func NewRuntime(ctx context.Context, cfg config.Config) (*Runtime, error) {
 			cfg.TelegramLeadNotifyChatIDs,
 			cfg.TelegramLeadNotifyMinScore,
 			cfg.TelegramLeadNotifyMinScoreNonTelegram,
+			cfg.TelegramLeadNotifyHeatMin,
 		)
 	}
 
@@ -95,9 +104,10 @@ func (rt *Runtime) Run(ctx context.Context, cfg config.Config) error {
 	var wg sync.WaitGroup
 
 	telegrambot.Run(ctx, telegrambot.Config{
-		Token:          cfg.TelegramBotToken,
-		AllowedChatIDs: cfg.TelegramAllowedChatIDs,
-		ExportJSONPath: cfg.TelegramExportJSONPath,
+		Token:                    cfg.TelegramBotToken,
+		AllowedChatIDs:           cfg.TelegramAllowedChatIDs,
+		ExportJSONPath:           cfg.TelegramExportJSONPath,
+		TelegramPeopleCollection: cfg.TelegramPeopleCollection,
 	}, rt.leadStore, &wg)
 
 	wg.Add(1)

@@ -120,8 +120,9 @@ type HistoryExportOptions struct {
 	Since      string
 	Out        string
 	Format     string
-	RoleFilter string
-	Relax      bool
+	RoleFilter  string
+	Relax       bool
+	OutreachFit string
 }
 
 func RunHistoryExport(ctx context.Context, opts HistoryExportOptions) error {
@@ -170,6 +171,9 @@ func RunHistoryExport(ctx context.Context, opts HistoryExportOptions) error {
 		}
 		if opts.Relax {
 			args = append(args, "--relax")
+		}
+		if strings.TrimSpace(opts.OutreachFit) != "" {
+			args = append(args, "--outreach-fit", strings.TrimSpace(opts.OutreachFit))
 		}
 		cmd := exec.CommandContext(ctx, opts.PythonBin, args...)
 		cmd.Dir = workDir

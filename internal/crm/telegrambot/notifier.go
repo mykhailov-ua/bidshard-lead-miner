@@ -2,34 +2,48 @@ package telegrambot
 
 import (
 	"context"
-	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/bidshard/parser/internal/entity"
 	"github.com/bidshard/parser/internal/sink"
 )
 
-// LeadNotifier posts accepted leads to Telegram group chats.
+// LeadNotifier posts accepted leads to Telegram group chats (queued, rate-safe).
 type LeadNotifier struct {
 	client              *Client
 	chatIDs             []int64
 	minScore            int
 	minScoreNonTelegram int
+	notifyHeatMin       string
+
+	jobs chan notifyJob
+	once sync.Once
 }
 
-func NewLeadNotifier(client *Client, chatIDs []int64, minScore, minScoreNonTelegram int) *LeadNotifier {
+type notifyJob struct {
+	hashID string
+	text   string
+}
+
+func NewLeadNotifier(client *Client, chatIDs []int64, minScore, minScoreNonTelegram int, notifyHeatMin string) *LeadNotifier {
 	if client == nil || len(chatIDs) == 0 {
 		return nil
 	}
-	return &LeadNotifier{
+	n := &LeadNotifier{
 		client:              client,
 		chatIDs:             chatIDs,
 		minScore:            minScore,
 		minScoreNonTelegram: minScoreNonTelegram,
+		notifyHeatMin:       strings.TrimSpace(notifyHeatMin),
+		jobs:                make(chan notifyJob, 512),
 	}
+	n.once.Do(func() { go n.worker() })
+	return n
 }
 
-// NotifyLead sends the lead card asynchronously (fire-and-forget).
+// NotifyLead enqueues a lead card (non-blocking for webhook handler).
 func (n *LeadNotifier) NotifyLead(ctx context.Context, doc sink.LeadDoc) {
 	if n == nil || n.client == nil || len(n.chatIDs) == 0 {
 		return
@@ -38,9 +52,23 @@ func (n *LeadNotifier) NotifyLead(ctx context.Context, doc sink.LeadDoc) {
 	if minScore > 0 && doc.Score < minScore {
 		return
 	}
+	if n.notifyHeatMin != "" && !entity.HeatTierMeetsMin(doc.HeatTier, n.notifyHeatMin) {
+		return
+	}
 	text := FormatLeadNotifyHTML(doc)
-	go n.deliver(ctx, doc.HashID, text)
+	job := notifyJob{hashID: doc.HashID, text: text}
+	select {
+	case n.jobs <- job:
+	default:
+		LogAPIError("crm telegram lead notify queue full", errQueueFull, "hash_id", doc.HashID)
+	}
 }
+
+var errQueueFull = &queueFullError{}
+
+type queueFullError struct{}
+
+func (e *queueFullError) Error() string { return "notify queue full" }
 
 func (n *LeadNotifier) notifyMinScore(source string) int {
 	src := strings.ToLower(strings.TrimSpace(source))
@@ -53,16 +81,20 @@ func (n *LeadNotifier) notifyMinScore(source string) int {
 	return n.minScore
 }
 
-func (n *LeadNotifier) deliver(_ context.Context, hashID string, text string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	for _, chatID := range n.chatIDs {
-		if err := n.client.SendHTMLMessage(ctx, chatID, text); err != nil {
-			slog.Warn("crm telegram lead notify failed",
-				"hash_id", hashID,
-				"chat_id", chatID,
-				"error", err,
-			)
+func (n *LeadNotifier) worker() {
+	for job := range n.jobs {
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		for _, chatID := range n.chatIDs {
+			if err := n.client.SendHTMLMessageRetry(ctx, chatID, job.text); err != nil {
+				LogAPIError(
+					"crm telegram lead notify failed",
+					err,
+					"hash_id", job.hashID,
+					"chat_id", chatID,
+				)
+			}
+			time.Sleep(120 * time.Millisecond)
 		}
+		cancel()
 	}
 }

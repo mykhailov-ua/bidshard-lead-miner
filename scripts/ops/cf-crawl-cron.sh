@@ -41,7 +41,10 @@ bash "$ROOT/scripts/proxy/check-proxy.sh"
 
 proxy_args=()
 if [[ -n "${PARSER_PROXY_LIST//[[:space:]]/}" ]]; then
-	proxy_args=(-e "PARSER_PROXY_LIST=${PARSER_PROXY_LIST}")
+	proxy_args+=(-e "PARSER_PROXY_LIST=${PARSER_PROXY_LIST}")
+fi
+if [[ -n "${PARSER_PROXY_LIST_FILE//[[:space:]]/}" ]]; then
+	proxy_args+=(-e "PARSER_PROXY_LIST_FILE=${PARSER_PROXY_LIST_FILE}")
 fi
 
 docker compose run --rm "${proxy_args[@]}" \

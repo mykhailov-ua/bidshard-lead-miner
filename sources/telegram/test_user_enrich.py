@@ -11,7 +11,7 @@ from sources.telegram.user_enrich import UserBioEnricher, user_enrich_limit
 class UserEnrichLimitTest(unittest.TestCase):
     def test_default_limit(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
-            self.assertEqual(user_enrich_limit(), 10)
+            self.assertEqual(user_enrich_limit(), 40)
 
     def test_custom_limit(self) -> None:
         with patch.dict("os.environ", {"TELEGRAM_USER_ENRICH_LIMIT": "3"}):
@@ -32,13 +32,14 @@ class UserBioEnricherTest(unittest.IsolatedAsyncioTestCase):
     async def test_uses_cache_without_api_call(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             store = CursorStore(Path(tmp) / "crawler.db")
-            store.set_user_bio(99, "binom affiliate")
+            store.set_user_profile(99, {"about": "binom affiliate", "user_id": 99})
             enricher = UserBioEnricher(store, 5)
             sender = SimpleNamespace(id=99)
             client = SimpleNamespace()
             with patch("sources.telegram.user_enrich._sender_id", return_value=99):
-                bio = await enricher.enrich(client, sender)
+                bio, profile = await enricher.enrich(client, sender)
             self.assertEqual(bio, "binom affiliate")
+            self.assertEqual(profile.get("about"), "binom affiliate")
             store.close()
 
     async def test_rate_limit_blocks_fetch(self) -> None:
@@ -48,8 +49,9 @@ class UserBioEnricherTest(unittest.IsolatedAsyncioTestCase):
             sender = SimpleNamespace(id=77)
             client = SimpleNamespace()
             with patch("sources.telegram.user_enrich._sender_id", return_value=77):
-                bio = await enricher.enrich(client, sender)
+                bio, profile = await enricher.enrich(client, sender)
             self.assertEqual(bio, "")
+            self.assertEqual(profile, {})
             store.close()
 
     async def test_fetch_and_cache(self) -> None:
@@ -60,11 +62,16 @@ class UserBioEnricherTest(unittest.IsolatedAsyncioTestCase):
             client = AsyncMock()
             with patch("sources.telegram.user_enrich._sender_id", return_value=55):
                 with patch(
-                    "sources.telegram.user_enrich._fetch_full_user_bio",
-                    AsyncMock(return_value="voluum postback pain"),
+                    "sources.telegram.user_enrich._fetch_full_user_profile",
+                    AsyncMock(
+                        return_value={
+                            "user_id": 55,
+                            "about": "voluum postback pain",
+                        }
+                    ),
                 ):
-                    bio = await enricher.enrich(client, sender)
-            self.assertEqual(bio, "voluum postback pain")
+                    bio, profile = await enricher.enrich(client, sender)
+            self.assertIn("voluum", bio)
             self.assertEqual(store.get_user_bio(55), "voluum postback pain")
             store.close()
 

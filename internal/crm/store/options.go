@@ -14,22 +14,23 @@ const (
 )
 
 type Options struct {
-	DBName                 string
-	LeadsCollection        string
-	SourceStatsCollection  string
-	KeywordStatsCollection string
-	CrmBoostCollection     string
-	LeadNotesCollection    string
-	LeadCrmMetaCollection  string
+	DBName                    string
+	LeadsCollection           string
+	SourceStatsCollection     string
+	KeywordStatsCollection    string
+	CrmBoostCollection        string
+	LeadNotesCollection       string
+	LeadCrmMetaCollection     string
 	WebhookFeedbackCollection string
-	EntityCollection       string
-	EntityHeatConfig       entity.HeatConfig
-	QueryTimeout           time.Duration
-	WriteTimeout           time.Duration
-	StatsTimeout           time.Duration
-	ExportMaxRows          int64
-	SearchTimeout          time.Duration
-	SearchMaxRows          int64
+	EntityCollection          string
+	SettingsCollection        string
+	EntityHeatConfig          entity.HeatConfig
+	QueryTimeout              time.Duration
+	WriteTimeout              time.Duration
+	StatsTimeout              time.Duration
+	ExportMaxRows             int64
+	SearchTimeout             time.Duration
+	SearchMaxRows             int64
 }
 
 func (o Options) statsTimeout() time.Duration {

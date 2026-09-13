@@ -25,9 +25,14 @@ export TELEGRAM_SESSION="$SESSION"
 printf 'telegram-scrape-shard: shard=%s count=%s session=%s\n' "$SHARD" "$COUNT" "$SESSION"
 
 if command -v docker >/dev/null 2>&1 && [[ -f docker-compose.yaml ]]; then
-	docker compose run --rm parser telegram scrape
+	# Cron one-shot uses stdout NDJSON pipe; TELETHON_IPC_SOCKET is for realtime only.
+	docker compose run --rm \
+		-e "TELEGRAM_SESSION=${SESSION}" \
+		-e "TELETHON_IPC_SOCKET=" \
+		-e "TELETHON_IPC_FORMAT=ndjson" \
+		parser telegram
 elif [[ -x "$ROOT/bin/parser" ]]; then
-	"$ROOT/bin/parser" telegram scrape
+	"$ROOT/bin/parser" telegram
 else
-	go run ./cmd/parser telegram scrape
+	go run ./cmd/parser telegram
 fi

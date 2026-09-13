@@ -8,6 +8,7 @@ from typing import Any
 
 from .config import ChatConfig, DiscoverConfig
 from .crossmention import discover_cross_mentions
+from .profile_link_drain import drain_profile_link_queue
 from .domains import append_domains
 from .geo_heuristic import channel_geo_reject
 from .invites import discover_invite_hashes
@@ -257,14 +258,18 @@ async def run_discover(
         # Feed tgweb crawler registry; Go reads discovered_telegram_domains.json.
         append_domains(discover.domains_path, domain_entries)
 
+    link_stats = await drain_profile_link_queue(client, store)
+
     total = len(store.list_enabled_chats())
     LOG.info(
-        "telegram discover finished manual=%d new=%d cross_mention=%d cross_forward=%d domains=%d registry=%d",
+        "telegram discover finished manual=%d new=%d cross_mention=%d cross_forward=%d "
+        "domains=%d profile_links=%s registry=%d",
         len(manual),
         len(discovered),
         len(cross_new),
         len(cross_forward),
         len(domain_entries),
+        link_stats,
         total,
     )
     return total

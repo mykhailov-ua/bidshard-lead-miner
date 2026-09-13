@@ -58,18 +58,18 @@ for row in "${rows[@]}"; do
 		continue
 	fi
 	remote_tmp="/tmp/$(basename "$file").upload"
-	printf 'vps-sync-session-pool: %s -> %s\n' "$file" "$runtime"
+	dest="/app/${runtime}"
+	# Pool paths like telethon.session.N already include .session; bare names need suffix.
+	if [[ "${runtime}" != *".session"* ]]; then
+		dest="/app/${runtime}.session"
+	fi
+	printf 'vps-sync-session-pool: %s -> %s\n' "$file" "$dest"
 	scp -P "${VPS_SSH_PORT}" -o BatchMode=yes -o ConnectTimeout=20 \
 		"$local_path" "$(vps_ssh_target):${remote_tmp}"
 	vps_ssh "set -euo pipefail; cd '${VPS_REMOTE_DIR}'
 		docker compose run --rm \
 			-v '${remote_tmp}:/tmp/session.upload:ro' \
-			--entrypoint sh parser -c '
-				install -d -m 700 /app/data/runtime
-				cp /tmp/session.upload /app/${runtime}
-				chmod 600 /app/${runtime}
-				ls -la /app/${runtime}
-			'
+			--entrypoint sh parser -c 'install -d -m 700 /app/data/runtime && cp /tmp/session.upload ${dest} && chmod 600 ${dest} && ls -la ${dest}'
 		rm -f '${remote_tmp}'
 	"
 done

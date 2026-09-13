@@ -6,9 +6,13 @@ func TestRejectNonBuyerContext(t *testing.T) {
 	if drop, _ := RejectNonBuyerContext("jobboard:jobs.dou.ua/tapok", "We are hiring media buyer", "Media Buyer"); drop {
 		t.Fatal("expected jobboard source to bypass job-context drop")
 	}
-	drop, reason := RejectNonBuyerContext("forum:affiliatefix", "We are hiring media buyer", "")
+	drop, reason := RejectNonBuyerContext("forum:affiliatefix.com", "Hiring: media buyer for FB/Google team", "")
+	if drop {
+		t.Fatalf("allowlisted forum team hiring should pass: reason=%q", reason)
+	}
+	drop, reason = RejectNonBuyerContext("forum:random-blog.com", "We are hiring media buyer", "")
 	if !drop || reason == "" {
-		t.Fatalf("job post should drop: drop=%v reason=%q", drop, reason)
+		t.Fatalf("non-allowlist forum job post should drop: drop=%v reason=%q", drop, reason)
 	}
 	drop, _ = RejectNonBuyerContext("forum:affiliatefix", "Step by step tutorial how to build landing pages", "")
 	if !drop {

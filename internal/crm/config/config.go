@@ -18,6 +18,7 @@ type Config struct {
 	CrmBoostCollection                    string
 	LeadNotesCollection                   string
 	LeadCrmMetaCollection                 string
+	SettingsCollection                    string
 	WebhookFeedbackCollection             string
 	EntityCollection                      string
 	ShutdownTimeout                       time.Duration
@@ -40,6 +41,8 @@ type Config struct {
 	TelegramLeadNotifyChatIDs             []int64
 	TelegramLeadNotifyMinScore            int
 	TelegramLeadNotifyMinScoreNonTelegram int
+	TelegramLeadNotifyHeatMin             string
+	TelegramPeopleCollection              string
 }
 
 func Load() (Config, error) {
@@ -54,6 +57,7 @@ func Load() (Config, error) {
 		CrmBoostCollection:                    env("CRM_BOOST_COLLECTION", "crm_boosts"),
 		LeadNotesCollection:                   env("CRM_LEAD_NOTES_COLLECTION", "lead_notes"),
 		LeadCrmMetaCollection:                 env("CRM_META_COLLECTION", "lead_crm_meta"),
+		SettingsCollection:                    env("CRM_SETTINGS_COLLECTION", "crm_settings"),
 		WebhookFeedbackCollection:             env("CRM_WEBHOOK_FEEDBACK_COLLECTION", "webhook_feedback"),
 		EntityCollection:                      env("ENTITY_COLLECTION", "entities"),
 		ShutdownTimeout:                       envDuration("CRM_SHUTDOWN_TIMEOUT", 30*time.Second),
@@ -74,6 +78,8 @@ func Load() (Config, error) {
 		TelegramLeadNotify:                    envBool("CRM_TELEGRAM_LEAD_NOTIFY", false),
 		TelegramLeadNotifyMinScore:            envInt("CRM_TELEGRAM_LEAD_NOTIFY_MIN_SCORE", 0),
 		TelegramLeadNotifyMinScoreNonTelegram: envInt("CRM_TELEGRAM_LEAD_NOTIFY_MIN_SCORE_NON_TELEGRAM", 70),
+		TelegramLeadNotifyHeatMin:             strings.TrimSpace(env("CRM_TELEGRAM_LEAD_NOTIFY_HEAT_MIN", "")),
+		TelegramPeopleCollection:              env("CRM_TELEGRAM_PEOPLE_COLLECTION", "telegram_people"),
 		TelegramExportJSONPath: firstNonEmpty(
 			env("CRM_TELEGRAM_EXPORT_JSON_PATH", ""),
 			env("PARSER_EXPORT_JSON_HOST", ""),

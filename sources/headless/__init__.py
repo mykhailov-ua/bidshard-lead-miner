@@ -1,1 +1,1 @@
-# Playwright headless fetch sidecar for lander/tgweb.
+# Playwright fetch sidecar for lander/tgweb (desktop Chrome-like profile; see HEADLESS.md).

@@ -68,9 +68,15 @@ docker compose stop parser
 docker compose -f docker-compose.telegram-realtime.yaml --profile parser-telegram-realtime stop parser-telegram-realtime 2>/dev/null || true
 sleep 3
 
-printf '=== history export ===\n' | tee -a "$LOG"
+EXPORT_SESSION="${TELEGRAM_SESSION:-data/runtime/telethon.session}"
+
+printf '=== history export session=%s ===\n' "$EXPORT_SESSION" | tee -a "$LOG"
 set +e
-docker compose run --rm parser telegram history-export \
+docker compose run --rm \
+	-e "TELEGRAM_SESSION=${EXPORT_SESSION}" \
+	-e "TELETHON_IPC_SOCKET=" \
+	-e "TELETHON_IPC_FORMAT=ndjson" \
+	parser telegram history-export \
 	--since "$SINCE" \
 	--out "$OUT" \
 	--role-filter "$ROLE_FILTER" \
@@ -83,6 +89,16 @@ if [[ -f "$OUT" ]]; then
 	rows=$(wc -l < "$OUT" | tr -d ' ')
 fi
 printf '[%s] export file=%s rows=%s exit=%s\n' "$(date -Is)" "$OUT" "$rows" "$rc" | tee -a "$LOG"
+
+if [[ "$rc" -eq 0 && "$rows" -gt 0 ]]; then
+	printf '=== ingest history export (%s rows) ===\n' "$rows" | tee -a "$LOG"
+	set +e
+	docker compose run --rm parser ingest --fixture="$OUT" 2>&1 | tee -a "$LOG"
+	ingest_rc=$?
+	set -e
+	printf '[%s] ingest exit=%s\n' "$(date -Is)" "$ingest_rc" | tee -a "$LOG"
+fi
+
 tail -10 "$LOG" || true
 
 trap - EXIT

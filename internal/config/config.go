@@ -63,6 +63,7 @@ type Config struct {
 	MongoURI                  string
 	MongoDB                   string
 	MongoCollection           string
+	CRMSettingsCollection     string
 	ExportJSONPath            string
 	ExportJSONFormat          string
 	MXCheck                   bool
@@ -96,83 +97,83 @@ type Config struct {
 	RedditQueries    []string
 	RedditMaxResults int
 
-	GeminiKeywordDiffEvery          int
-	GeminiKeywordDiffDir            string
-	GeminiDiscoverDiffEvery         int
-	GeminiDiscoverDiffDir           string
-	GeminiPainVocabDiffEvery        int
-	GeminiEmbedThreshold            float64
-	HardRejectShadowPct             int
-	HardRejectShadowDailyCap        int
-	StaleLeadRegradeInterval        time.Duration
-	StaleLeadAge                    time.Duration
-	DuplicateSuggestInterval        time.Duration
-	DuplicateSuggestWindow          time.Duration
-	GeoAuditInterval                time.Duration
-	GeoAuditSampleN                 int
-	GeoAuditCollection              string
-	WebhookAuditInterval            time.Duration
-	WebhookFeedbackCollection       string
-	ParserChannelTriage             bool
-	BGChannelTriageInterval         time.Duration
-	ParserDomainTriage              bool
-	ParserLanderPathDiscover        bool
-	ParserLanderPathGemini          bool
-	LanderPathsCachePath            string
-	BGDomainTriageInterval          time.Duration
-	DomainTriageCachePath           string
-	TelegramChannelsPath            string
-	TelegramCursorDBPath            string
-	GeminiEmbedPainMin              float64
-	GeminiEmbedSpamMin              float64
-	GeminiLeadAnalyzeInterval       time.Duration
-	GeminiLeadBatchSize             int
-	GeminiLeadEngageBatchSize       int
-	GeminiBatchMode                 bool          // async Batch API for warm path (50% token cost, no RPM)
-	GeminiBatchFlushInterval        time.Duration // spill -> batches.create cadence
-	GeminiBatchPollInterval         time.Duration // poll in-flight batch jobs
-	GeminiBatchSpillPath            string
-	GeminiBatchEngageSpillPath      string
-	GeminiBatchStatePath            string
-	GeminiQuotaCriticalPct          int
-	GeminiQuotaHighPct              int
-	GeminiQuotaNormalPct            int
-	GeminiQuotaLowPct               int
-	WarmLeadQueueSize               int
-	WarmAnalysisRetryMax            int           // Gemini batch retries before DLQ (WARM_ANALYSIS_RETRY_MAX)
-	WarmAnalysisRetryBase           time.Duration // Initial retry backoff (WARM_ANALYSIS_RETRY_BASE)
-	WarmAnalysisPendingScanInterval time.Duration // Mongo pending rescan period (WARM_ANALYSIS_PENDING_SCAN_INTERVAL)
-	WarmAnalysisPendingStale        time.Duration // Min pending age before rescan (WARM_ANALYSIS_PENDING_STALE)
-	WarmAnalysisDLQCollection       string        // Empty disables DLQ writes
-	WarmAnalysisShutdownDrain       time.Duration // Warm-path flush budget on shutdown (WARM_ANALYSIS_SHUTDOWN_DRAIN)
-	ParserICPClassify               bool
-	ParserICPClassifyTgWeb          bool // sync ICP on tgweb hot path even when ParserGeminiDefer is true
-	ParserLanderOutreach            bool
-	ParserGitHubEnabled             bool // opt-in: github in PARSER_SOURCE requires PARSER_GITHUB_ENABLED=true on prod
-	ParserSourcePriority            bool
-	ParserIntentClassify            bool
-	ParserIntentMinConfidence       float64
-	ParserTgWebPrescanMode          string // aggressive: site LPR bypasses keyword prescan; strict: require affiliate hits
-	ParserGeoClassify               bool
-	ParserTimeDecay                 bool
-	EnrichRDAP                      bool
-	EnrichDNS                       bool
-	EnrichEmail                     bool
-	EnrichSMTPVerify                bool
-	ProfileEnrichEnabled            bool
-	DiscordBotToken                 string
-	DiscordBotTokens                []string
-	DiscordChannelIDs               []string
-	DiscordMaxMessages              int
-	DiscordRegistryPath             string
-	DiscordChannelsPath             string
-	DiscordAutoDiscoverChannels     bool
-	DiscordJoinEnabled              bool
-	DiscordJoinDailyLimit           int
+	GeminiKeywordDiffEvery           int
+	GeminiKeywordDiffDir             string
+	GeminiDiscoverDiffEvery          int
+	GeminiDiscoverDiffDir            string
+	GeminiPainVocabDiffEvery         int
+	GeminiEmbedThreshold             float64
+	HardRejectShadowPct              int
+	HardRejectShadowDailyCap         int
+	StaleLeadRegradeInterval         time.Duration
+	StaleLeadAge                     time.Duration
+	DuplicateSuggestInterval         time.Duration
+	DuplicateSuggestWindow           time.Duration
+	GeoAuditInterval                 time.Duration
+	GeoAuditSampleN                  int
+	GeoAuditCollection               string
+	WebhookAuditInterval             time.Duration
+	WebhookFeedbackCollection        string
+	ParserChannelTriage              bool
+	BGChannelTriageInterval          time.Duration
+	ParserDomainTriage               bool
+	ParserLanderPathDiscover         bool
+	ParserLanderPathGemini           bool
+	LanderPathsCachePath             string
+	BGDomainTriageInterval           time.Duration
+	DomainTriageCachePath            string
+	TelegramChannelsPath             string
+	TelegramCursorDBPath             string
+	GeminiEmbedPainMin               float64
+	GeminiEmbedSpamMin               float64
+	GeminiLeadAnalyzeInterval        time.Duration
+	GeminiLeadBatchSize              int
+	GeminiLeadEngageBatchSize        int
+	GeminiBatchMode                  bool          // async Batch API for warm path (50% token cost, no RPM)
+	GeminiBatchFlushInterval         time.Duration // spill -> batches.create cadence
+	GeminiBatchPollInterval          time.Duration // poll in-flight batch jobs
+	GeminiBatchSpillPath             string
+	GeminiBatchEngageSpillPath       string
+	GeminiBatchStatePath             string
+	GeminiQuotaCriticalPct           int
+	GeminiQuotaHighPct               int
+	GeminiQuotaNormalPct             int
+	GeminiQuotaLowPct                int
+	WarmLeadQueueSize                int
+	WarmAnalysisRetryMax             int           // Gemini batch retries before DLQ (WARM_ANALYSIS_RETRY_MAX)
+	WarmAnalysisRetryBase            time.Duration // Initial retry backoff (WARM_ANALYSIS_RETRY_BASE)
+	WarmAnalysisPendingScanInterval  time.Duration // Mongo pending rescan period (WARM_ANALYSIS_PENDING_SCAN_INTERVAL)
+	WarmAnalysisPendingStale         time.Duration // Min pending age before rescan (WARM_ANALYSIS_PENDING_STALE)
+	WarmAnalysisDLQCollection        string        // Empty disables DLQ writes
+	WarmAnalysisShutdownDrain        time.Duration // Warm-path flush budget on shutdown (WARM_ANALYSIS_SHUTDOWN_DRAIN)
+	ParserICPClassify                bool
+	ParserICPClassifyTgWeb           bool // sync ICP on tgweb hot path even when ParserGeminiDefer is true
+	ParserLanderOutreach             bool
+	ParserGitHubEnabled              bool // opt-in: github in PARSER_SOURCE requires PARSER_GITHUB_ENABLED=true on prod
+	ParserSourcePriority             bool
+	ParserIntentClassify             bool
+	ParserIntentMinConfidence        float64
+	ParserTgWebPrescanMode           string // aggressive: site LPR bypasses keyword prescan; strict: require affiliate hits
+	ParserGeoClassify                bool
+	ParserTimeDecay                  bool
+	EnrichRDAP                       bool
+	EnrichDNS                        bool
+	EnrichEmail                      bool
+	EnrichSMTPVerify                 bool
+	ProfileEnrichEnabled             bool
+	DiscordBotToken                  string
+	DiscordBotTokens                 []string
+	DiscordChannelIDs                []string
+	DiscordMaxMessages               int
+	DiscordRegistryPath              string
+	DiscordChannelsPath              string
+	DiscordAutoDiscoverChannels      bool
+	DiscordJoinEnabled               bool
+	DiscordJoinDailyLimit            int
 	BGDiscordChannelDiscoverInterval time.Duration
-	SourceStatsCollection           string
-	CrmBoostCollection              string
-	EmbeddingCollection             string
+	SourceStatsCollection            string
+	CrmBoostCollection               string
+	EmbeddingCollection              string
 
 	BlacklistDomainsPath              string
 	BlacklistEmailsPath               string
@@ -238,6 +239,8 @@ type Config struct {
 	BGTelegramEnabled                 bool
 	BGSerpTelegramInterval            time.Duration
 	SerpTelegramDorkMax               int // PARSER_SERP_TELEGRAM_DORK_MAX; 0 = unlimited
+	SerpDorkOffset                    int // PARSER_SERP_DORK_OFFSET; rotate start index each run
+	SerpDorkBatch                     int // PARSER_SERP_DORK_BATCH; 0 = use SerpTelegramDorkMax only
 	SerpTGCatalogCrawlMax             int // PARSER_SERP_TG_CATALOG_CRAWL_MAX pages per run
 	BGTelegramDiscoverInterval        time.Duration
 	BGTelegramScrapeInterval          time.Duration
@@ -305,6 +308,7 @@ func Load() (Config, error) {
 		MongoURI:                          env("MONGO_URI", ""),
 		MongoDB:                           env("MONGO_DB", "parser"),
 		MongoCollection:                   env("PARSER_MONGO_COLLECTION", "leads"),
+		CRMSettingsCollection:             env("CRM_SETTINGS_COLLECTION", "crm_settings"),
 		ExportJSONPath:                    env("PARSER_EXPORT_JSON", ""),
 		ExportJSONFormat:                  env("PARSER_EXPORT_JSON_FORMAT", "auto"),
 		MXCheck:                           envBool("PARSER_MX_CHECK", true),
@@ -433,11 +437,11 @@ func Load() (Config, error) {
 		DiscordChannelIDs:                 parseCSV(env("DISCORD_CHANNEL_IDS", "")),
 		DiscordMaxMessages:                envInt("DISCORD_MAX_MESSAGES", 50),
 		DiscordRegistryPath:               env("DISCORD_REGISTRY_PATH", "data/runtime/discovered_discord_invites.json"),
-		DiscordChannelsPath:             env("DISCORD_CHANNELS_PATH", "data/runtime/discovered_discord_channels.json"),
-		DiscordAutoDiscoverChannels:     envBool("DISCORD_AUTO_DISCOVER_CHANNELS", true),
-		DiscordJoinEnabled:              envBool("DISCORD_JOIN_ENABLED", true),
-		DiscordJoinDailyLimit:           envInt("DISCORD_JOIN_DAILY_LIMIT", 5),
-		BGDiscordChannelDiscoverInterval: envDuration("PARSER_BG_DISCORD_CHANNEL_DISCOVER_INTERVAL", 6*time.Hour),
+		DiscordChannelsPath:               env("DISCORD_CHANNELS_PATH", "data/runtime/discovered_discord_channels.json"),
+		DiscordAutoDiscoverChannels:       envBool("DISCORD_AUTO_DISCOVER_CHANNELS", true),
+		DiscordJoinEnabled:                envBool("DISCORD_JOIN_ENABLED", true),
+		DiscordJoinDailyLimit:             envInt("DISCORD_JOIN_DAILY_LIMIT", 5),
+		BGDiscordChannelDiscoverInterval:  envDuration("PARSER_BG_DISCORD_CHANNEL_DISCOVER_INTERVAL", 6*time.Hour),
 		SourceStatsCollection:             env("SOURCE_STATS_COLLECTION", "source_stats"),
 		CrmBoostCollection:                env("CRM_BOOST_COLLECTION", "crm_boosts"),
 		EmbeddingCollection:               env("EMBEDDING_COLLECTION", "snippet_embeddings"),
@@ -474,6 +478,8 @@ func Load() (Config, error) {
 		BGTelegramEnabled:                 envBool("PARSER_BG_TELEGRAM", true),
 		BGSerpTelegramInterval:            time.Duration(envInt("PARSER_BG_SERP_TELEGRAM_MIN", 60)) * time.Minute,
 		SerpTelegramDorkMax:               envInt("PARSER_SERP_TELEGRAM_DORK_MAX", 24),
+		SerpDorkOffset:                    envInt("PARSER_SERP_DORK_OFFSET", 0),
+		SerpDorkBatch:                     envInt("PARSER_SERP_DORK_BATCH", 0),
 		SerpTGCatalogCrawlMax:             envInt("PARSER_SERP_TG_CATALOG_CRAWL_MAX", 25),
 		BGTelegramDiscoverInterval:        time.Duration(envInt("PARSER_BG_TELEGRAM_DISCOVER_MIN", 360)) * time.Minute,
 		BGTelegramScrapeInterval:          time.Duration(envInt("PARSER_BG_TELEGRAM_SCRAPE_MIN", 30)) * time.Minute,

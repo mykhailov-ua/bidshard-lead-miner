@@ -13,6 +13,11 @@ func TestDefaultForumHostsIncludeLongTail(t *testing.T) {
 		"affroom.com",
 		"cpaelites.com",
 		"digitalpoint.com",
+		"wickedfire.com",
+		"webmasterworld.com",
+		"fb-killa.pro",
+		"cpamafia.pro",
+		"offshorecorptalk.com",
 	} {
 		if !IsKnownForumHost(host) {
 			t.Fatalf("expected default host %q", host)

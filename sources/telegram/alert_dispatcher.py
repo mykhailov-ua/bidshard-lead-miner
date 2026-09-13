@@ -7,9 +7,12 @@ import html
 import json
 import logging
 import os
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
+from .bot_api import TelegramBotAPIError, log_bot_api_error, parse_bot_api_response
 from datetime import datetime, timezone
 from typing import Any
 
@@ -126,12 +129,34 @@ def _send_bot_message_sync(chat_id: str, text: str, token: str) -> None:
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
     }
-    data = urllib.parse.urlencode(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method="POST")
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        body = json.loads(resp.read().decode("utf-8"))
-    if not body.get("ok"):
-        raise RuntimeError(f"telegram bot api error: {body}")
+    data = json.dumps(payload).encode("utf-8")
+    last_exc: BaseException | None = None
+    for attempt in range(4):
+        req = urllib.request.Request(
+            url,
+            data=data,
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                raw = resp.read()
+                status = int(getattr(resp, "status", 200) or 200)
+        except urllib.error.HTTPError as exc:
+            raw = exc.read() if exc.fp else b""
+            try:
+                parse_bot_api_response("sendMessage", exc.code, raw)
+            except TelegramBotAPIError as api_exc:
+                last_exc = api_exc
+                if api_exc.error_code == 429 and attempt < 3:
+                    time.sleep(1.0 + attempt)
+                    continue
+                raise
+        else:
+            parse_bot_api_response("sendMessage", status, raw)
+            return
+    if last_exc is not None:
+        raise last_exc
 
 
 async def dispatch_pain_alert(
@@ -166,8 +191,13 @@ async def dispatch_pain_alert(
             message_id,
             pain_alert_tags(text),
         )
-    except (urllib.error.URLError, RuntimeError, TimeoutError) as exc:
-        LOG.warning("pain alert send failed: %s", exc)
+    except (urllib.error.URLError, TelegramBotAPIError, TimeoutError) as exc:
+        log_bot_api_error(
+            "pain alert send failed",
+            exc,
+            channel=channel,
+            message_id=message_id,
+        )
 
 
 def passes_pain_emit_gate(

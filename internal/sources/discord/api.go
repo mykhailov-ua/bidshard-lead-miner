@@ -100,10 +100,7 @@ func (a *API) doJSON(ctx context.Context, method, url string, body []byte, out a
 		if err != nil {
 			return err
 		}
-		req.Header.Set("Authorization", "Bot "+token)
-		req.Header.Set("Content-Type", "application/json")
-
-		raw, status, err := httpclient.DoBytes(a.client, req, 2<<20)
+		raw, status, err := a.doAuth(ctx, req, token)
 		if err != nil {
 			lastErr = err
 			a.pool.Rotate()
@@ -130,4 +127,20 @@ func (a *API) doJSON(ctx context.Context, method, url string, body []byte, out a
 		return lastErr
 	}
 	return fmt.Errorf("discord api failed")
+}
+
+func (a *API) doAuth(ctx context.Context, req *http.Request, token string) ([]byte, int, error) {
+	for _, auth := range []string{"Bot " + token, token} {
+		cloned := req.Clone(ctx)
+		cloned.Header.Set("Authorization", auth)
+		cloned.Header.Set("Content-Type", "application/json")
+		body, status, err := httpclient.DoBytes(a.client, cloned, 2<<20)
+		if err != nil {
+			return nil, 0, err
+		}
+		if status != http.StatusUnauthorized {
+			return body, status, nil
+		}
+	}
+	return nil, http.StatusUnauthorized, fmt.Errorf("discord unauthorized")
 }

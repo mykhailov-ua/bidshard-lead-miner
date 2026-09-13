@@ -4,6 +4,8 @@
 # Usage:
 #   bash scripts/ops/triage-telegram-registry.sh
 #   bash scripts/ops/triage-telegram-registry.sh data/runtime/discovered_telegram_channels.json
+#
+# On VPS, registry lives in parser_runtime volume; use docker compose path when available.
 
 set -euo pipefail
 
@@ -12,7 +14,9 @@ cd "$ROOT"
 
 PATH_ARG="${1:-data/runtime/discovered_telegram_channels.json}"
 
-python3 - <<'PY' "$PATH_ARG"
+run_triage_py() {
+	local registry_path="$1"
+	python3 - <<'PY' "$registry_path"
 import sys
 from sources.telegram.registry_triage import triage_channel_registry
 
@@ -24,7 +28,6 @@ print(
 )
 
 from pathlib import Path
-import yaml
 from sources.telegram.config import load_config
 from sources.telegram.cursor import CursorStore
 from sources.telegram.pool_sync import sync_registry_pool
@@ -43,3 +46,26 @@ if cfg_path.exists():
     finally:
         store.close()
 PY
+}
+
+if command -v docker >/dev/null 2>&1 && [[ -f docker-compose.yaml ]] && [[ ! -f "$PATH_ARG" ]]; then
+	docker compose run --rm --entrypoint python3 parser -c "
+from pathlib import Path
+from sources.telegram.registry_triage import triage_channel_registry
+from sources.telegram.config import load_config
+from sources.telegram.cursor import CursorStore
+from sources.telegram.pool_sync import sync_registry_pool
+
+path = Path('${PATH_ARG}')
+print('triage-telegram-registry:', triage_channel_registry(path))
+cfg = load_config(Path('config/sources.telegram.yaml'))
+store = CursorStore(cfg.cursor_db)
+try:
+    print('pool-sync:', sync_registry_pool(cfg, store))
+finally:
+    store.close()
+"
+	exit 0
+fi
+
+run_triage_py "$PATH_ARG"

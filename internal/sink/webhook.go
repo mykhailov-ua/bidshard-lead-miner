@@ -12,6 +12,7 @@ import (
 
 	"github.com/bidshard/parser/internal/entity"
 	"github.com/bidshard/parser/internal/model"
+	"github.com/bidshard/parser/internal/ops"
 )
 
 // WebhookClient POSTs lead JSON to an external CRM endpoint (fire-and-forget).
@@ -49,10 +50,8 @@ func (c *WebhookClient) NotifyLead(lead model.Lead) {
 	if c == nil || c.url == "" {
 		return
 	}
-	if !c.allowsHeat(lead) {
-		c.logHeatSkip(lead)
-		return
-	}
+	// Heat tier filtering for Telegram belongs in crm-bot LeadNotifier (CRM_TELEGRAM_LEAD_NOTIFY_HEAT_MIN).
+	// Always POST so crm-bot can notify; parser heat gate must not drop internal webhook delivery.
 	// Fire-and-forget: never block accept path on CRM latency or failures.
 	go c.post(lead)
 }
@@ -100,6 +99,59 @@ func AttachWebhook(inner Store, notify *WebhookClient) Store {
 	}
 }
 
+// AttachDeferAwareWebhook notifies on hot-path upsert unless defer-until-analysis is on and LLM scoring is enabled.
+func AttachDeferAwareWebhook(inner Store, notify *WebhookClient, deferUntilAnalysis bool, settings *ops.SettingsStore) Store {
+	if inner == nil || notify == nil {
+		return inner
+	}
+	if !deferUntilAnalysis {
+		return AttachWebhook(inner, notify)
+	}
+	return &deferAwareWebhookStore{
+		inner:              inner,
+		notify:             notify,
+		deferUntilAnalysis: true,
+		settings:           settings,
+	}
+}
+
+type deferAwareWebhookStore struct {
+	inner              Store
+	notify             *WebhookClient
+	deferUntilAnalysis bool
+	settings           *ops.SettingsStore
+}
+
+func (s *deferAwareWebhookStore) Exists(ctx context.Context, hashID string) (bool, error) {
+	return s.inner.Exists(ctx, hashID)
+}
+
+func (s *deferAwareWebhookStore) Upsert(ctx context.Context, lead model.Lead) error {
+	if err := s.inner.Upsert(ctx, lead); err != nil {
+		return err
+	}
+	if s.hotPathNotify(ctx) {
+		s.notify.NotifyLead(lead)
+	}
+	return nil
+}
+
+func (s *deferAwareWebhookStore) hotPathNotify(ctx context.Context) bool {
+	if s == nil || !s.deferUntilAnalysis {
+		return true
+	}
+	if s.settings == nil {
+		return false
+	}
+	return !s.settings.LLMScoringEnabled(ctx)
+}
+
+func (s *deferAwareWebhookStore) UpdateStatus(ctx context.Context, hashID, status string) error {
+	return s.inner.UpdateStatus(ctx, hashID, status)
+}
+
+var _ Store = (*deferAwareWebhookStore)(nil)
+
 // WrapWebhook wraps a Store and notifies CRM after successful upsert.
 func WrapWebhook(inner Store, url, secret string, timeout time.Duration) Store {
 	if inner == nil || strings.TrimSpace(url) == "" {
@@ -113,7 +165,7 @@ func WrapWebhook(inner Store, url, secret string, timeout time.Duration) Store {
 func StoreNotifiesCRM(s Store) bool {
 	for s != nil {
 		switch v := s.(type) {
-		case *webhookStore:
+		case *webhookStore, *deferAwareWebhookStore:
 			return true
 		case *BulkStore:
 			s = v.UnderlyingStore()

@@ -17,9 +17,10 @@ import (
 const defaultExportMaxRows = 500
 
 type ExportFilter struct {
-	Status string
-	Since  time.Time
-	Limit  int64
+	Status  string
+	Since   time.Time
+	Limit   int64
+	RawOnly bool
 }
 
 type ExportResult struct {
@@ -65,6 +66,9 @@ func (s *LeadStore) BuildNDJSON(ctx context.Context, filter ExportFilter) (Expor
 	}
 	if !filter.Since.IsZero() {
 		query["ts"] = bson.M{"$gte": filter.Since.UTC()}
+	}
+	if filter.RawOnly {
+		applyRawLeadFilter(query)
 	}
 
 	queryCtx, cancel := context.WithTimeout(ctx, s.queryTimeout)

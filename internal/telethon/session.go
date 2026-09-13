@@ -5,8 +5,11 @@ import (
 	"strings"
 )
 
-// SessionPath reads session file path from telegram yaml; default data/runtime/telethon.session.
+// SessionPath reads session file path from TELEGRAM_SESSION, else telegram yaml; default data/runtime/telethon.session.
 func SessionPath(configPath string) string {
+	if v := strings.TrimSpace(os.Getenv("TELEGRAM_SESSION")); v != "" {
+		return v
+	}
 	path := "data/runtime/telethon.session"
 	if configPath == "" {
 		return path

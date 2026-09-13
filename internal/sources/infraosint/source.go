@@ -44,22 +44,29 @@ func (c *Crawler) Collect(ctx context.Context, emit EmitFunc) error {
 		if domain == "" && len(cluster.Domains) > 0 {
 			domain = cluster.Domains[0]
 		}
+		tracker := strings.TrimSpace(cluster.TrackerHint)
 		text := fmt.Sprintf(
-			"infra cluster ip=%s domains=%d tracker=%s country=%s sample=%s",
+			"infra cluster ip=%s domains=%d tracker=%s country=%s sample=%s intel_queue=manual whitepage_tg_domain=%s",
 			cluster.IP,
 			len(cluster.Domains),
-			strings.TrimSpace(cluster.TrackerHint),
+			tracker,
 			strings.TrimSpace(cluster.Country),
+			domain,
 			domain,
 		)
 		source := fmt.Sprintf("infraosint:%s", strings.TrimSpace(cluster.IP))
 		if source == "infraosint:" {
 			source = "infraosint:cluster"
 		}
+		contact := ""
+		if domain != "" {
+			contact = "domain:" + domain
+		}
 		if err := emit(ctx, model.RawItem{
-			Source: source,
-			Raw:    text,
-			Title:  domain,
+			Source:  source,
+			Raw:     text,
+			Title:   domain,
+			Contact: contact,
 		}); err != nil {
 			return err
 		}

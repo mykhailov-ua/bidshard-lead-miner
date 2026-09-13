@@ -26,13 +26,26 @@ if [[ -f "$PROXY_ENV" ]]; then
 fi
 
 SCAN_SOURCES="${1:-forum,jobboard,tgweb,serp}"
+DIRECT_SOURCES="${BUYER_DISCOVER_DIRECT_SOURCES:-jobboard,serp,reviews,discord}"
 
 mkdir -p var
 
+# shellcheck disable=SC1091
+source "$ROOT/scripts/lib/proxy_first_url.sh"
+# shellcheck disable=SC1091
+source "$ROOT/scripts/lib/proxy_baseline_ok.sh"
+
 run_parser_discover() {
 	local subcmd="$1"
+	local dork_env=()
+	if [[ -n "${PARSER_SERP_DORK_OFFSET:-}" ]]; then
+		dork_env+=(-e "PARSER_SERP_DORK_OFFSET=${PARSER_SERP_DORK_OFFSET}")
+	fi
+	if [[ -n "${PARSER_SERP_DORK_BATCH:-}" ]]; then
+		dork_env+=(-e "PARSER_SERP_DORK_BATCH=${PARSER_SERP_DORK_BATCH}")
+	fi
 	if command -v docker >/dev/null 2>&1 && [[ -f docker-compose.yaml ]]; then
-		docker compose run --rm parser discover "$subcmd"
+		docker compose run --rm "${dork_env[@]}" parser discover "$subcmd"
 	elif [[ -x "$ROOT/bin/parser" ]]; then
 		"$ROOT/bin/parser" discover "$subcmd"
 	else
@@ -44,12 +57,41 @@ printf 'buyer-discover: jobboard SERP + employer reverse (P1 employer->TG chain)
 run_parser_discover jobboard
 
 printf 'buyer-discover: SERP harvest (jobboard, forum, tg catalog meta, t.me dorks)\n'
+# Rotate which dorks run each day; cap per run via PARSER_SERP_TELEGRAM_DORK_MAX / PARSER_SERP_DORK_BATCH.
+export PARSER_SERP_DORK_OFFSET="${PARSER_SERP_DORK_OFFSET:-$(( ($(date -u +%j) * 13) ))}"
 run_parser_discover serp
+
+printf 'buyer-discover: telethon discover (cold session, batched search queries)\n'
+bash "$ROOT/scripts/ops/telegram-discover-cold.sh"
 
 printf 'buyer-discover: triage telegram channel registry + pool sync\n'
 bash "$ROOT/scripts/ops/triage-telegram-registry.sh"
 
-printf 'buyer-discover: CF crawl sources=%s\n' "$SCAN_SOURCES"
-bash "$ROOT/scripts/ops/cf-crawl-cron.sh" "$SCAN_SOURCES"
+printf 'buyer-discover: discord invite harvest (no residential proxy)\n'
+bash "$ROOT/scripts/ops/discord-discover.sh"
+
+if [[ "$(date -u +%u)" == "7" ]]; then
+	printf 'buyer-discover: weekly discover feedback (dork prune)\n'
+	bash "$ROOT/scripts/ops/discover-feedback-cron.sh" || printf 'buyer-discover: feedback skipped (non-fatal)\n'
+fi
+
+run_direct_scan() {
+	if command -v docker >/dev/null 2>&1 && [[ -f docker-compose.yaml ]]; then
+		docker compose run --rm parser scan --source="$DIRECT_SOURCES" --output=quiet
+	elif [[ -x "$ROOT/bin/parser" ]]; then
+		"$ROOT/bin/parser" scan --source="$DIRECT_SOURCES" --output=quiet
+	else
+		go run ./cmd/parser scan --source="$DIRECT_SOURCES" --output=quiet
+	fi
+}
+
+if proxy_baseline_ok "$ROOT"; then
+	printf 'buyer-discover: CF crawl sources=%s\n' "$SCAN_SOURCES"
+	bash "$ROOT/scripts/ops/cf-crawl-cron.sh" "$SCAN_SOURCES"
+else
+	printf 'buyer-discover: proxy baseline failed; direct scan sources=%s (skip forum/tgweb)\n' \
+		"$DIRECT_SOURCES"
+	run_direct_scan
+fi
 
 printf 'buyer-discover: ok\n'

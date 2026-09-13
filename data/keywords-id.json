@@ -1,0 +1,19 @@
+{
+  "keywords": [
+    {"id": "kw-id-1", "phrase": "alternatif voluum", "weight": 24, "tag": "intent"},
+    {"id": "kw-id-2", "phrase": "alternatif keitaro", "weight": 24, "tag": "intent"},
+    {"id": "kw-id-3", "phrase": "postback tidak berfungsi", "weight": 24, "tag": "pain"},
+    {"id": "kw-id-4", "phrase": "tracker terlalu mahal", "weight": 22, "tag": "pain"},
+    {"id": "kw-id-5", "phrase": "pembayaran usdt", "weight": 28, "tag": "hot-lead"},
+    {"id": "kw-id-6", "phrase": "payout usdt trc20", "weight": 28, "tag": "hot-lead"},
+    {"id": "kw-id-7", "phrase": "media buyer indonesia", "weight": 18, "tag": "vertical"},
+    {"id": "kw-id-8", "phrase": "affiliate marketing indonesia", "weight": 16, "tag": "vertical"},
+    {"id": "kw-id-9", "phrase": "arbitrase traffic", "weight": 20, "tag": "intent"},
+    {"id": "kw-id-10", "phrase": "click id tidak ditemukan", "weight": 22, "tag": "pain"},
+    {"id": "kw-id-11", "phrase": "migrasi tracker", "weight": 22, "tag": "intent"},
+    {"id": "kw-id-12", "phrase": "self hosted tracker", "weight": 18, "tag": "intent"},
+    {"id": "kw-id-13", "phrase": "konversi tidak tercatat", "weight": 20, "tag": "pain"},
+    {"id": "kw-id-14", "phrase": "biaya langganan tracker", "weight": 18, "tag": "pain"},
+    {"id": "kw-id-15", "phrase": "tim media buying", "weight": 16, "tag": "intent"}
+  ]
+}

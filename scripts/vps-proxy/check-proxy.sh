@@ -6,29 +6,32 @@
 #   make proxy-check
 #   ./scripts/vps-proxy/check-proxy.sh http://user:pass@host:port
 #
-# Requires: PARSER_PROXY_LIST in .env or URL as first argument.
+# Requires: PARSER_PROXY_LIST or PARSER_PROXY_LIST_FILE (see scripts/lib/proxy_first_url.sh).
 # Note: betfans.nl may 403 even when credentials are valid (CF diagnostic only).
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../" && pwd)"
 
-if [[ -f "$ROOT/.env" ]]; then
+# shellcheck disable=SC1091
+source "$ROOT/scripts/lib/proxy_first_url.sh"
+
+PROXY_ENV="$ROOT/config/env/.env.proxy.local"
+if [[ -f "$PROXY_ENV" ]]; then
 	set -a
-	# shellcheck disable=SC1091
-	source "$ROOT/.env"
+	# shellcheck disable=SC1090
+	source "$PROXY_ENV"
 	set +a
 fi
 
 PROXY_URL="${1:-}"
 if [[ -z "$PROXY_URL" ]]; then
-	PROXY_URL="${PARSER_PROXY_LIST%*,*}"
-	PROXY_URL="${PROXY_URL//[[:space:]]/}"
+	PROXY_URL="$(proxy_first_url_from_env "$ROOT" || true)"
 fi
 
 if [[ -z "$PROXY_URL" ]]; then
 	echo "usage: $0 [http://user:pass@host:port]" >&2
-	echo "  or set PARSER_PROXY_LIST in .env" >&2
+	echo "  or set PARSER_PROXY_LIST / PARSER_PROXY_LIST_FILE" >&2
 	exit 1
 fi
 

@@ -51,7 +51,7 @@ func (c *Crawler) HarvestTGCatalogSources(ctx context.Context) error {
 		dorks = serpHarvestTGCatalogDorks(icp.TGCatalogDorks)
 	}
 	dorks = dorkdisable.FilterActiveDorks(c.disabledDorksPath, dorks)
-	dorks = limitSerpDorks(dorks, c.telegramDorkMax)
+	dorks = selectSerpDorks(dorks, c.dorkOffset, c.dorkBatch, c.telegramDorkMax)
 
 	catalogPath := defaultTGCatalogPagesPath
 	var added int

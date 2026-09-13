@@ -59,7 +59,7 @@ func TestFormatLeadNotifyHTMLBidShardPain(t *testing.T) {
 func TestFormatLeadNotifyHTMLMinScoreGate(t *testing.T) {
 	t.Parallel()
 	client := NewClient("token")
-	n := NewLeadNotifier(client, []int64{-1001}, 50, 70)
+	n := NewLeadNotifier(client, []int64{-1001}, 50, 70, "")
 	if n == nil {
 		t.Fatal("notifier nil")
 	}

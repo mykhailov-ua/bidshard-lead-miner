@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bidshard/parser/internal/entity"
+	"github.com/bidshard/parser/internal/ops"
 	"github.com/bidshard/parser/internal/sink"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -37,6 +38,7 @@ type LeadStore struct {
 	exportMaxRows   int64
 	searchMaxRows   int64
 	entityHeat      entity.HeatConfig
+	settings        *ops.SettingsStore
 }
 
 func New(client *mongo.Client, opts Options) *LeadStore {
@@ -78,6 +80,14 @@ func New(client *mongo.Client, opts Options) *LeadStore {
 		s.webhookFeedback = db.Collection(opts.WebhookFeedbackCollection)
 	}
 	return s
+}
+
+// BindSettings attaches the shared ops settings reader (crm_settings collection).
+func (s *LeadStore) BindSettings(settings *ops.SettingsStore) {
+	if s == nil {
+		return
+	}
+	s.settings = settings
 }
 
 func (s *LeadStore) entityHeatConfig() entity.HeatConfig {
@@ -145,6 +155,7 @@ type ListFilter struct {
 	Limit             int64
 	Cursor            *ListCursor
 	InboxOnly         bool   // exclude pending analysis and parser geo/icp rejects
+	RawOnly           bool   // keyword-scored leads (analysis_status=raw or unset)
 	Sort              string // engage, heat, score
 }
 
@@ -242,6 +253,9 @@ func (f ListFilter) matchQuery() bson.M {
 			bson.M{"score": bson.M{"$lt": score}},
 			bson.M{"score": score, "hash_id": bson.M{"$gt": hashID}},
 		}
+	}
+	if f.RawOnly {
+		applyRawLeadFilter(q)
 	}
 	return q
 }

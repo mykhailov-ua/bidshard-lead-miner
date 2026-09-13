@@ -59,6 +59,69 @@ class CursorStore:
             )
             """
         )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS telegram_chat_members (
+                chat_key TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                chat_username TEXT NOT NULL DEFAULT '',
+                username TEXT NOT NULL DEFAULT '',
+                first_name TEXT NOT NULL DEFAULT '',
+                last_name TEXT NOT NULL DEFAULT '',
+                is_bot INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (chat_key, user_id)
+            )
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_telegram_chat_members_user
+            ON telegram_chat_members (user_id)
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_profile_cache (
+                user_id INTEGER PRIMARY KEY,
+                profile_json TEXT NOT NULL DEFAULT '{}',
+                cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS profile_link_queue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                user_username TEXT NOT NULL DEFAULT '',
+                link_kind TEXT NOT NULL,
+                link_value TEXT NOT NULL,
+                source TEXT NOT NULL DEFAULT '',
+                outreach_fit TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'pending',
+                reject_reason TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                resolved_at TEXT,
+                UNIQUE(user_id, link_kind, link_value)
+            )
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_profile_link_queue_status
+            ON profile_link_queue (status, created_at)
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS telegram_channel_meta (
+                chat_key TEXT PRIMARY KEY,
+                meta_json TEXT NOT NULL DEFAULT '{}',
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
         # telegram_runtime: invite_join_* (daily), global_search_day/count (daily),
         # global_search_hour:* (hourly UTC).
         self._conn.commit()
@@ -111,6 +174,22 @@ class CursorStore:
             (
                 "lease_heartbeat_at",
                 "ALTER TABLE telegram_channels ADD COLUMN lease_heartbeat_at TEXT",
+            ),
+            (
+                "participants_harvested_at",
+                "ALTER TABLE telegram_channels ADD COLUMN participants_harvested_at TEXT",
+            ),
+            (
+                "scrape_crossmention_at",
+                "ALTER TABLE telegram_channels ADD COLUMN scrape_crossmention_at TEXT",
+            ),
+            (
+                "channel_meta_at",
+                "ALTER TABLE telegram_channels ADD COLUMN channel_meta_at TEXT",
+            ),
+            (
+                "discover_boost",
+                "ALTER TABLE telegram_channels ADD COLUMN discover_boost INTEGER NOT NULL DEFAULT 0",
             ),
         ):
             cols = {
@@ -278,10 +357,58 @@ class CursorStore:
             ORDER BY
               CASE WHEN pain_hits_30d > 0 THEN 0 ELSE 1 END,
               pain_hits_30d DESC,
+              discover_boost DESC,
+              CASE source
+                WHEN 'manual' THEN 0
+                WHEN 'cross_mention' THEN 1
+                WHEN 'scrape_cross_mention' THEN 1
+                WHEN 'scrape_cross_mention_forward' THEN 1
+                WHEN 'profile_link' THEN 2
+                WHEN 'scrape_cross_mention_invite' THEN 2
+                WHEN 'discover' THEN 3
+                WHEN 'registry_sync' THEN 4
+                ELSE 5
+              END,
               updated_at DESC
             """
         ).fetchall()
         return [self._row_to_chat(*row) for row in rows]
+
+    def list_top_buyer_supergroups(self, limit: int) -> list[ChatConfig]:
+        rows = self._conn.execute(
+            """
+            SELECT channel_key, username, invite_hash, chat_id, title, geo, role
+            FROM telegram_channels
+            WHERE enabled = 1 AND role = 'buyer_supergroup'
+            ORDER BY pain_hits_30d DESC, discover_boost DESC, updated_at DESC
+            LIMIT ?
+            """,
+            (max(1, int(limit)),),
+        ).fetchall()
+        return [self._row_to_chat(*row) for row in rows]
+
+    def bump_discover_boost(self, channel_key: str, delta: int = 1) -> None:
+        channel_key = (channel_key or "").strip()
+        if not channel_key:
+            return
+        self._conn.execute(
+            """
+            UPDATE telegram_channels
+            SET discover_boost = COALESCE(discover_boost, 0) + ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE channel_key = ?
+            """,
+            (max(1, int(delta)), channel_key),
+        )
+        self._conn.commit()
+
+    def get_user_outreach_fit(self, user_id: int) -> str:
+        if int(user_id or 0) <= 0:
+            return ""
+        cached = self.get_user_profile(int(user_id), ttl_days=365)
+        if not cached:
+            return ""
+        return str(cached.get("cold_outreach_fit") or "").strip().lower()
 
     def mark_scraped(self, channel_key: str, flood_wait_sec: int = 0) -> None:
         self._conn.execute(
@@ -585,6 +712,260 @@ class CursorStore:
         )
         self._conn.commit()
 
+    def get_user_profile(self, user_id: int, ttl_days: int = 7) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT profile_json, cached_at FROM user_profile_cache WHERE user_id = ?",
+            (int(user_id),),
+        ).fetchone()
+        if not row:
+            return None
+        raw, cached_at = row
+        fresh = self._conn.execute(
+            "SELECT 1 WHERE datetime(?) > datetime('now', ?)",
+            (cached_at, f"-{int(ttl_days)} days"),
+        ).fetchone()
+        if not fresh:
+            return None
+        try:
+            data = json.loads(str(raw or "{}"))
+        except json.JSONDecodeError:
+            return None
+        if isinstance(data, dict):
+            return data
+        return None
+
+    def set_user_profile(self, user_id: int, profile: dict[str, Any]) -> None:
+        payload = json.dumps(profile, ensure_ascii=False)
+        about = str(profile.get("about") or "")
+        self._conn.execute(
+            """
+            INSERT INTO user_profile_cache (user_id, profile_json, cached_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET
+                profile_json = excluded.profile_json,
+                cached_at = CURRENT_TIMESTAMP
+            """,
+            (int(user_id), payload),
+        )
+        self.set_user_bio(int(user_id), about)
+        self._conn.commit()
+
+    def channel_known_link(self, link_kind: str, link_value: str) -> bool:
+        kind = link_kind.strip().lower()
+        value = link_value.strip()
+        if kind == "username":
+            key = f"u:{value.lower().lstrip('@')}"
+        elif kind == "invite_hash":
+            key = f"i:{value}"
+        else:
+            return False
+        row = self._conn.execute(
+            "SELECT 1 FROM telegram_channels WHERE channel_key = ? AND enabled = 1",
+            (key,),
+        ).fetchone()
+        return row is not None
+
+    def enqueue_profile_link(
+        self,
+        user_id: int,
+        user_username: str,
+        link_kind: str,
+        link_value: str,
+        source: str,
+        outreach_fit: str,
+    ) -> bool:
+        try:
+            cur = self._conn.execute(
+                """
+                INSERT INTO profile_link_queue (
+                    user_id, user_username, link_kind, link_value, source, outreach_fit, status
+                )
+                VALUES (?, ?, ?, ?, ?, ?, 'pending')
+                """,
+                (
+                    int(user_id),
+                    user_username or "",
+                    link_kind,
+                    link_value,
+                    source,
+                    outreach_fit or "",
+                ),
+            )
+            self._conn.commit()
+            return cur.rowcount > 0
+        except sqlite3.IntegrityError:
+            return False
+
+    def list_pending_profile_links(self, limit: int) -> list[dict[str, Any]]:
+        limit = max(1, int(limit))
+        rows = self._conn.execute(
+            """
+            SELECT id, user_id, user_username, link_kind, link_value, source, outreach_fit
+            FROM profile_link_queue
+            WHERE status IN ('pending', 'flood_wait')
+            ORDER BY
+              CASE outreach_fit WHEN 'yes' THEN 0 WHEN 'maybe' THEN 1 ELSE 2 END,
+              created_at ASC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            out.append(
+                {
+                    "id": row[0],
+                    "user_id": row[1],
+                    "user_username": row[2],
+                    "link_kind": row[3],
+                    "link_value": row[4],
+                    "source": row[5],
+                    "outreach_fit": row[6],
+                }
+            )
+        return out
+
+    def profile_link_queue_stats(self) -> dict[str, int]:
+        rows = self._conn.execute(
+            """
+            SELECT status, COUNT(*) FROM profile_link_queue GROUP BY status
+            """
+        ).fetchall()
+        stats: dict[str, int] = {"total": 0}
+        for status, count in rows:
+            key = str(status or "unknown")
+            stats[key] = int(count or 0)
+            stats["total"] += int(count or 0)
+        return stats
+
+    def count_user_profiles(self) -> int:
+        row = self._conn.execute("SELECT COUNT(*) FROM user_profile_cache").fetchone()
+        return int(row[0] if row else 0)
+
+    def profile_link_discovered_via(self, user_id: int) -> str:
+        row = self._conn.execute(
+            """
+            SELECT source FROM profile_link_queue
+            WHERE user_id = ? AND status = 'resolved'
+            ORDER BY resolved_at DESC
+            LIMIT 1
+            """,
+            (int(user_id),),
+        ).fetchone()
+        if not row or not row[0]:
+            return ""
+        return "profile_link:" + str(row[0])
+
+    def mark_profile_link(self, row_id: int, status: str, reject_reason: str) -> None:
+        self._conn.execute(
+            """
+            UPDATE profile_link_queue
+            SET status = ?,
+                reject_reason = ?,
+                resolved_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (status, reject_reason or "", int(row_id)),
+        )
+        self._conn.commit()
+
+    def list_all_user_profiles(self, limit: int = 200_000) -> list[dict[str, Any]]:
+        cur = self._conn.execute(
+            """
+            SELECT profile_json FROM user_profile_cache
+            ORDER BY cached_at DESC
+            LIMIT ?
+            """,
+            (max(1, int(limit)),),
+        )
+        out: list[dict[str, Any]] = []
+        for (raw,) in cur.fetchall():
+            try:
+                row = json.loads(str(raw or "{}"))
+            except json.JSONDecodeError:
+                continue
+            if isinstance(row, dict):
+                out.append(row)
+        return out
+
+    def channel_meta_due(self, chat_key: str, refresh_days: int) -> bool:
+        row = self._conn.execute(
+            "SELECT channel_meta_at FROM telegram_channels WHERE channel_key = ?",
+            (chat_key,),
+        ).fetchone()
+        if not row or not row[0]:
+            return True
+        cur = self._conn.execute(
+            "SELECT julianday('now') - julianday(?) >= ?",
+            (row[0], max(1, int(refresh_days))),
+        ).fetchone()
+        return bool(cur and cur[0])
+
+    def upsert_channel_meta(self, chat_key: str, meta: dict[str, Any]) -> None:
+        payload = json.dumps(meta, ensure_ascii=False)
+        self._conn.execute(
+            """
+            INSERT INTO telegram_channel_meta (chat_key, meta_json, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(chat_key) DO UPDATE SET
+                meta_json = excluded.meta_json,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (chat_key, payload),
+        )
+        self._conn.execute(
+            """
+            UPDATE telegram_channels
+            SET channel_meta_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE channel_key = ?
+            """,
+            (chat_key,),
+        )
+        self._conn.commit()
+
+    def list_all_channel_meta(self, limit: int = 50_000) -> list[dict[str, Any]]:
+        cur = self._conn.execute(
+            """
+            SELECT meta_json FROM telegram_channel_meta
+            ORDER BY updated_at DESC
+            LIMIT ?
+            """,
+            (max(1, int(limit)),),
+        )
+        out: list[dict[str, Any]] = []
+        for (raw,) in cur.fetchall():
+            try:
+                row = json.loads(str(raw or "{}"))
+            except json.JSONDecodeError:
+                continue
+            if isinstance(row, dict):
+                out.append(row)
+        return out
+
+    def scrape_crossmention_due(self, chat_key: str, refresh_days: int) -> bool:
+        row = self._conn.execute(
+            "SELECT scrape_crossmention_at FROM telegram_channels WHERE channel_key = ?",
+            (chat_key,),
+        ).fetchone()
+        if not row or not row[0]:
+            return True
+        cur = self._conn.execute(
+            "SELECT julianday('now') - julianday(?) >= ?",
+            (row[0], max(1, int(refresh_days))),
+        ).fetchone()
+        return bool(cur and cur[0])
+
+    def touch_scrape_crossmention(self, chat_key: str) -> None:
+        self._conn.execute(
+            """
+            UPDATE telegram_channels
+            SET scrape_crossmention_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE channel_key = ?
+            """,
+            (chat_key,),
+        )
+        self._conn.commit()
+
     def _expire_stale_leases(self, stale_sec: int) -> int:
         cur = self._conn.execute(
             """
@@ -648,6 +1029,18 @@ class CursorStore:
                 ORDER BY
                   CASE WHEN pain_hits_30d > 0 THEN 0 ELSE 1 END,
                   pain_hits_30d DESC,
+                  discover_boost DESC,
+                  CASE source
+                    WHEN 'manual' THEN 0
+                    WHEN 'cross_mention' THEN 1
+                    WHEN 'scrape_cross_mention' THEN 1
+                    WHEN 'scrape_cross_mention_forward' THEN 1
+                    WHEN 'profile_link' THEN 2
+                    WHEN 'scrape_cross_mention_invite' THEN 2
+                    WHEN 'discover' THEN 3
+                    WHEN 'registry_sync' THEN 4
+                    ELSE 5
+                  END,
                   updated_at DESC
                 LIMIT ?
                 """,
@@ -736,6 +1129,116 @@ class CursorStore:
         )
         self._conn.commit()
         return int(cur.rowcount or 0)
+
+    def participants_harvest_due(self, chat_key: str, refresh_days: int) -> bool:
+        row = self._conn.execute(
+            """
+            SELECT participants_harvested_at FROM telegram_channels
+            WHERE channel_key = ?
+            """,
+            (chat_key,),
+        ).fetchone()
+        if not row or not row[0]:
+            return True
+        cur = self._conn.execute(
+            """
+            SELECT julianday('now') - julianday(?) >= ?
+            """,
+            (row[0], max(1, int(refresh_days))),
+        ).fetchone()
+        return bool(cur and cur[0])
+
+    def touch_participants_harvest(self, chat_key: str) -> None:
+        self._conn.execute(
+            """
+            UPDATE telegram_channels
+            SET participants_harvested_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE channel_key = ?
+            """,
+            (chat_key,),
+        )
+        self._conn.commit()
+
+    def upsert_chat_members(
+        self,
+        chat_key: str,
+        chat_username: str,
+        members: list[dict[str, Any]],
+    ) -> int:
+        if not members:
+            return 0
+        chat_username = (chat_username or "").lower().lstrip("@")
+        rows = 0
+        for m in members:
+            user_id = int(m.get("user_id") or 0)
+            if user_id <= 0:
+                continue
+            self._conn.execute(
+                """
+                INSERT INTO telegram_chat_members (
+                    chat_key, user_id, chat_username, username, first_name, last_name,
+                    is_bot, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(chat_key, user_id) DO UPDATE SET
+                    chat_username = excluded.chat_username,
+                    username = excluded.username,
+                    first_name = excluded.first_name,
+                    last_name = excluded.last_name,
+                    is_bot = excluded.is_bot,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    chat_key,
+                    user_id,
+                    chat_username,
+                    str(m.get("username") or ""),
+                    str(m.get("first_name") or ""),
+                    str(m.get("last_name") or ""),
+                    1 if m.get("is_bot") else 0,
+                ),
+            )
+            rows += 1
+        self._conn.commit()
+        return rows
+
+    def list_all_chat_members(self, limit: int = 500_000) -> list[dict[str, Any]]:
+        cur = self._conn.execute(
+            """
+            SELECT chat_key, chat_username, user_id, username, first_name, last_name,
+                   is_bot, updated_at
+            FROM telegram_chat_members
+            ORDER BY updated_at DESC
+            LIMIT ?
+            """,
+            (max(1, int(limit)),),
+        )
+        out: list[dict[str, Any]] = []
+        for row in cur.fetchall():
+            out.append(
+                {
+                    "chat_key": row[0],
+                    "chat_username": row[1],
+                    "user_id": int(row[2]),
+                    "username": row[3],
+                    "first_name": row[4],
+                    "last_name": row[5],
+                    "is_bot": bool(row[6]),
+                    "updated_at": row[7],
+                }
+            )
+        return out
+
+    def count_chat_members(self, chat_key: str | None = None) -> int:
+        if chat_key:
+            row = self._conn.execute(
+                "SELECT COUNT(*) FROM telegram_chat_members WHERE chat_key = ?",
+                (chat_key,),
+            ).fetchone()
+        else:
+            row = self._conn.execute("SELECT COUNT(*) FROM telegram_chat_members").fetchone()
+        return int(row[0] if row else 0)
 
     def close(self) -> None:
         self._conn.close()
