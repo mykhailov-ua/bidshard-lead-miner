@@ -31,6 +31,18 @@ class ProfileTest(unittest.TestCase):
             self.assertFalse(kw["headless"])
             self.assertNotIn("--headless=new", kw["args"])
 
+    def test_locale_from_proxy_when_unset(self) -> None:
+        env = {
+            "PARSER_PROXY_LIST": "http://user-country-pl:pass@gw.example:823",
+            "PARSER_HEADLESS_PROXY_INDEX": "0",
+        }
+        with mock.patch.dict(os.environ, env, clear=False):
+            os.environ.pop("PARSER_HEADLESS_LOCALE", None)
+            os.environ.pop("PARSER_HEADLESS_TIMEZONE", None)
+            p = load_profile()
+            self.assertEqual(p.locale, "pl-PL")
+            self.assertEqual(p.timezone_id, "Europe/Warsaw")
+
 
 if __name__ == "__main__":
     unittest.main()

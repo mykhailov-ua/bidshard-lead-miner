@@ -74,6 +74,22 @@ func parseSourceList(raw string) []string {
 	return out
 }
 
+// WireForumFetcher builds forum HTTP fetch with optional CF -> headless defer enqueue.
+func WireForumFetcher(cfg config.Config) *forum.Fetcher {
+	f := forum.NewFetcherForSource(cfg, "forum")
+	if cfg.LanderHeadlessDefer {
+		f.SetCFHeadlessEnqueue(func(fetchURL string, proxyIndex int) error {
+			return lander.EnqueueHeadless(cfg.LanderHeadlessQueuePath, lander.HeadlessQueueItem{
+				URL:          fetchURL,
+				SourceFamily: "forum",
+				Reason:       "cf_http_block",
+				ProxyIndex:   proxyIndex,
+			})
+		})
+	}
+	return f
+}
+
 func canonicalSourceName(name string) string {
 	name = strings.TrimSpace(strings.ToLower(name))
 	if name == "warrior" {
@@ -87,7 +103,7 @@ func buildOne(cfg config.Config, name string) (Source, bool) {
 	case "supply":
 		return wrapSupply(supply.NewCrawler(cfg, nil)), true
 	case "forum":
-		return wrapForum(forum.NewAdapter(cfg, nil)), true
+		return wrapForum(forum.NewAdapter(cfg, WireForumFetcher(cfg))), true
 	case "lander":
 		var headless lander.HeadlessFetcher = lander.DisabledHeadless{}
 		if cfg.LanderHeadless {

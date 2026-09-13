@@ -10,12 +10,13 @@ import (
 )
 
 func TestPlaywrightPoolMockFetch(t *testing.T) {
+	ResetHeadlessPersonaBudgetForTest()
 	pool := NewPlaywrightPoolFetcher(2, 5*time.Second)
-	pool.SetMockRunner(func(ctx context.Context, url string) (string, error) {
+	pool.SetMockRunner(func(ctx context.Context, url string, params HeadlessFetchParams) (string, error) {
 		return "<html><body><script id=\"__NEXT_DATA__\">{}</script><p>Rendered text with contact telegram:@lander_test</p></body></html>", nil
 	})
 
-	html, err := pool.Fetch(context.Background(), "https://example.com/lander")
+	html, err := pool.Fetch(context.Background(), "https://example.com/lander", HeadlessFetchParams{})
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -32,7 +33,7 @@ func TestCrawlerHeadlessFallback(t *testing.T) {
 
 	httpFetcher := NewHTTPFetcher(100*time.Millisecond, "")
 	pool := NewPlaywrightPoolFetcher(1, 1*time.Second)
-	pool.SetMockRunner(func(ctx context.Context, url string) (string, error) {
+	pool.SetMockRunner(func(ctx context.Context, url string, params HeadlessFetchParams) (string, error) {
 		return "<html><body><p>Headless contact telegram:@fallback_test</p></body></html>", nil
 	})
 

@@ -22,6 +22,7 @@ type HeadlessQueueItem struct {
 	Reason       string `json:"reason"`
 	QueuedAt     string `json:"queued_at"`
 	Attempts     int    `json:"attempts"`
+	ProxyIndex   int    `json:"proxy_index,omitempty"`
 }
 
 type headlessQueueFile struct {
@@ -49,6 +50,10 @@ func EnqueueHeadless(path string, item HeadlessQueueItem) error {
 		item.QueuedAt = time.Now().UTC().Format(time.RFC3339)
 	}
 
+	if !AllowHeadlessPersona(item.ProxyIndex) {
+		return fmt.Errorf("headless persona daily cap exceeded (proxy_index=%d)", item.ProxyIndex)
+	}
+
 	headlessQueueMu.Lock()
 	defer headlessQueueMu.Unlock()
 
@@ -64,7 +69,11 @@ func EnqueueHeadless(path string, item HeadlessQueueItem) error {
 	}
 	file.Items = append(file.Items, item)
 	metrics.RecordHeadlessQueued(1)
-	return writeHeadlessQueue(path, file)
+	if err := writeHeadlessQueue(path, file); err != nil {
+		return err
+	}
+	RecordHeadlessPersona(item.ProxyIndex)
+	return nil
 }
 
 // LoadPendingHeadless returns queued items ready for drain (attempts < maxAttempts).
@@ -229,6 +238,11 @@ func RawSourceLabel(item HeadlessQueueItem) string {
 			return "tgweb"
 		}
 		return "tgweb:" + host
+	case "forum":
+		if host == "" {
+			return "forum"
+		}
+		return "forum:" + host
 	default:
 		if host == "" {
 			return "lander"

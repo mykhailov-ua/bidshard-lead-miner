@@ -189,14 +189,25 @@ Cloudflare Bot Management does **not** expose a public "fraud score = 0" to this
 
 ---
 
-## 7. Gaps and plausible next code (not committed)
+## 7. Gaps and plausible next code
 
-| Idea | Why |
-|------|-----|
-| `storage_state` / `user_data_dir` per sticky proxy session | Reuse cookies and `cf_clearance` on same host |
-| Playwright proxy selection matches Go rotation index | Avoid HTTP on proxy A and browser on proxy B |
-| Optional browser adapter for forum | HTTP-only hits CF wall on some hosts |
-| Tune parallelism per proxy "persona" | Reduce burst fingerprint on one egress |
+| Idea | Why | Status |
+|------|-----|--------|
+| `storage_state` per sticky proxy session | Reuse cookies and `cf_clearance` on same host | **Done (P0):** `data/runtime/browser_profiles/proxy_N/storage_state.json` |
+| Playwright proxy index matches Go HTTP pool | Same persona on wire | **Done (P0):** `LastProxyIndex`, `PARSER_HEADLESS_PROXY_INDEX`, queue `proxy_index` |
+### P2 (done)
+
+| Item | Implementation |
+|------|----------------|
+| CF 403/503 + CF-Ray -> headless queue | `page_fetch` `cf_http_block`, `forum/fetch.go` enqueue when `PARSER_LANDER_HEADLESS_DEFER` |
+| Daily cap per proxy persona | `PARSER_HEADLESS_MAX_URLS_PER_PROXY_DAY` (default 40), `headless_persona_budget.go` |
+
+### P1 (done)
+
+| Item | Implementation |
+|------|----------------|
+| Auto locale/timezone from proxy username | `sources/headless/geo_from_proxy.py`, `profile.py`, `geo_env.py`, `headless_proxy_geo.sh` |
+| Chrome channel + xvfb for drain | `Dockerfile.playwright` (`playwright install chrome`, xvfb), `headless-crawl-cron.sh`, `headless-xvfb.sh` |
 
 ---
 

@@ -178,8 +178,18 @@ We do **not** guarantee GPU WebGL strings (section 4) in Docker; use host Chrome
 | `PARSER_HEADLESS_TIMEOUT_MS` | 30000 | Navigation timeout |
 | `PARSER_HEADLESS_CHANNEL` | (bundled Chromium) | `chrome` for system Google Chrome |
 | `PARSER_HEADLESS_SEED` | (random) | Fixed RNG for reproducing motion in debug |
+| `PARSER_HEADLESS_PROXY_INDEX` | (set by Go) | Index into `PARSER_PROXY_LIST`; matches last HTTP crawl proxy |
+| `PARSER_HEADLESS_PROFILE_ROOT` | `data/runtime/browser_profiles` | Per-proxy `storage_state.json` (cookies) |
 
 Parser toggles unchanged: `PARSER_LANDER_HEADLESS`, `PARSER_LANDER_HEADLESS_DEFER`, drain cron, `PARSER_LANDER_HEADLESS_MAX_BROWSERS`.
+
+Defer queue items include `proxy_index` so nightly drain reuses the same proxy persona and saved cookies.
+
+When `PARSER_HEADLESS_LOCALE` / `PARSER_HEADLESS_TIMEZONE` are unset, Playwright infers them from the active proxy URL username (`country-pl`, `geo-de`, etc.) via `geo_from_proxy.py`. Override anytime with explicit env.
+
+Nightly drain (`headless-crawl-cron.sh`) defaults `PARSER_HEADLESS_CHANNEL=chrome` in the Playwright Docker image. Headed runs on Linux without a display: `PARSER_HEADLESS_XVFB=1` and `scripts/ops/headless-xvfb.sh`.
+
+When HTTP returns Cloudflare-style 403/503 (`CF-Ray` or challenge body), tgweb/lander enqueue or inline-fetch via Playwright (`cf_http_block`). Forum threads enqueue the same defer queue when `PARSER_LANDER_HEADLESS_DEFER=true`. Daily rhythm: `PARSER_HEADLESS_MAX_URLS_PER_PROXY_DAY` (per proxy index, UTC).
 
 ### Ops checklist
 

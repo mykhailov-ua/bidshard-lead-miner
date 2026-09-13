@@ -10,6 +10,7 @@ import (
 )
 
 func TestEnqueueHeadlessDedupes(t *testing.T) {
+	ResetHeadlessPersonaBudgetForTest()
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "headless_queue.json")
 	item := HeadlessQueueItem{
@@ -41,7 +42,7 @@ func TestPageFetcherDeferEnqueuesInsteadOfHeadless(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "headless_queue.json")
 	fetcher := newHTTPFetcher(srv.Client(), "")
 	pool := NewPlaywrightPoolFetcher(1, time.Second)
-	pool.SetMockRunner(func(ctx context.Context, url string) (string, error) {
+	pool.SetMockRunner(func(ctx context.Context, url string, params HeadlessFetchParams) (string, error) {
 		t.Fatal("headless should not run in defer mode")
 		return "", nil
 	})
@@ -63,6 +64,9 @@ func TestPageFetcherDeferEnqueuesInsteadOfHeadless(t *testing.T) {
 	}
 	if len(pending) != 1 || pending[0].URL != srv.URL {
 		t.Fatalf("pending=%v", pending)
+	}
+	if pending[0].ProxyIndex != -1 {
+		t.Fatalf("proxy_index=%d want -1 for direct httptest client", pending[0].ProxyIndex)
 	}
 }
 

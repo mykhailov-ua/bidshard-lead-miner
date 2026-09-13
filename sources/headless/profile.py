@@ -48,9 +48,27 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _locale_timezone() -> tuple[str, str]:
+    locale_raw = os.environ.get("PARSER_HEADLESS_LOCALE", "").strip()
+    tz_raw = os.environ.get("PARSER_HEADLESS_TIMEZONE", "").strip()
+    if not locale_raw or not tz_raw:
+        from sources.headless.geo_from_proxy import active_proxy_url, infer_locale_timezone
+
+        url = active_proxy_url()
+        if url:
+            inferred = infer_locale_timezone(url)
+            if inferred:
+                if not locale_raw:
+                    locale_raw = inferred[0]
+                if not tz_raw:
+                    tz_raw = inferred[1]
+    locale = locale_raw or DEFAULT_LOCALE
+    tz = tz_raw or DEFAULT_TIMEZONE
+    return locale, tz
+
+
 def load_profile() -> BrowserProfile:
-    locale = os.environ.get("PARSER_HEADLESS_LOCALE", DEFAULT_LOCALE).strip() or DEFAULT_LOCALE
-    tz = os.environ.get("PARSER_HEADLESS_TIMEZONE", DEFAULT_TIMEZONE).strip() or DEFAULT_TIMEZONE
+    locale, tz = _locale_timezone()
     ua = os.environ.get("PARSER_HEADLESS_USER_AGENT", DEFAULT_USER_AGENT).strip() or DEFAULT_USER_AGENT
     lang_primary = locale.split("-")[0] if "-" in locale else locale
     accept_language = f"{locale},{lang_primary};q=0.9"

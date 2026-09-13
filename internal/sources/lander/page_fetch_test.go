@@ -57,7 +57,7 @@ func TestPageFetcherHeadlessOnHTTPFailure(t *testing.T) {
 
 	fetcher := newHTTPFetcher(server.Client(), "")
 	pool := NewPlaywrightPoolFetcher(1, time.Second)
-	pool.SetMockRunner(func(ctx context.Context, url string) (string, error) {
+	pool.SetMockRunner(func(ctx context.Context, url string, params HeadlessFetchParams) (string, error) {
 		return "<html><body><footer>partnerships@headless.example.com</footer></body></html>", nil
 	})
 
@@ -90,7 +90,7 @@ func TestPageFetcherHeadlessOnEmptyAfterRSC(t *testing.T) {
 
 	fetcher := newHTTPFetcher(server.Client(), "")
 	pool := NewPlaywrightPoolFetcher(1, time.Second)
-	pool.SetMockRunner(func(ctx context.Context, url string) (string, error) {
+	pool.SetMockRunner(func(ctx context.Context, url string, params HeadlessFetchParams) (string, error) {
 		return "<html><body><a href=\"mailto:affiliates@headless.example.com\">contact</a></body></html>", nil
 	})
 

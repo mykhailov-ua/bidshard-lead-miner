@@ -68,7 +68,10 @@ func RunHeadlessDrain(ctx context.Context, cfg config.Config, deps *runtimeDeps)
 		default:
 		}
 
-		html, err := pool.Fetch(workCtx, item.URL)
+		html, err := pool.Fetch(workCtx, item.URL, lander.HeadlessFetchParams{
+			ProxyIndex:            item.ProxyIndex,
+			PersonaAlreadyCounted: true,
+		})
 		if err != nil {
 			slog.Warn("headless drain fetch failed", "url", item.URL, "error", err)
 			_ = lander.BumpHeadlessQueueAttempts(cfg.LanderHeadlessQueuePath, item.URL)

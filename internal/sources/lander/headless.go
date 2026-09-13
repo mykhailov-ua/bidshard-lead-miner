@@ -12,14 +12,15 @@ import (
 
 // HeadlessFetcher retrieves dynamically rendered HTML for Next.js App Router / RSC pages.
 type HeadlessFetcher interface {
-	Fetch(ctx context.Context, url string) (string, error)
+	Fetch(ctx context.Context, url string, params HeadlessFetchParams) (string, error)
 }
 
 type DisabledHeadless struct{}
 
-func (DisabledHeadless) Fetch(ctx context.Context, url string) (string, error) {
+func (DisabledHeadless) Fetch(ctx context.Context, url string, params HeadlessFetchParams) (string, error) {
 	_ = ctx
 	_ = url
+	_ = params
 	return "", fmt.Errorf("headless disabled")
 }
 
@@ -30,7 +31,7 @@ type PlaywrightPoolFetcher struct {
 	maxBrowsers  int
 	active       int
 	fetchTimeout time.Duration
-	mockRunner   func(ctx context.Context, url string) (string, error)
+	mockRunner   func(ctx context.Context, url string, params HeadlessFetchParams) (string, error)
 }
 
 func NewPlaywrightPoolFetcher(maxBrowsers int, timeout time.Duration) *PlaywrightPoolFetcher {
@@ -46,14 +47,19 @@ func NewPlaywrightPoolFetcher(maxBrowsers int, timeout time.Duration) *Playwrigh
 	}
 }
 
-func (p *PlaywrightPoolFetcher) SetMockRunner(fn func(ctx context.Context, url string) (string, error)) {
+func (p *PlaywrightPoolFetcher) SetMockRunner(fn func(ctx context.Context, url string, params HeadlessFetchParams) (string, error)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.mockRunner = fn
 }
 
-func (p *PlaywrightPoolFetcher) Fetch(ctx context.Context, pageURL string) (string, error) {
+func (p *PlaywrightPoolFetcher) Fetch(ctx context.Context, pageURL string, params HeadlessFetchParams) (string, error) {
 	p.mu.Lock()
+	proxyIdx := params.ProxyIndex
+	if !params.PersonaAlreadyCounted && !AllowHeadlessPersona(proxyIdx) {
+		return "", fmt.Errorf("headless persona daily cap exceeded (proxy_index=%d)", proxyIdx)
+	}
+
 	if p.active >= p.maxBrowsers {
 		p.mu.Unlock()
 		return "", fmt.Errorf("headless browser pool saturated (%d/%d)", p.active, p.maxBrowsers)
@@ -75,7 +81,7 @@ func (p *PlaywrightPoolFetcher) Fetch(ctx context.Context, pageURL string) (stri
 	p.mu.Unlock()
 
 	if runner != nil {
-		return runner(ctx, pageURL)
+		return runner(ctx, pageURL, params)
 	}
 
 	python := strings.TrimSpace(os.Getenv("PARSER_TELETHON_PYTHON"))
@@ -84,7 +90,15 @@ func (p *PlaywrightPoolFetcher) Fetch(ctx context.Context, pageURL string) (stri
 	}
 	// One subprocess per fetch (Playwright). BPF may show thread_fork noise; not an FD leak if processes exit.
 	cmd := exec.CommandContext(ctx, python, "-m", "sources.headless.fetch", pageURL)
-	cmd.Env = append(os.Environ(), "PYTHONPATH="+headlessRepoRoot())
+	profileRoot := strings.TrimSpace(os.Getenv("PARSER_HEADLESS_PROFILE_ROOT"))
+	if profileRoot == "" {
+		profileRoot = DefaultHeadlessProfileRoot
+	}
+	cmd.Env = append(os.Environ(),
+		"PYTHONPATH="+headlessRepoRoot(),
+		fmt.Sprintf("PARSER_HEADLESS_PROXY_INDEX=%d", params.ProxyIndex),
+		"PARSER_HEADLESS_PROFILE_ROOT="+profileRoot,
+	)
 	out, err := cmd.Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
@@ -95,6 +109,9 @@ func (p *PlaywrightPoolFetcher) Fetch(ctx context.Context, pageURL string) (stri
 	html := strings.TrimSpace(string(out))
 	if html == "" {
 		return "", fmt.Errorf("headless fetch returned empty HTML")
+	}
+	if !params.PersonaAlreadyCounted {
+		RecordHeadlessPersona(proxyIdx)
 	}
 	return html, nil
 }

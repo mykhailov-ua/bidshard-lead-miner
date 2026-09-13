@@ -16,11 +16,21 @@ import (
 	"github.com/bidshard/parser/internal/metrics"
 )
 
+// CFHeadlessEnqueueFunc queues a URL for Playwright drain (wired from registry to avoid import cycles).
+type CFHeadlessEnqueueFunc func(fetchURL string, proxyIndex int) error
+
 type Fetcher struct {
-	client   *http.Client
-	limiters *limit.HostLimiters
-	breaker  *breaker.SourceBreaker
-	baseURL  string
+	client        *http.Client
+	limiters      *limit.HostLimiters
+	breaker       *breaker.SourceBreaker
+	baseURL       string
+	headlessDefer bool
+	cfEnqueue     CFHeadlessEnqueueFunc
+}
+
+// SetCFHeadlessEnqueue wires defer-queue enqueue when HTTP hits Cloudflare blocks.
+func (f *Fetcher) SetCFHeadlessEnqueue(fn CFHeadlessEnqueueFunc) {
+	f.cfEnqueue = fn
 }
 
 func NewFetcher(timeout time.Duration, baseURL string) *Fetcher {
@@ -38,10 +48,11 @@ func NewFetcherWithConfig(cfg config.Config) *Fetcher {
 
 func NewFetcherForSource(cfg config.Config, sourceID string) *Fetcher {
 	return &Fetcher{
-		client:   httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLsForSource(sourceID), sourceID),
-		limiters: limit.NewHostLimiters(0.5, 1),
-		breaker:  breaker.NewSourceBreaker(),
-		baseURL:  strings.TrimSuffix(cfg.ForumBaseURL, "/"),
+		client:        httpclient.CrawlClient(cfg.HTTPTimeout, cfg.ProxyURLsForSource(sourceID), sourceID),
+		limiters:      limit.NewHostLimiters(0.5, 1),
+		breaker:       breaker.NewSourceBreaker(),
+		baseURL:       strings.TrimSuffix(cfg.ForumBaseURL, "/"),
+		headlessDefer: cfg.LanderHeadlessDefer,
 	}
 }
 
@@ -101,6 +112,9 @@ func (f *Fetcher) Get(ctx context.Context, rawURL string) (string, error) {
 		}
 		if resp.StatusCode == http.StatusOK {
 			return string(body), nil
+		}
+		if f.headlessDefer && f.cfEnqueue != nil && httpclient.LooksCloudflareBlocked(resp.StatusCode, resp.Header, body) {
+			_ = f.cfEnqueue(fetchURL, httpclient.LastProxyIndex(f.client))
 		}
 		lastErr = fmt.Errorf("http %d", resp.StatusCode)
 		if (resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusServiceUnavailable) && attempt < maxAttempts-1 {

@@ -15,6 +15,14 @@ import (
 	"github.com/bidshard/parser/internal/limit"
 )
 
+// LastProxyIndex returns the proxy pool index from the last HTTP request, or -1.
+func (f *HTTPFetcher) LastProxyIndex() int {
+	if f == nil || f.client == nil {
+		return -1
+	}
+	return httpclient.LastProxyIndex(f.client)
+}
+
 type HTTPFetcher struct {
 	client  *http.Client
 	breaker *breaker.SourceBreaker
@@ -61,30 +69,36 @@ func (f *HTTPFetcher) Get(ctx context.Context, rawURL string) (string, error) {
 
 // GetStatus returns response body and status code. Transport errors return status 0.
 func (f *HTTPFetcher) GetStatus(ctx context.Context, rawURL string) (body string, status int, err error) {
-	return f.getStatus(ctx, rawURL, false, true)
+	body, status, _, err = f.getStatusMeta(ctx, rawURL, false, true)
+	return body, status, err
+}
+
+// GetStatusMeta returns body, status, and whether the response looks like a Cloudflare block.
+func (f *HTTPFetcher) GetStatusMeta(ctx context.Context, rawURL string, logNonOK bool) (body string, status int, cfBlocked bool, err error) {
+	return f.getStatusMeta(ctx, rawURL, false, logNonOK)
 }
 
 // GetRSC fetches the App Router flight payload via RSC HTTP headers (no browser hydration).
 func (f *HTTPFetcher) GetRSC(ctx context.Context, rawURL string) (string, error) {
-	body, _, err := f.getStatus(ctx, rawURL, true, true)
+	body, _, _, err := f.getStatusMeta(ctx, rawURL, true, true)
 	return body, err
 }
 
-func (f *HTTPFetcher) getStatus(ctx context.Context, rawURL string, rsc bool, logNonOK bool) (string, int, error) {
+func (f *HTTPFetcher) getStatusMeta(ctx context.Context, rawURL string, rsc bool, logNonOK bool) (string, int, bool, error) {
 	if f.breaker != nil && !f.breaker.Allow("lander") {
-		return "", 0, fmt.Errorf("source circuit open")
+		return "", 0, false, fmt.Errorf("source circuit open")
 	}
 
 	host := hostFromURL(rawURL)
 	if err := f.limiter.Wait(ctx, host); err != nil {
-		return "", 0, err
+		return "", 0, false, err
 	}
 
 	url := resolveFetchURL(f.baseURL, rawURL)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", 0, err
+		return "", 0, false, err
 	}
 	if rsc {
 		// Next.js App Router flight request; response body is RSC wire, not HTML.
@@ -101,7 +115,7 @@ func (f *HTTPFetcher) getStatus(ctx context.Context, rawURL string, rsc bool, lo
 			"rsc", rsc,
 			"error", err,
 		)
-		return "", 0, err
+		return "", 0, false, err
 	}
 
 	if f.breaker != nil {
@@ -116,8 +130,9 @@ func (f *HTTPFetcher) getStatus(ctx context.Context, rawURL string, rsc bool, lo
 			"status", resp.StatusCode,
 			"error", err,
 		)
-		return "", resp.StatusCode, err
+		return "", resp.StatusCode, false, err
 	}
+	cfBlocked := httpclient.LooksCloudflareBlocked(resp.StatusCode, resp.Header, rawBody)
 	bodyStr := string(rawBody)
 	if resp.StatusCode != http.StatusOK {
 		if logNonOK {
@@ -129,7 +144,7 @@ func (f *HTTPFetcher) getStatus(ctx context.Context, rawURL string, rsc bool, lo
 				"body_preview", diag.Preview(bodyStr, 300),
 			)
 		}
-		return bodyStr, resp.StatusCode, fmt.Errorf("http %d", resp.StatusCode)
+		return bodyStr, resp.StatusCode, cfBlocked, fmt.Errorf("http %d", resp.StatusCode)
 	}
 
 	slog.Debug("lander http ok",
@@ -139,7 +154,7 @@ func (f *HTTPFetcher) getStatus(ctx context.Context, rawURL string, rsc bool, lo
 		"body_bytes", len(rawBody),
 		"content_type", resp.Header.Get("Content-Type"),
 	)
-	return bodyStr, resp.StatusCode, nil
+	return bodyStr, resp.StatusCode, cfBlocked, nil
 }
 
 func hostFromURL(raw string) string {

@@ -19,6 +19,8 @@ services:
       - ./data:/app/data
       - parser_runtime:/app/data/runtime
       - ./config:/app/config:ro
+    environment:
+      PARSER_HEADLESS_CHANNEL: ${PARSER_HEADLESS_CHANNEL:-chrome}
     command: ["headless", "drain"]
     deploy:
       resources:

@@ -12,14 +12,15 @@ COPY . .
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -trimpath -o /parser ./cmd/parser
 
 FROM python:3.12-bookworm
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates su-exec && \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates su-exec xvfb && \
     rm -rf /var/lib/apt/lists/* && \
     adduser --disabled-password --uid 10001 --home /app parser
 
 WORKDIR /app
 COPY requirements.txt requirements-headless.txt ./
 RUN pip install --no-cache-dir -r requirements.txt -r requirements-headless.txt && \
-    playwright install --with-deps chromium
+    playwright install --with-deps chromium && \
+    playwright install chrome
 
 COPY --from=go-builder /parser /usr/local/bin/parser
 COPY data/ /app/data/
@@ -29,7 +30,8 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 
 ENV KEYWORDS_JSON_PATH=/app/data/keywords.json \
     PYTHONPATH=/app \
-    PARSER_LANDER_HEADLESS=true
+    PARSER_LANDER_HEADLESS=true \
+    PARSER_HEADLESS_CHANNEL=chrome
 
 RUN mkdir -p /app/data/export /app/data/runtime && \
     chown -R parser:parser /app/data && \

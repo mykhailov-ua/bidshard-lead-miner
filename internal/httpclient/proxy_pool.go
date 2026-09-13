@@ -104,20 +104,20 @@ func newProxyPool(parsed []*url.URL, cfg ProxyPoolConfig, sourceID string) *prox
 	}
 }
 
-func (p *proxyPool) acquire(ctx context.Context) (*url.URL, error) {
+func (p *proxyPool) acquire(ctx context.Context) (*url.URL, int, error) {
 	if len(p.endpoints) == 0 {
-		return nil, errors.New("no proxies configured")
+		return nil, -1, errors.New("no proxies configured")
 	}
 	for {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, -1, err
 		}
-		ep, waitUntil := p.pickEndpoint()
+		ep, idx, waitUntil := p.pickEndpoint()
 		if ep != nil {
 			if err := ep.limiter.Wait(ctx); err != nil {
-				return nil, err
+				return nil, -1, err
 			}
-			return ep.url, nil
+			return ep.url, idx, nil
 		}
 		wait := time.Until(waitUntil)
 		if wait <= 0 {
@@ -139,15 +139,15 @@ func (p *proxyPool) acquire(ctx context.Context) (*url.URL, error) {
 		case <-ctx.Done():
 			timer.Stop()
 			if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return nil, ErrProxyCooldown
+				return nil, -1, ErrProxyCooldown
 			}
-			return nil, ctx.Err()
+			return nil, -1, ctx.Err()
 		case <-timer.C:
 		}
 	}
 }
 
-func (p *proxyPool) pickEndpoint() (*proxyEndpoint, time.Time) {
+func (p *proxyPool) pickEndpoint() (*proxyEndpoint, int, time.Time) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	now := time.Now()
@@ -163,10 +163,18 @@ func (p *proxyPool) pickEndpoint() (*proxyEndpoint, time.Time) {
 		}
 	}
 	if len(available) == 0 {
-		return nil, earliest
+		return nil, -1, earliest
 	}
 	idx := atomic.AddUint64(&p.counter, 1) % uint64(len(available))
-	return available[idx], time.Time{}
+	chosen := available[idx]
+	poolIdx := -1
+	for i, ep := range p.endpoints {
+		if ep == chosen {
+			poolIdx = i
+			break
+		}
+	}
+	return chosen, poolIdx, time.Time{}
 }
 
 func (p *proxyPool) pruneCooldowns(now time.Time) {

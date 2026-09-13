@@ -24,11 +24,36 @@ fi
 
 mkdir -p var
 
+if [[ -f "$ROOT/.env" ]]; then
+	set -a
+	# shellcheck disable=SC1091
+	source "$ROOT/.env"
+	set +a
+fi
+
+# shellcheck source=scripts/lib/headless_proxy_geo.sh
+source "$ROOT/scripts/lib/headless_proxy_geo.sh"
+headless_export_proxy_geo_env "$ROOT"
+
+# Prefer system Chrome in headless image when installed (better WebGL than bundled Chromium).
+: "${PARSER_HEADLESS_CHANNEL:=chrome}"
+
+compose_run() {
+	docker compose -f docker-compose.headless.yaml --profile headless run --rm \
+		-e "PARSER_HEADLESS_LOCALE=${PARSER_HEADLESS_LOCALE:-}" \
+		-e "PARSER_HEADLESS_TIMEZONE=${PARSER_HEADLESS_TIMEZONE:-}" \
+		-e "PARSER_HEADLESS_CHANNEL=${PARSER_HEADLESS_CHANNEL:-}" \
+		-e "PARSER_HEADLESS_HEADED=${PARSER_HEADLESS_HEADED:-}" \
+		-e "PARSER_HEADLESS_XVFB=${PARSER_HEADLESS_XVFB:-}" \
+		parser-headless "$@"
+}
+
 if [[ "$DRY_RUN" == "1" ]]; then
-	docker compose -f docker-compose.headless.yaml --profile headless run --rm parser-headless headless drain --dry-run
+	compose_run headless drain --dry-run
 	exit 0
 fi
 
-printf 'headless-crawl-cron: start\n'
-docker compose -f docker-compose.headless.yaml --profile headless run --rm parser-headless headless drain 2>&1 | tee "var/headless-crawl-$(date -u +%Y%m%dT%H%M%SZ).log"
+printf 'headless-crawl-cron: start channel=%s locale=%s tz=%s\n' \
+	"${PARSER_HEADLESS_CHANNEL:-}" "${PARSER_HEADLESS_LOCALE:-}" "${PARSER_HEADLESS_TIMEZONE:-}"
+compose_run headless drain 2>&1 | tee "var/headless-crawl-$(date -u +%Y%m%dT%H%M%SZ).log"
 printf 'headless-crawl-cron: ok\n'

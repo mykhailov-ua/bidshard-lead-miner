@@ -149,6 +149,8 @@ Headless in default Alpine Docker image is not supported. Use `make docker-headl
 
 **Playwright + proxy (required reading):** [HEADLESS.md](../HEADLESS.md) section 12 (Chrome profile); [CRAWL_EGRESS_ANTIFRAUD.md](CRAWL_EGRESS_ANTIFRAUD.md) (residential egress, two-layer HTTP+Playwright, Cloudflare/bot-risk ceiling). Default VPS: `PARSER_LANDER_HEADLESS=false`; prefer `PARSER_LANDER_HEADLESS_DEFER=true` + `scripts/ops/headless-crawl-cron.sh`; residential in `PARSER_PROXY_LIST` for `tgweb-crawl-residential` / `cf-crawl-cron`.
 
+**Headless drain (P1):** `docker-compose.headless.yaml` image installs **Google Chrome** (`PARSER_HEADLESS_CHANNEL=chrome`) and **xvfb**. Cron script `headless-crawl-cron.sh` infers `PARSER_HEADLESS_LOCALE` / `PARSER_HEADLESS_TIMEZONE` from proxy username when unset (`scripts/lib/headless_proxy_geo.sh`). For headed mode on a Linux host without display: `PARSER_HEADLESS_HEADED=true PARSER_HEADLESS_XVFB=1 bash scripts/ops/headless-xvfb.sh python3 -m sources.headless.fetch <url>` (after `make venv` + playwright).
+
 ### tgweb troubleshooting
 
 | Symptom | Fix |

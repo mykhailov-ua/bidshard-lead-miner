@@ -132,7 +132,8 @@ func pageHasExtractableContacts(html string) bool {
 func (p *PageFetcher) FetchForCrawl(ctx context.Context, pageURL string, logHTTPNonOK bool) (html string, meta PageFetchMeta, status int, err error) {
 	meta = PageFetchMeta{Stage: "http_get"}
 
-	html, status, err = p.HTTP.getStatus(ctx, pageURL, false, logHTTPNonOK)
+	var cfBlocked bool
+	html, status, cfBlocked, err = p.HTTP.getStatusMeta(ctx, pageURL, false, logHTTPNonOK)
 	if err != nil && status == 0 {
 		if headlessHTML, ok := p.tryHeadless(ctx, pageURL, &meta, "headless_fallback"); ok {
 			return headlessHTML, meta, http.StatusOK, nil
@@ -151,16 +152,32 @@ func (p *PageFetcher) FetchForCrawl(ctx context.Context, pageURL string, logHTTP
 		return html, meta, status, nil
 	}
 
+	if cfBlocked {
+		if headlessHTML, ok := p.tryHeadless(ctx, pageURL, &meta, "cf_http_block"); ok {
+			return headlessHTML, meta, http.StatusOK, nil
+		}
+		if strings.HasSuffix(meta.Stage, "_queued") {
+			meta.Stage = "cf_http_block_queued"
+		}
+	}
+
 	// Non-OK with body: return status+html for SPA404 fingerprinting; err mirrors HTTP status.
 	return html, meta, status, err
 }
 
 func (p *PageFetcher) tryHeadless(ctx context.Context, pageURL string, meta *PageFetchMeta, stage string) (string, bool) {
+	proxyIdx := -1
+	if p.HTTP != nil {
+		proxyIdx = p.HTTP.LastProxyIndex()
+	}
+	headlessParams := HeadlessFetchParams{ProxyIndex: proxyIdx}
+
 	if p.HeadlessDefer {
 		if err := EnqueueHeadless(p.QueuePath, HeadlessQueueItem{
 			URL:          pageURL,
 			SourceFamily: p.SourceFamily,
 			Reason:       stage,
+			ProxyIndex:   proxyIdx,
 		}); err != nil {
 			slog.Warn("headless defer enqueue failed", "url", pageURL, "error", err)
 		} else {
@@ -172,7 +189,11 @@ func (p *PageFetcher) tryHeadless(ctx context.Context, pageURL string, meta *Pag
 	if !p.HeadlessEnabled {
 		return "", false
 	}
-	headlessHTML, err := p.Headless.Fetch(ctx, pageURL)
+	if !AllowHeadlessPersona(proxyIdx) {
+		slog.Debug("headless inline skipped", "url", pageURL, "reason", "persona_daily_cap", "proxy_index", proxyIdx)
+		return "", false
+	}
+	headlessHTML, err := p.Headless.Fetch(ctx, pageURL, headlessParams)
 	if err != nil {
 		slog.Warn("page headless fetch failed",
 			"url", pageURL,

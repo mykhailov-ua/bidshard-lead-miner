@@ -45,11 +45,24 @@ const defaultSharedTimeout = 30 * time.Second
 // RotatingProxyTransport implements http.RoundTripper with lock-free proxy selection,
 // per-proxy rate limits, uTLS TLS fingerprinting, browser header mirroring, and block cooldowns.
 type RotatingProxyTransport struct {
-	pool         *proxyPool
-	baseTrans    http.RoundTripper
-	transport    *http.Transport
-	currentProxy atomic.Pointer[url.URL]
-	sourceID     string
+	pool           *proxyPool
+	baseTrans      http.RoundTripper
+	transport      *http.Transport
+	currentProxy   atomic.Pointer[url.URL]
+	lastProxyIndex atomic.Int32
+	sourceID       string
+}
+
+// LastProxyIndex is the pool index for the proxy used on the most recent RoundTrip, or -1.
+func (t *RotatingProxyTransport) LastProxyIndex() int {
+	if t == nil || t.pool == nil || len(t.pool.endpoints) == 0 {
+		return -1
+	}
+	v := t.lastProxyIndex.Load()
+	if v < 0 {
+		return -1
+	}
+	return int(v)
 }
 
 func NewRotatingProxyTransport(proxyURLs []string, baseTrans http.RoundTripper) (*RotatingProxyTransport, error) {
@@ -137,11 +150,12 @@ func (t *RotatingProxyTransport) RoundTrip(req *http.Request) (*http.Response, e
 		return nil, ErrProxyBudgetExceeded
 	}
 
-	proxy, err := t.pool.acquire(req.Context())
+	proxy, idx, err := t.pool.acquire(req.Context())
 	if err != nil {
 		return nil, err
 	}
 	t.currentProxy.Store(proxy)
+	t.lastProxyIndex.Store(int32(idx))
 
 	cloned := req.Clone(req.Context())
 	applyBrowserHeaders(cloned)

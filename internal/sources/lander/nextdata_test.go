@@ -62,7 +62,7 @@ func TestExtractPageTextFromNextFlight(t *testing.T) {
 func TestHeadlessDisabledByDefault(t *testing.T) {
 	t.Parallel()
 
-	_, err := DisabledHeadless{}.Fetch(context.Background(), "https://example.com")
+	_, err := DisabledHeadless{}.Fetch(context.Background(), "https://example.com", HeadlessFetchParams{})
 	if err == nil {
 		t.Fatal("expected headless disabled error")
 	}

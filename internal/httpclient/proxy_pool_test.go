@@ -19,9 +19,12 @@ func TestPickEndpointSkipsCooledProxy(t *testing.T) {
 	}, "test")
 	pool.endpoints[0].cooldown = time.Now().Add(time.Hour)
 
-	ep, wait := pool.pickEndpoint()
+	ep, poolIdx, wait := pool.pickEndpoint()
 	if ep == nil || wait != (time.Time{}) {
 		t.Fatalf("expected available proxy, got ep=%v wait=%v", ep, wait)
+	}
+	if poolIdx != 1 {
+		t.Fatalf("poolIdx=%d want 1", poolIdx)
 	}
 	if ep.url.String() != u2.String() {
 		t.Fatalf("proxy=%s want %s", ep.url, u2)
@@ -34,7 +37,7 @@ func TestPickEndpointWaitsWhenAllCooled(t *testing.T) {
 	until := time.Now().Add(2 * time.Second)
 	pool.endpoints[0].cooldown = until
 
-	ep, wait := pool.pickEndpoint()
+	ep, _, wait := pool.pickEndpoint()
 	if ep != nil {
 		t.Fatalf("expected nil proxy, got %v", ep)
 	}
@@ -53,10 +56,10 @@ func TestPerProxyRateLimit(t *testing.T) {
 
 	ctx := context.Background()
 	start := time.Now()
-	if _, err := pool.acquire(ctx); err != nil {
+	if _, _, err := pool.acquire(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.acquire(ctx); err != nil {
+	if _, _, err := pool.acquire(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
@@ -99,7 +102,7 @@ func TestRotatingProxyTransportNoCooledFallback(t *testing.T) {
 	for _, ep := range trans.pool.endpoints {
 		ep.cooldown = now
 	}
-	ep, wait := trans.pool.pickEndpoint()
+	ep, _, wait := trans.pool.pickEndpoint()
 	if ep != nil || wait.IsZero() {
 		t.Fatalf("expected all cooled, ep=%v wait=%v", ep, wait)
 	}
@@ -112,7 +115,7 @@ func TestProxyPoolRoundRobinAmongAvailable(t *testing.T) {
 
 	var seen int64
 	for i := 0; i < 4; i++ {
-		ep, _ := pool.pickEndpoint()
+		ep, _, _ := pool.pickEndpoint()
 		if ep.url.Host == "10.0.0.2:8080" {
 			atomic.AddInt64(&seen, 1)
 		}

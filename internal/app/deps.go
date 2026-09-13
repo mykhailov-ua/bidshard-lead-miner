@@ -27,6 +27,7 @@ import (
 	"github.com/bidshard/parser/internal/seedfeedback"
 	"github.com/bidshard/parser/internal/sink"
 	"github.com/bidshard/parser/internal/sources/forum"
+	"github.com/bidshard/parser/internal/sources/lander"
 	"github.com/bidshard/parser/internal/telethon"
 	"github.com/bidshard/parser/internal/validate"
 	"github.com/bidshard/parser/internal/warmpath"
@@ -96,6 +97,13 @@ func buildDeps(ctx context.Context, cfg config.Config) (*runtimeDeps, error) {
 		slog.Info("proxy egress configured",
 			"proxies", len(cfg.ProxyURLs),
 			"scoped_sources", cfg.ProxySources,
+		)
+	}
+	lander.InitHeadlessPersonaBudget(cfg.HeadlessMaxURLsPerProxyDay, cfg.HeadlessPersonaBudgetPath)
+	if cfg.HeadlessMaxURLsPerProxyDay > 0 {
+		slog.Info("headless persona daily cap enabled",
+			"max_urls_per_proxy_day", cfg.HeadlessMaxURLsPerProxyDay,
+			"path", cfg.HeadlessPersonaBudgetPath,
 		)
 	}
 

@@ -10,67 +10,69 @@ import (
 )
 
 type Config struct {
-	PollInterval              time.Duration
-	WorkerCount               int
-	TaskBuffer                int
-	SourceConcurrency         int
-	ScanTimeout               time.Duration
-	HTTPTimeout               time.Duration
-	ShutdownTimeout           time.Duration
-	CollectDrainTimeout       time.Duration
-	LogFormat                 string
-	LogLevel                  string
-	Output                    string
-	WriteSlots                int
-	ScanOnce                  bool
-	IngestStdin               bool
-	IngestReader              io.Reader
-	TelegramSidecar           bool
-	TelegramRealtime          bool
-	TelegramDryRun            bool
-	TelegramConfigPath        string
-	TelethonPython            string
-	TelethonIPCSocket         string // UDS path for Telethon->Go (empty = stdout pipe NDJSON)
-	TelethonIPCFormat         string // ndjson|msgpack (msgpack default when socket set)
-	Source                    string
-	SupplySeedPath            string
-	SupplyHostRPS             float64
-	SupplyMaxDomains          int
-	SupplyBaseURL             string
-	SourceRegistryPath        string
-	ForumSeedPath             string
-	ForumRegistryPath         string
-	JobboardRegistryPath      string
-	InfraClustersPath         string
-	ShodanAPIKey              string
-	EmployerRegistryPath      string
-	EmployerReverseMaxPerRun  int
-	EmployerReverseRescanDays int
-	WebPainRegistryPath       string
-	ForumBaseURL              string
-	ForumHostAllowlist        []string
-	ForumHostAllowlistPath    string
-	LanderSeedPath            string
-	LanderBaseURL             string
-	LanderHeadless            bool
-	LanderHeadlessDefer       bool
-	LanderHeadlessQueuePath   string
-	LanderHeadlessQueueMax    int
-	LanderHeadlessDrainLimit  int
-	LanderHeadlessMaxBrowsers int
-	TelegramAPIID             int
-	TelegramAPIHash           string
-	MongoURI                  string
-	MongoDB                   string
-	MongoCollection           string
-	CRMSettingsCollection     string
-	ExportJSONPath            string
-	ExportJSONFormat          string
-	MXCheck                   bool
-	KeywordsJSONPath          string
-	KeywordsGrayPath          string
-	GeoBlockCountries         []string
-	DisposableDomainsPath     string
+	PollInterval               time.Duration
+	WorkerCount                int
+	TaskBuffer                 int
+	SourceConcurrency          int
+	ScanTimeout                time.Duration
+	HTTPTimeout                time.Duration
+	ShutdownTimeout            time.Duration
+	CollectDrainTimeout        time.Duration
+	LogFormat                  string
+	LogLevel                   string
+	Output                     string
+	WriteSlots                 int
+	ScanOnce                   bool
+	IngestStdin                bool
+	IngestReader               io.Reader
+	TelegramSidecar            bool
+	TelegramRealtime           bool
+	TelegramDryRun             bool
+	TelegramConfigPath         string
+	TelethonPython             string
+	TelethonIPCSocket          string // UDS path for Telethon->Go (empty = stdout pipe NDJSON)
+	TelethonIPCFormat          string // ndjson|msgpack (msgpack default when socket set)
+	Source                     string
+	SupplySeedPath             string
+	SupplyHostRPS              float64
+	SupplyMaxDomains           int
+	SupplyBaseURL              string
+	SourceRegistryPath         string
+	ForumSeedPath              string
+	ForumRegistryPath          string
+	JobboardRegistryPath       string
+	InfraClustersPath          string
+	ShodanAPIKey               string
+	EmployerRegistryPath       string
+	EmployerReverseMaxPerRun   int
+	EmployerReverseRescanDays  int
+	WebPainRegistryPath        string
+	ForumBaseURL               string
+	ForumHostAllowlist         []string
+	ForumHostAllowlistPath     string
+	LanderSeedPath             string
+	LanderBaseURL              string
+	LanderHeadless             bool
+	LanderHeadlessDefer        bool
+	LanderHeadlessQueuePath    string
+	LanderHeadlessQueueMax     int
+	LanderHeadlessDrainLimit   int
+	LanderHeadlessMaxBrowsers  int
+	HeadlessMaxURLsPerProxyDay int
+	HeadlessPersonaBudgetPath  string
+	TelegramAPIID              int
+	TelegramAPIHash            string
+	MongoURI                   string
+	MongoDB                    string
+	MongoCollection            string
+	CRMSettingsCollection      string
+	ExportJSONPath             string
+	ExportJSONFormat           string
+	MXCheck                    bool
+	KeywordsJSONPath           string
+	KeywordsGrayPath           string
+	GeoBlockCountries          []string
+	DisposableDomainsPath      string
 
 	LLMProvider           string
 	OllamaBaseURL         string
@@ -346,6 +348,8 @@ func Load() (Config, error) {
 		LanderHeadlessQueueMax:            envInt("PARSER_LANDER_HEADLESS_QUEUE_MAX", 200),
 		LanderHeadlessDrainLimit:          envInt("PARSER_LANDER_HEADLESS_DRAIN_LIMIT", 25),
 		LanderHeadlessMaxBrowsers:         envInt("PARSER_LANDER_HEADLESS_MAX_BROWSERS", 2),
+		HeadlessMaxURLsPerProxyDay:        envInt("PARSER_HEADLESS_MAX_URLS_PER_PROXY_DAY", 40),
+		HeadlessPersonaBudgetPath:         env("PARSER_HEADLESS_PERSONA_BUDGET_PATH", "data/runtime/headless_proxy_budget.json"),
 		LLMProvider:                       env("LLM_PROVIDER", "gemini"),
 		OllamaBaseURL:                     env("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
 		OllamaModel:                       env("OLLAMA_MODEL", "gemma3:12b"),

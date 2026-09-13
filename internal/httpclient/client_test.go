@@ -103,7 +103,7 @@ func BenchmarkRotatingProxySelection(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ep, _ := trans.pool.pickEndpoint()
+		ep, _, _ := trans.pool.pickEndpoint()
 		_ = ep
 		_ = req
 	}
