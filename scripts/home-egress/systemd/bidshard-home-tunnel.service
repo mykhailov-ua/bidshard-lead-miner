@@ -1,0 +1,15 @@
+[Unit]
+Description=BidShard reverse SSH tunnel to VPS (home ISP egress)
+After=network-online.target bidshard-home-crawl-proxy.service
+Wants=network-online.target bidshard-home-crawl-proxy.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/dev/bidshard/lead-intent-processor
+EnvironmentFile=-%h/dev/bidshard/lead-intent-processor/scripts/home-egress/.env.local
+ExecStart=%h/dev/bidshard/lead-intent-processor/scripts/home-egress/tunnel-to-vps.sh
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=default.target

@@ -195,6 +195,10 @@ Cloudflare Bot Management does **not** expose a public "fraud score = 0" to this
 |------|-----|--------|
 | `storage_state` per sticky proxy session | Reuse cookies and `cf_clearance` on same host | **Done (P0):** `data/runtime/browser_profiles/proxy_N/storage_state.json` |
 | Playwright proxy index matches Go HTTP pool | Same persona on wire | **Done (P0):** `LastProxyIndex`, `PARSER_HEADLESS_PROXY_INDEX`, queue `proxy_index` |
+### Home ISP bridge (ops)
+
+Reverse SSH + home Squid: [scripts/home-egress/README.md](../scripts/home-egress/README.md). Same `PARSER_PROXY_LIST` path; egress ASN is your ISP, not datacenter VPS.
+
 ### P2 (done)
 
 | Item | Implementation |

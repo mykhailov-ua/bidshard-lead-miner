@@ -290,6 +290,33 @@ vps-proxy-docker:
 vps-proxy-down:
 	docker compose -f scripts/vps-proxy/docker-compose.proxy.yaml down
 
+# Home ISP egress: run proxy + tunnel on your PC, then vps-apply-home-proxy (see scripts/home-egress/README.md)
+home-egress-proxy-up:
+	chmod +x scripts/home-egress/*.sh scripts/ops/vps-check-home-tunnel.sh
+	./scripts/home-egress/setup-home-proxy.sh
+
+home-egress-tunnel:
+	./scripts/home-egress/tunnel-to-vps.sh
+
+home-egress-systemd:
+	chmod +x scripts/home-egress/install-user-systemd.sh
+	./scripts/home-egress/install-user-systemd.sh
+
+home-egress-env:
+	./scripts/home-egress/print-vps-env.sh
+
+vps-check-home-tunnel:
+	bash ./scripts/ops/vps-check-home-tunnel.sh
+
+vps-apply-home-proxy:
+	bash ./scripts/ops/vps-apply-home-proxy.sh
+
+vps-save-residential-proxy:
+	bash ./scripts/ops/vps-save-residential-proxy.sh
+
+vps-install-proxy-failover:
+	bash ./scripts/ops/install-proxy-egress-failover.sh
+
 bpf-dev:
 	bash scripts/dev/bpf_setup.sh
 

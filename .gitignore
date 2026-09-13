@@ -36,6 +36,9 @@ scripts/proxy/.env.local
 scripts/vps-proxy/.env.local
 scripts/vps-proxy/.credentials
 scripts/vps-proxy/passwd
+scripts/home-egress/.env.local
+scripts/home-egress/.credentials
+scripts/home-egress/passwd
 
 # Temporary files
 *.tmp

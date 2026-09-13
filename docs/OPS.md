@@ -551,6 +551,45 @@ Scripts: `scripts/vps-proxy/install-on-vps.sh`, `setup-docker-proxy.sh`, `check-
 
 ---
 
+## Home ISP egress bridge
+
+Use your **home public IP** for `PARSER_PROXY_LIST` when paid residential pools fail. Parser on VPS uses `network_mode: host`; a **reverse SSH tunnel** exposes home Squid on `127.0.0.1` on the VPS.
+
+| Step | Where | Command |
+|------|--------|---------|
+| 1 | Home PC | `cp scripts/home-egress/env.example scripts/home-egress/.env.local` |
+| 2 | Home PC | `make home-egress-proxy-up` (Squid on `127.0.0.1:3128`) |
+| 3 | Home PC | `make home-egress-tunnel` (keep running; uses `autossh` if installed) |
+| 4 | Dev laptop | `make vps-apply-home-proxy` (writes VPS `.env`, restarts parser) |
+| 5 | Optional | `make vps-check-home-tunnel` |
+
+VPS `.env` ends up like `PARSER_PROXY_LIST=http://parser:PASS@127.0.0.1:19888`. Remove or unset `PARSER_PROXY_LIST_FILE` so the 944-URL commercial pool is not used.
+
+Requirements: home machine online during crawl; SSH key home -> VPS; no router port forward (outbound SSH only). Telethon is **not** tunneled (`TELEGRAM_PROXY_URL` unchanged).
+
+Full guide: [scripts/home-egress/README.md](../scripts/home-egress/README.md), [config/env/.env.home-egress.example](../config/env/.env.home-egress.example).
+
+### Automatic failover (residential pool vs home tunnel)
+
+Systemd timer on VPS samples residential proxies; if the share of non-403 probe responses drops below `PROXY_FAILOVER_MIN_OK_RATIO`, it switches `.env` to `var/home-egress.credentials` and restarts parser. Switches back when the pool recovers (with hysteresis).
+
+```bash
+# One-time: snapshot commercial pool while still in .env (before or after re-enabling PARSER_PROXY_LIST_FILE)
+make vps-save-residential-proxy
+
+# Push home creds for failover (also keeps var/home-egress.credentials on VPS)
+make vps-apply-home-proxy
+
+# Install timer on VPS (after git pull / deploy)
+make vps-install-proxy-failover
+
+# Tune thresholds on VPS: var/proxy-egress/failover.env (see config/env/.env.proxy-egress-failover.example)
+```
+
+Logs: `var/proxy-egress/failover.log` and `journalctl -u bidshard-proxy-egress-failover.service`.
+
+---
+
 ## eBPF dev probe (Linux)
 
 Syscall/sched/net probe for tgweb crawl and parser pipeline analysis. **Dev only** - Linux 5.8+, root/CAP_BPF, clang or Docker build.

@@ -1,0 +1,11 @@
+[Unit]
+Description=BidShard residential proxy health failover
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/lead-intent-processor
+EnvironmentFile=-/opt/lead-intent-processor/var/proxy-egress/failover.env
+ExecStart=/opt/lead-intent-processor/scripts/ops/proxy-egress-failover.sh
+Nice=10

@@ -1,0 +1,11 @@
+# Squid on loopback at home; egress IP is your home ISP (not datacenter VPS).
+services:
+  home-crawl-proxy:
+    image: ubuntu/squid:5.2-22.04_beta
+    container_name: bidshard-home-crawl-proxy
+    ports:
+      - "127.0.0.1:${HOME_PROXY_PORT:-3128}:3128"
+    volumes:
+      - ../vps-proxy/squid.conf:/etc/squid/squid.conf:ro
+      - ./passwd:/etc/squid/passwd:ro
+    restart: unless-stopped

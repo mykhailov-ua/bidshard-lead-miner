@@ -1,0 +1,16 @@
+[Unit]
+Description=BidShard home Squid crawl proxy (loopback)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=%h/dev/bidshard/lead-intent-processor/scripts/home-egress
+EnvironmentFile=-%h/dev/bidshard/lead-intent-processor/scripts/home-egress/.env.local
+ExecStart=/usr/bin/docker compose -f docker-compose.home-proxy.yaml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.home-proxy.yaml down
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target
